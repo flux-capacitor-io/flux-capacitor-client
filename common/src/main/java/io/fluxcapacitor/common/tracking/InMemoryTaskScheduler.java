@@ -72,6 +72,7 @@ public class InMemoryTaskScheduler implements TaskScheduler {
         executorService.scheduleWithFixedDelay(this::executeExpiredTasks, delay, delay, TimeUnit.MILLISECONDS);
     }
 
+    @Override
     public void executeExpiredTasks() {
         tasks.forEach(task -> {
             if (isMissedDeadline(clock(), task.deadline) && tasks.remove(task)) {

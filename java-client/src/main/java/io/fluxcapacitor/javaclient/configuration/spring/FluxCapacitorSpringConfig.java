@@ -72,6 +72,11 @@ public class FluxCapacitorSpringConfig implements BeanPostProcessor {
         return new StatefulPostProcessor();
     }
 
+    @Bean
+    public static SocketEndpointPostProcessor socketEndpointPostProcessor() {
+        return new SocketEndpointPostProcessor();
+    }
+
     private final ApplicationContext context;
     private final List<Object> springBeans = new CopyOnWriteArrayList<>();
     private final AtomicReference<Registration> handlerRegistration = new AtomicReference<>();

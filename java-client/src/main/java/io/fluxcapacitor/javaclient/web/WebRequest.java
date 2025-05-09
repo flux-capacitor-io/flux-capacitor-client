@@ -198,6 +198,10 @@ public class WebRequest extends Message {
                 .stream().filter(c -> Objects.equals(c.getName(), name)).findFirst();
     }
 
+    public static String getSocketSessionId(Metadata metadata) {
+        return metadata.get("sessionId");
+    }
+
     @Data
     @NoArgsConstructor
     @Accessors(fluent = true, chain = true)

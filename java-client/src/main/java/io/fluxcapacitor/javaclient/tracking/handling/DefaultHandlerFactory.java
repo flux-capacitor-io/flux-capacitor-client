@@ -31,6 +31,8 @@ import io.fluxcapacitor.javaclient.modeling.HandlerRepository;
 import io.fluxcapacitor.javaclient.tracking.TrackSelf;
 import io.fluxcapacitor.javaclient.web.HandleWeb;
 import io.fluxcapacitor.javaclient.web.HandleWebResponse;
+import io.fluxcapacitor.javaclient.web.SocketEndpoint;
+import io.fluxcapacitor.javaclient.web.SocketEndpointHandler;
 import io.fluxcapacitor.javaclient.web.WebHandlerMatcher;
 import lombok.AllArgsConstructor;
 import lombok.NonNull;
@@ -55,14 +57,17 @@ public class DefaultHandlerFactory implements HandlerFactory {
     private final MessageFilter<? super DeserializingMessage> messageFilter;
     private final Class<? extends Annotation> handlerAnnotation;
     private final Function<Class<?>, HandlerRepository> handlerRepositorySupplier;
+    private final RepositoryProvider repositoryProvider;
 
     public DefaultHandlerFactory(MessageType messageType, HandlerDecorator defaultDecorator,
                                  List<ParameterResolver<? super DeserializingMessage>> parameterResolvers,
-                                 Function<Class<?>, HandlerRepository> handlerRepositorySupplier) {
+                                 Function<Class<?>, HandlerRepository> handlerRepositorySupplier,
+                                 RepositoryProvider repositoryProvider) {
         this.messageType = messageType;
         this.defaultDecorator = defaultDecorator;
         this.parameterResolvers = parameterResolvers;
         this.handlerRepositorySupplier = handlerRepositorySupplier;
+        this.repositoryProvider = repositoryProvider;
         this.handlerAnnotation = getHandlerAnnotation(messageType);
         this.messageFilter = computeMessageFilter();
     }
@@ -91,6 +96,16 @@ public class DefaultHandlerFactory implements HandlerFactory {
                 if (handler != null) {
                     return new StatefulHandler(targetClass, createHandlerMatcher(targetClass, config),
                                                handlerRepositorySupplier.apply(targetClass));
+                }
+            }
+
+            {
+                SocketEndpoint handler = ReflectionUtils.getTypeAnnotation(targetClass, SocketEndpoint.class);
+                if (handler != null) {
+                    return new SocketEndpointHandler(
+                            targetClass, createHandlerMatcher(targetClass, config),
+                            createHandlerMatcher(SocketEndpointHandler.SocketEndpointWrapper.class, config),
+                            repositoryProvider);
                 }
             }
 

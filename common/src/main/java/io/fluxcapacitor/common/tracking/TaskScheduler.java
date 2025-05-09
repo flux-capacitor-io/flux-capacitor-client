@@ -33,6 +33,8 @@ public interface TaskScheduler {
 
     Clock clock();
 
+    void executeExpiredTasks();
+
     Registration schedule(long deadline, ThrowingRunnable task);
 
     void shutdown();

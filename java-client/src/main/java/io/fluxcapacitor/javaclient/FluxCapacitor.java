@@ -22,6 +22,7 @@ import io.fluxcapacitor.common.ThrowingFunction;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.search.SearchQuery;
 import io.fluxcapacitor.common.application.PropertySource;
+import io.fluxcapacitor.common.tracking.TaskScheduler;
 import io.fluxcapacitor.javaclient.common.ClientUtils;
 import io.fluxcapacitor.javaclient.common.IdentityProvider;
 import io.fluxcapacitor.javaclient.common.Message;
@@ -993,6 +994,11 @@ public interface FluxCapacitor extends AutoCloseable {
      * Returns the {@link PropertySource} configured for this FluxCapacitor instance.
      */
     PropertySource propertySource();
+
+    /**
+     * Returns the {@link TaskScheduler} of this FluxCapacitor instance.
+     */
+    TaskScheduler taskScheduler();
 
     /**
      * Returns the low level client used by this FluxCapacitor instance to interface with the Flux Capacitor service. Of

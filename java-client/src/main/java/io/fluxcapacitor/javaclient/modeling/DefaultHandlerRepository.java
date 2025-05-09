@@ -46,8 +46,8 @@ import static io.fluxcapacitor.javaclient.common.ClientUtils.memoize;
 @Getter(AccessLevel.PROTECTED)
 public class DefaultHandlerRepository implements HandlerRepository {
 
-    public static Function<Class<?>, HandlerRepository> repositorySupplier(Supplier<DocumentStore> documentStore,
-                                                                           DocumentSerializer documentSerializer) {
+    public static Function<Class<?>, HandlerRepository> handlerRepositorySupplier(Supplier<DocumentStore> documentStore,
+                                                                                  DocumentSerializer documentSerializer) {
         return memoize(type -> {
             Stateful stateful = ReflectionUtils.getTypeAnnotation(type, Stateful.class);
             var defaultRepo = new DefaultHandlerRepository(

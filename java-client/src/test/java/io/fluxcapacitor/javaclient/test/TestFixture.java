@@ -809,6 +809,7 @@ public class TestFixture implements Given, When {
     }
 
     protected void handleExpiredSchedulesLocally(boolean collectErrors) {
+        getFluxCapacitor().taskScheduler().executeExpiredTasks();
         if (synchronous) {
             try {
                 SchedulingClient schedulingClient = getFluxCapacitor().client().getSchedulingClient();

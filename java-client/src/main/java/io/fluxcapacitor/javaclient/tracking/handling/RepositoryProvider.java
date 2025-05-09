@@ -12,20 +12,11 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.javaclient.web;
+package io.fluxcapacitor.javaclient.tracking.handling;
 
-import java.lang.annotation.Documented;
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
+import java.util.Map;
 
-@Documented
-@Retention(RetentionPolicy.RUNTIME)
-@Target({ElementType.METHOD, ElementType.CONSTRUCTOR})
-@HandleWeb(value = "", method = HttpRequestMethod.WS_MESSAGE)
-public @interface HandleSocketMessage {
-    String[] value() default {};
-    boolean disabled() default false;
-    boolean passive() default false;
+@FunctionalInterface
+public interface RepositoryProvider {
+    <T> Map<Object, T> getRepository(Class<T> repositoryClass);
 }

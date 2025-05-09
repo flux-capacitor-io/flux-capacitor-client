@@ -17,6 +17,7 @@ package io.fluxcapacitor.javaclient.test;
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.application.PropertySource;
+import io.fluxcapacitor.common.tracking.TaskScheduler;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.IdentityProvider;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
@@ -174,6 +175,11 @@ public class SpyingFluxCapacitor implements FluxCapacitor {
     @Override
     public PropertySource propertySource() {
         return delegate.propertySource();
+    }
+
+    @Override
+    public TaskScheduler taskScheduler() {
+        return delegate.taskScheduler();
     }
 
     @Override

@@ -16,20 +16,27 @@ package io.fluxcapacitor.javaclient.web;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import io.fluxcapacitor.common.MessageType;
+import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.serialization.JsonUtils;
+import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
 import io.fluxcapacitor.javaclient.modeling.Id;
 import io.fluxcapacitor.javaclient.test.TestFixture;
+import io.fluxcapacitor.javaclient.tracking.handling.HandleEvent;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.FixedUserProvider;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.MockUser;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.RequiresUser;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.UnauthenticatedException;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.User;
+import io.fluxcapacitor.javaclient.web.SocketEndpoint.AliveCheck;
 import io.fluxcapacitor.javaclient.web.path.ClassPathHandler;
 import io.fluxcapacitor.javaclient.web.path.PackagePathHandler;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.Value;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
@@ -43,6 +50,7 @@ import static io.fluxcapacitor.javaclient.web.HttpRequestMethod.GET;
 import static io.fluxcapacitor.javaclient.web.HttpRequestMethod.POST;
 import static io.fluxcapacitor.javaclient.web.HttpRequestMethod.PUT;
 import static io.fluxcapacitor.javaclient.web.HttpRequestMethod.TRACE;
+import static io.fluxcapacitor.javaclient.web.HttpRequestMethod.WS_CLOSE;
 import static io.fluxcapacitor.javaclient.web.HttpRequestMethod.WS_HANDSHAKE;
 import static io.fluxcapacitor.javaclient.web.HttpRequestMethod.WS_MESSAGE;
 import static io.fluxcapacitor.javaclient.web.HttpRequestMethod.WS_OPEN;
@@ -196,7 +204,7 @@ public class HandleWebTest {
         @Test
         void testPostPayloadRequiringUser_invalidWithoutUser() {
             testFixture.whenWebRequest(WebRequest.builder().method(POST).url("/requiresUser")
-                                            .payload(new PayloadRequiringUser()).build())
+                                               .payload(new PayloadRequiringUser()).build())
                     .expectExceptionalResult(UnauthenticatedException.class);
         }
 
@@ -217,10 +225,11 @@ public class HandleWebTest {
         @Test
         void testExpectWebRequestEmptyPayload() {
             TestFixture.create(new Object() {
-                @HandlePost("/foo")
-                void foo() {}
-            }).whenApplying(fc -> fc.webRequestGateway().sendAndWait(
-                    WebRequest.builder().method(POST).url("/foo").build()))
+                        @HandlePost("/foo")
+                        void foo() {
+                        }
+                    }).whenApplying(fc -> fc.webRequestGateway().sendAndWait(
+                            WebRequest.builder().method(POST).url("/foo").build()))
                     .expectWebRequest(r -> r.getMethod() == POST);
 
         }
@@ -559,8 +568,234 @@ public class HandleWebTest {
             }
         }
 
+        @Nested
+        class EndpointTests {
+            static final String endpointUrl = "/endpoint";
+            private final TestFixture testFixture = TestFixture.create();
 
-        private class Handler {
+            @Nested
+            class ConstructorTests {
+
+                @BeforeEach
+                void setUp() {
+                    testFixture.registerHandlers(Endpoint.class);
+                }
+
+                @Test
+                void testOpen() {
+                    testFixture.whenWebRequest(toWebRequest(WS_OPEN))
+                            .expectWebResponses("open: testSession");
+                }
+
+                @Test
+                void testMessageWithoutOpenNotPossible() {
+                    testFixture.whenWebRequest(toWebRequest(WS_MESSAGE))
+                            .expectExceptionalResult();
+                }
+
+                @Test
+                void testMessageWithOpen() {
+                    testFixture
+                            .givenWebRequest(toWebRequest(WS_OPEN))
+                            .whenWebRequest(toWebRequest(WS_MESSAGE))
+                            .expectWebResponses("response: testSession");
+                }
+
+                @Test
+                void testMessageOtherUrl() {
+                    testFixture
+                            .givenWebRequest(toWebRequest(WS_OPEN))
+                            .whenWebRequest(toWebRequest(WS_MESSAGE).toBuilder()
+                                                    .metadata(Metadata.of("sessionId", "otherSession"))
+                                                    .url("/other").build())
+                            .expectExceptionalResult();
+                }
+
+                @SocketEndpoint
+                @Path(endpointUrl)
+                static class Endpoint {
+                    private final SocketSession session;
+
+                    @HandleSocketOpen
+                    Endpoint(SocketSession session) {
+                        this.session = session;
+                        session.sendMessage("open: " + session.sessionId());
+                    }
+
+                    @HandleSocketMessage
+                    String response() {
+                        return "response: " + session.sessionId();
+                    }
+                }
+            }
+
+            @Nested
+            class DefaultConstructorTests {
+
+                @BeforeEach
+                void setUp() {
+                    testFixture.registerHandlers(Endpoint.class);
+                }
+
+                @Test
+                void testOpen() {
+                    testFixture.whenWebRequest(toWebRequest(WS_OPEN))
+                            .expectWebResponses("open: testSession");
+                }
+
+                @Test
+                void testMessage() {
+                    testFixture.whenWebRequest(toWebRequest(WS_MESSAGE))
+                            .expectWebResponses("response: testSession");
+                }
+
+                @Test
+                void testEventAfterOpen() {
+                    testFixture.givenWebRequest(toWebRequest(WS_OPEN))
+                            .whenEvent(123)
+                            .expectEvents("123");
+                }
+
+                @Test
+                void testEventBeforeOpen() {
+                    testFixture
+                            .whenEvent(123)
+                            .expectNoEvents()
+                            .expectNoErrors();
+                }
+
+                @SocketEndpoint
+                @Path(endpointUrl)
+                static class Endpoint {
+
+                    @HandleSocketOpen
+                    Object onOpen(SocketSession session) {
+                        return "open: " + session.sessionId();
+                    }
+
+                    @HandleSocketMessage
+                    String onMessage(SocketSession session) {
+                        return "response: " + session.sessionId();
+                    }
+
+                    @HandleEvent
+                    void handle(Integer event) {
+                        FluxCapacitor.publishEvent(event.toString());
+                    }
+                }
+            }
+
+            @Nested
+            class PingTests {
+
+                static final int pingDelay = 30, pingTimeout = 10;
+
+                @BeforeEach
+                void setUp() {
+                    testFixture.registerHandlers(Endpoint.class);
+                }
+
+                @Test
+                void testSendPing() {
+                    testFixture.givenWebRequest(toWebRequest(WS_OPEN))
+                            .whenTimeElapses(Duration.ofSeconds(pingDelay))
+                            .expectWebResponse(r -> "ping".equals(r.getMetadata().get("function")));
+                }
+
+                @Test
+                void closeAfterPingTimeout() {
+                    testFixture.givenWebRequest(toWebRequest(WS_OPEN))
+                            .whenTimeElapses(Duration.ofSeconds(pingDelay))
+                            .andThen()
+                            .whenTimeElapses(Duration.ofSeconds(pingTimeout))
+                            .expectWebResponse(r -> "close".equals(r.getMetadata().get("function")));
+                }
+
+                @Test
+                void testMessage() {
+                    testFixture.whenWebRequest(toWebRequest(WS_MESSAGE))
+                            .expectWebResponses("response: testSession");
+                }
+
+                @SocketEndpoint(aliveCheck = @AliveCheck(pingDelay = pingDelay, pingTimeout = pingTimeout))
+                @Path(endpointUrl)
+                static class Endpoint {
+
+                    @HandleSocketOpen
+                    Object onOpen(SocketSession session) {
+                        return "open: " + session.sessionId();
+                    }
+
+                    @HandleSocketMessage
+                    String onMessage(SocketSession session) {
+                        return "response: " + session.sessionId();
+                    }
+                }
+            }
+
+            @Nested
+            class FactoryMethodTests {
+
+                @BeforeEach
+                void setUp() {
+                    testFixture.registerHandlers(Endpoint.class);
+                }
+
+                @Test
+                void testOpen() {
+                    testFixture.whenWebRequest(toWebRequest(WS_OPEN))
+                            .expectWebResponses("open: testSession");
+                }
+
+                @Test
+                void testMessage() {
+                    testFixture
+                            .givenWebRequest(toWebRequest(WS_OPEN))
+                            .whenWebRequest(toWebRequest(WS_MESSAGE))
+                            .expectWebResponses("foo: testSession");
+                }
+
+                @Test
+                void testClose() {
+                    testFixture
+                            .givenWebRequest(toWebRequest(WS_OPEN))
+                            .whenWebRequest(toWebRequest(WS_CLOSE))
+                            .expectNoResult()
+                            .expectNoWebResponses()
+                            .andThen()
+                            .whenWebRequest(toWebRequest(WS_MESSAGE))
+                            .expectExceptionalResult();
+                }
+
+                @SocketEndpoint
+                @Path(endpointUrl)
+                @AllArgsConstructor(access = AccessLevel.PRIVATE)
+                static class Endpoint {
+
+                    private final String name;
+
+                    @HandleSocketOpen
+                    static Endpoint onOpen(SocketSession session) {
+                        session.sendMessage("open: " + session.sessionId());
+                        return new Endpoint("foo");
+                    }
+
+                    @HandleSocketMessage
+                    String onMessage(SocketSession session) {
+                        return name + ": " + session.sessionId();
+                    }
+                }
+            }
+
+            private WebRequest toWebRequest(String method) {
+                return WebRequest.builder().method(method).url(endpointUrl)
+                        .metadata(Metadata.of("sessionId", "testSession"))
+                        .payload("hello").build();
+            }
+        }
+
+
+        static class Handler {
             @HandleSocketHandshake("manual")
             String handshake() {
                 return "handshake";
@@ -615,22 +850,22 @@ public class HandleWebTest {
         @Test
         void testInvalidCookieHeader() {
             TestFixture.create(new Object() {
-                @HandleGet("/checkHeader")
-                String check(WebRequest request) {
-                    return request.getCookie("").map(HttpCookie::getValue).orElse(null);
-                }
-            }).withHeader("cookie", "bar").whenGet("/checkHeader")
+                        @HandleGet("/checkHeader")
+                        String check(WebRequest request) {
+                            return request.getCookie("").map(HttpCookie::getValue).orElse(null);
+                        }
+                    }).withHeader("cookie", "bar").whenGet("/checkHeader")
                     .expectNoResult().expectNoErrors();
         }
 
         @Test
         void testWithoutHeader() {
             TestFixture.create(new Object() {
-                @HandleGet("/checkHeader")
-                String check(WebRequest request) {
-                    return Optional.ofNullable(request.getHeader("foo")).orElseThrow();
-                }
-            }).withHeader("foo", "bar")
+                        @HandleGet("/checkHeader")
+                        String check(WebRequest request) {
+                            return Optional.ofNullable(request.getHeader("foo")).orElseThrow();
+                        }
+                    }).withHeader("foo", "bar")
                     .withoutHeader("foo").whenGet("/checkHeader").expectExceptionalResult();
         }
 

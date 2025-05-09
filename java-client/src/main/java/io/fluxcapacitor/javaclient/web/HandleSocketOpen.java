@@ -22,7 +22,7 @@ import java.lang.annotation.Target;
 
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
-@Target(ElementType.METHOD)
+@Target({ElementType.METHOD, ElementType.CONSTRUCTOR})
 @HandleWeb(value = "", method = HttpRequestMethod.WS_OPEN)
 public @interface HandleSocketOpen {
     String[] value() default {};

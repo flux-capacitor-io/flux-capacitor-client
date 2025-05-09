@@ -32,7 +32,7 @@ public class SocketSessionParameterResolver implements ParameterResolver<HasMess
     @Override
     public Function<HasMessage, Object> resolve(Parameter p, Annotation methodAnnotation) {
         return m -> {
-            String sessionId = m.getMetadata().get("sessionId");
+            String sessionId = WebRequest.getSocketSessionId(m.getMetadata());
             if (sessionId == null) {
                 throw new IllegalStateException("`sessionId` is missing in the metadata of the WebRequest");
             }

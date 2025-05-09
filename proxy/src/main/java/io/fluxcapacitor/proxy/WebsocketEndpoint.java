@@ -28,6 +28,7 @@ import io.fluxcapacitor.javaclient.publishing.client.GatewayClient;
 import io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration;
 import io.fluxcapacitor.javaclient.tracking.IndexUtils;
 import io.fluxcapacitor.javaclient.web.HttpRequestMethod;
+import io.fluxcapacitor.javaclient.web.WebRequest;
 import jakarta.websocket.CloseReason;
 import jakarta.websocket.Endpoint;
 import jakarta.websocket.EndpointConfig;
@@ -109,7 +110,7 @@ public class WebsocketEndpoint extends Endpoint {
 
     protected void handleResultMessages(List<SerializedMessage> resultMessages) {
         resultMessages.forEach(m -> {
-            var sessionId = m.getMetadata().get("sessionId");
+            var sessionId = WebRequest.getSocketSessionId(m.getMetadata());
             if (sessionId != null) {
                 var session = openSessions.get(sessionId);
                 if (session != null && session.isOpen()) {
