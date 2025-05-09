@@ -114,19 +114,19 @@ public class AssertLegalTest {
 
     @Test
     void testAssertInField() {
-        testFixture.whenCommand(new CommandThatDelegatesToProperty(new CommandWithAssertionInInterface(), null))
+        testFixture.whenCommand(new CommandThatDelegatesToProperty(new CommandWithAssertionInInterface(), new CommandWithAssertionInInterface2(), null, null))
                 .expectExceptionalResult(MockException.class);
     }
 
     @Test
     void testAssertInMethod() {
-        testFixture.whenCommand(new CommandThatDelegatesToProperty(null, new CommandWithAssertionInInterface()))
+        testFixture.whenCommand(new CommandThatDelegatesToProperty(null, null, new CommandWithAssertionInInterface(), new CommandWithAssertionInInterface2()))
                 .expectExceptionalResult(MockException.class);
     }
 
     @Test
     void testAssertInFieldOrMethodIfBothAreNull() {
-        testFixture.whenCommand(new CommandThatDelegatesToProperty(null, null)).expectSuccessfulResult();
+        testFixture.whenCommand(new CommandThatDelegatesToProperty(null, null, null, null)).expectSuccessfulResult();
     }
 
     @Test
@@ -217,6 +217,10 @@ public class AssertLegalTest {
     private static class CommandWithAssertionInInterface implements ImpossibleAssertion {
     }
 
+    @Value
+    private static class CommandWithAssertionInInterface2 implements ImpossibleAssertion {
+    }
+
     private interface ImpossibleAssertion {
         @AssertLegal
         default void assertTheImpossible(@Nullable Object model) {
@@ -301,11 +305,19 @@ public class AssertLegalTest {
     private static class CommandThatDelegatesToProperty {
         @AssertLegal
         CommandWithAssertionInInterface field;
+        @AssertLegal
+        CommandWithAssertionInInterface2 otherField;
         CommandWithAssertionInInterface method;
+        CommandWithAssertionInInterface2 otherMethod;
 
         @AssertLegal
         public CommandWithAssertionInInterface getMethod() {
             return method;
+        }
+
+        @AssertLegal
+        public CommandWithAssertionInInterface2 getOtherMethod() {
+            return otherMethod;
         }
     }
 

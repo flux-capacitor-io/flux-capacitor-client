@@ -193,7 +193,9 @@ public class DefaultEntityHelper implements EntityHelper {
                 .filter(i -> getAnnotation(i.getMethod(), AssertLegal.class).map(
                         a -> a.afterHandler() == afterHandler).orElse(false))
                 .ifPresent(s -> {
-                    Object additionalObject = s.invoke();
+                    Object additionalObject = s.invoke((first, second) -> Stream.concat(
+                            first instanceof Collection<?> c ? c.stream() : Stream.of(first),
+                            second instanceof Collection<?> c ? c.stream() : Stream.of(second)).toList());
                     if (additionalObject instanceof Collection<?>) {
                         additionalProperties.addAll((Collection<?>) additionalObject);
                     } else {

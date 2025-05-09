@@ -18,9 +18,6 @@ import lombok.AllArgsConstructor;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Executable;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.BiFunction;
@@ -46,6 +43,15 @@ public interface HandlerInvoker {
         });
     }
 
+    default HandlerInvoker andThen(HandlerInvoker other) {
+        return new DelegatingHandlerInvoker(this) {
+            @Override
+            public Object invoke(BiFunction<Object, Object, Object> combiner) {
+                return combiner.apply(delegate.invoke(), other.invoke());
+            }
+        };
+    }
+
     Class<?> getTargetClass();
 
     Executable getMethod();
@@ -57,21 +63,10 @@ public interface HandlerInvoker {
     boolean isPassive();
 
     default Object invoke() {
-        return invoke((first, second) -> {
-            @SuppressWarnings("unchecked")
-            ArrayList<Object> combination = first instanceof ArrayList<?>
-                    ? (ArrayList<Object>) first : first instanceof Collection<?>
-                    ? new ArrayList<>((Collection<?>) first) : new ArrayList<>(Collections.singletonList(first));
-            if (second instanceof Collection<?>) {
-                combination.addAll((Collection<?>) second);
-            } else {
-                combination.add(second);
-            }
-            return combination;
-        });
+        return invoke((firstResult, secondResult) -> firstResult);
     }
 
-    Object invoke(BiFunction<Object, Object, Object> combiner);
+    Object invoke(BiFunction<Object, Object, Object> resultCombiner);
 
     @AllArgsConstructor
     abstract class DelegatingHandlerInvoker implements HandlerInvoker {
