@@ -58,6 +58,7 @@ import java.nio.channels.ReadableByteChannel;
 import java.nio.charset.Charset;
 import java.security.cert.Certificate;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -438,6 +439,10 @@ public class DefaultWebRequestContext implements DefaultContext, WebRequestConte
     @Override
     public Context onComplete(@NotNull Route.Complete task) {
         return this;
+    }
+
+    public boolean matchesAny(Collection<String> urlPatterns) {
+        return urlPatterns.stream().anyMatch(this::matches);
     }
 
     protected static class ConvertingRouter implements Router {

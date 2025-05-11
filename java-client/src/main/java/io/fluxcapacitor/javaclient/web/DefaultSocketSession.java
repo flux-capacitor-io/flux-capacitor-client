@@ -30,6 +30,7 @@ public class DefaultSocketSession implements SocketSession {
     private final String sessionId;
     private final String target;
     private final ResultGateway webResponseGateway;
+    private final Runnable abortCallback;
 
     @Override
     public CompletableFuture<Void> sendMessage(Object value, Guarantee guarantee) {
@@ -43,10 +44,14 @@ public class DefaultSocketSession implements SocketSession {
 
     @Override
     public CompletableFuture<Void> close(int code, Guarantee guarantee) {
-        if (code < 1000 || code > 4999) {
-            throw new IllegalArgumentException("Invalid code: " + code);
+        try {
+            if (code < 1000 || code > 4999) {
+                throw new IllegalArgumentException("Invalid code: " + code);
+            }
+            return sendMessage(Message.asMessage(String.valueOf(code)).addMetadata("function", "close"), guarantee);
+        } finally {
+            abortCallback.run();
         }
-        return sendMessage(Message.asMessage(String.valueOf(code)).addMetadata("function", "close"), guarantee);
     }
 
     CompletableFuture<Void> sendMessage(Message message, Guarantee guarantee) {

@@ -762,6 +762,7 @@ public class HandleWebTest {
                             .whenWebRequest(toWebRequest(WS_CLOSE))
                             .expectNoResult()
                             .expectNoWebResponses()
+                            .expectEvents("close: testSession")
                             .andThen()
                             .whenWebRequest(toWebRequest(WS_MESSAGE))
                             .expectExceptionalResult();
@@ -783,6 +784,11 @@ public class HandleWebTest {
                     @HandleSocketMessage
                     String onMessage(SocketSession session) {
                         return name + ": " + session.sessionId();
+                    }
+
+                    @HandleSocketClose
+                    void onClose(SocketSession session) {
+                        FluxCapacitor.publishEvent("close: " + session.sessionId());
                     }
                 }
             }

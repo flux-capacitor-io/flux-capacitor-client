@@ -14,6 +14,8 @@
 
 package io.fluxcapacitor.common.handling;
 
+import lombok.AllArgsConstructor;
+
 import java.util.Optional;
 
 public interface Handler<M> {
@@ -21,5 +23,15 @@ public interface Handler<M> {
     Class<?> getTargetClass();
 
     Optional<HandlerInvoker> getInvoker(M message);
+
+    @AllArgsConstructor
+    abstract class DelegatingHandler<M> implements Handler<M> {
+        protected final Handler<M> delegate;
+
+        @Override
+        public Class<?> getTargetClass() {
+            return delegate.getTargetClass();
+        }
+    }
 
 }

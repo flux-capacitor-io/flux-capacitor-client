@@ -106,19 +106,13 @@ public class ObjectUtils {
     }
 
     public static Stream<?> asStream(Object value) {
-        if (value == null) {
-            return Stream.empty();
-        }
-        if (value instanceof Collection<?>) {
-            return ((Collection<?>) value).stream();
-        }
-        if (value instanceof Stream<?>) {
-            return (Stream<?>) value;
-        }
-        if (value instanceof Optional<?>) {
-            return ((Optional<?>) value).stream();
-        }
-        return Stream.of(value);
+        return switch (value) {
+            case null -> Stream.empty();
+            case Collection<?> objects -> objects.stream();
+            case Stream<?> stream -> stream;
+            case Optional<?> o -> o.stream();
+            default -> Stream.of(value);
+        };
     }
 
     public static Consumer<Runnable> ifTrue(boolean check) {
@@ -138,6 +132,13 @@ public class ObjectUtils {
     @SneakyThrows
     public static void run(ThrowingRunnable runnable) {
         runnable.run();
+    }
+
+    public static Callable<?> asCallable(ThrowingRunnable runnable) {
+        return () -> {
+            runnable.run();
+            return null;
+        };
     }
 
     public static void tryRun(Runnable task) {
@@ -236,6 +237,10 @@ public class ObjectUtils {
             worker.setName(prefix + "-pool-" + worker.getPoolIndex());
             return worker;
         }, null, true);
+    }
+
+    public static <T> Consumer<? super T> tryAccept(Consumer<? super T> consumer) {
+        return t -> tryRun(() -> consumer.accept(t));
     }
 
     private static class PrefixedThreadFactory implements ThreadFactory {

@@ -59,9 +59,12 @@ public class WebRequest extends Message {
         return new Builder(metadata);
     }
 
-    @NonNull String path;
-    @NonNull String method;
-    @NonNull Map<String, List<String>> headers;
+    @NonNull
+    String path;
+    @NonNull
+    String method;
+    @NonNull
+    Map<String, List<String>> headers;
 
     @Getter(lazy = true)
     @JsonIgnore
@@ -200,6 +203,10 @@ public class WebRequest extends Message {
 
     public static String getSocketSessionId(Metadata metadata) {
         return metadata.get("sessionId");
+    }
+
+    public static String requireSocketSessionId(Metadata metadata) {
+        return metadata.getOrThrow("sessionId", () -> new IllegalStateException("`sessionId` is missing in the metadata of the WebRequest"));
     }
 
     @Data

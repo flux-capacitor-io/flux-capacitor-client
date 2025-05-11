@@ -14,112 +14,114 @@
 
 package io.fluxcapacitor.javaclient.web;
 
-import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.handling.Handler;
+import io.fluxcapacitor.common.handling.Handler.DelegatingHandler;
 import io.fluxcapacitor.common.handling.HandlerInvoker;
+import io.fluxcapacitor.common.handling.ParameterResolver;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
+import io.fluxcapacitor.javaclient.common.HasMessage;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
+import io.fluxcapacitor.javaclient.publishing.ResultGateway;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerDecorator;
 import lombok.RequiredArgsConstructor;
-import lombok.SneakyThrows;
 
 import java.lang.annotation.Annotation;
-import java.lang.reflect.Executable;
-import java.lang.reflect.Method;
-import java.util.Collection;
+import java.lang.reflect.Parameter;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArraySet;
-import java.util.function.BiFunction;
+import java.util.function.Function;
 
+import static io.fluxcapacitor.common.MessageType.WEBREQUEST;
+import static io.fluxcapacitor.javaclient.web.DefaultWebRequestContext.getWebRequestContext;
+import static io.fluxcapacitor.javaclient.web.HttpRequestMethod.WS_CLOSE;
+import static io.fluxcapacitor.javaclient.web.HttpRequestMethod.WS_HANDSHAKE;
 import static io.fluxcapacitor.javaclient.web.HttpRequestMethod.isWebsocket;
+import static io.fluxcapacitor.javaclient.web.WebRequest.requireSocketSessionId;
+import static java.util.Optional.empty;
 
-public class WebsocketHandlerDecorator implements HandlerDecorator {
+@RequiredArgsConstructor
+public class WebsocketHandlerDecorator implements HandlerDecorator, ParameterResolver<HasMessage> {
+    private final ResultGateway webResponseGateway;
+
     private final Set<String> websocketPaths = new CopyOnWriteArraySet<>();
+    private final Map<String, SocketSession> openSessions = new ConcurrentHashMap<>();
+
+    @Override
+    public Function<HasMessage, Object> resolve(Parameter p, Annotation methodAnnotation) {
+        return m -> openSessions.computeIfAbsent(requireSocketSessionId(m.getMetadata()), sId -> {
+            String target = m instanceof DeserializingMessage dm ? dm.getSerializedObject().getSource() : null;
+            return new DefaultSocketSession(sId, target, webResponseGateway, () -> onClose(sId));
+        });
+    }
+
+    @Override
+    public boolean matches(Parameter parameter, Annotation methodAnnotation, HasMessage value) {
+        return SocketSession.class.isAssignableFrom(parameter.getType())
+               && ReflectionUtils.isOrHas(methodAnnotation, HandleWeb.class);
+    }
 
     @Override
     public Handler<DeserializingMessage> wrap(Handler<DeserializingMessage> handler) {
-        var methods = ReflectionUtils.getAllMethods(handler.getTargetClass()).stream()
-                .flatMap(m -> WebUtils.getWebPatterns(m).stream()).filter(p -> isWebsocket(p.getMethod())).toList();
-        if (!methods.isEmpty()) {
-            methods.stream().filter(p -> HttpRequestMethod.WS_HANDSHAKE.equals(p.getMethod()))
-                    .map(WebPattern::getPath).distinct().forEach(websocketPaths::add);
-            var pathsRequiringHandshake = methods.stream().map(WebPattern::getPath).distinct()
-                    .filter(websocketPaths::add).toList();
-            if (!pathsRequiringHandshake.isEmpty()) {
-                return new WebsocketHandshakeHandler(handler, pathsRequiringHandshake);
-            }
+        var socketPatterns = ReflectionUtils.getAllMethods(handler.getTargetClass()).stream()
+                .flatMap(m -> WebUtils.getWebPatterns(m).stream())
+                .filter(p -> isWebsocket(p.getMethod())).toList();
+        if (!socketPatterns.isEmpty()) {
+            handler = enableHandshake(handler, socketPatterns);
+            handler = removeSessionOnClose(handler);
         }
         return handler;
     }
 
-    protected static class WebsocketHandshakeHandler implements Handler<DeserializingMessage> {
-        private final Handler<DeserializingMessage> delegate;
-        private final Collection<String> paths;
-        private final HandlerInvoker handshakeInvoker;
-
-        public WebsocketHandshakeHandler(Handler<DeserializingMessage> delegate, Collection<String> paths) {
-            this.delegate = delegate;
-            this.paths = paths;
-            this.handshakeInvoker = new HandshakeInvoker(delegate.getTargetClass());
-        }
-
-        @Override
-        public Optional<HandlerInvoker> getInvoker(DeserializingMessage message) {
-            return delegate.getInvoker(message).or(
-                    () -> matches(message) ? Optional.of(handshakeInvoker) : Optional.empty());
-        }
-
-        protected boolean matches(DeserializingMessage message) {
-            return message.getMessageType() == MessageType.WEBREQUEST
-                   && HttpRequestMethod.WS_HANDSHAKE.equals(WebRequest.getMethod(message.getMetadata()))
-                   && paths.contains(WebRequest.getUrl(message.getMetadata()));
-        }
-
-        @Override
-        public Class<?> getTargetClass() {
-            return delegate.getTargetClass();
-        }
+    protected void onClose(String sessionId) {
+        openSessions.remove(sessionId);
     }
 
-    @RequiredArgsConstructor
-    protected static class HandshakeInvoker implements HandlerInvoker {
-        private final Class<?> targetClass;
-        private final Executable method = getInvokeMethod();
+    protected Handler<DeserializingMessage> removeSessionOnClose(Handler<DeserializingMessage> handler) {
+        return new DelegatingHandler<DeserializingMessage>(handler) {
+            @Override
+            public Optional<HandlerInvoker> getInvoker(DeserializingMessage message) {
+                if (!matches(message)) {
+                    return delegate.getInvoker(message);
+                }
+                HandlerInvoker remover = HandlerInvoker.run(
+                        () -> onClose(requireSocketSessionId(message.getMetadata())));
+                return delegate.getInvoker(message).map(i -> i.andFinally(remover))
+                        .or(() -> Optional.of(remover));
+            }
 
-        @SneakyThrows
-        private static Method getInvokeMethod() {
-            return HandshakeInvoker.class.getMethod("invoke");
-        }
-
-        @Override
-        public Class<?> getTargetClass() {
-            return targetClass;
-        }
-
-        @Override
-        public Executable getMethod() {
-            return method;
-        }
-
-        @Override
-        public <A extends Annotation> A getMethodAnnotation() {
-            return null;
-        }
-
-        @Override
-        public boolean expectResult() {
-            return false;
-        }
-
-        @Override
-        public boolean isPassive() {
-            return false;
-        }
-
-        @Override
-        public Object invoke(BiFunction<Object, Object, Object> combiner) {
-            return null;
-        }
+            boolean matches(DeserializingMessage message) {
+                return message.getMessageType() == WEBREQUEST
+                       && WS_CLOSE.equals(WebRequest.getMethod(message.getMetadata()));
+            }
+        };
     }
+
+    protected Handler<DeserializingMessage> enableHandshake(Handler<DeserializingMessage> handler,
+                                                            List<WebPattern> socketPatterns) {
+        socketPatterns.stream().filter(p -> WS_HANDSHAKE.equals(p.getMethod()))
+                .map(WebPattern::getPath).distinct().forEach(websocketPaths::add);
+        var pathsRequiringHandshake = socketPatterns.stream().map(WebPattern::getPath).distinct()
+                .filter(websocketPaths::add).toList();
+        if (!pathsRequiringHandshake.isEmpty()) {
+            handler = new DelegatingHandler<DeserializingMessage>(handler) {
+                @Override
+                public Optional<HandlerInvoker> getInvoker(DeserializingMessage message) {
+                    return delegate.getInvoker(message)
+                            .or(() -> matches(message) ? Optional.of(HandlerInvoker.noOp()) : empty());
+                }
+
+                boolean matches(DeserializingMessage message) {
+                    return message.getMessageType() == WEBREQUEST
+                           && WS_HANDSHAKE.equals(WebRequest.getMethod(message.getMetadata()))
+                           && getWebRequestContext(message).matchesAny(pathsRequiringHandshake);
+                }
+            };
+        }
+        return handler;
+    }
+
 }
