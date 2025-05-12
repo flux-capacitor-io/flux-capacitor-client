@@ -15,8 +15,13 @@
 package io.fluxcapacitor.javaclient.web;
 
 import io.fluxcapacitor.common.Guarantee;
+import io.fluxcapacitor.common.reflection.ReflectionUtils;
+import io.fluxcapacitor.javaclient.publishing.Timeout;
+import io.fluxcapacitor.javaclient.tracking.handling.Request;
 
+import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 
 public interface SocketSession {
 
@@ -31,6 +36,15 @@ public interface SocketSession {
     default void sendPing(Object value) {
         sendPing(value, Guarantee.NONE);
     }
+
+    default <R> CompletionStage<R> sendRequest(Request<R> request) {
+        Timeout timeout = ReflectionUtils.getTypeAnnotation(request.getClass(), Timeout.class);
+        Duration duration = timeout == null ? Duration.ofSeconds(30)
+                : Duration.of(timeout.value(), timeout.timeUnit().toChronoUnit());
+        return sendRequest(request, duration);
+    }
+
+    <R> CompletionStage<R> sendRequest(Request<R> request, Duration timeout);
 
     CompletableFuture<Void> sendPing(Object value, Guarantee guarantee);
 
@@ -47,4 +61,6 @@ public interface SocketSession {
     }
 
     CompletableFuture<Void> close(int closeReason, Guarantee guarantee);
+
+    boolean isOpen();
 }

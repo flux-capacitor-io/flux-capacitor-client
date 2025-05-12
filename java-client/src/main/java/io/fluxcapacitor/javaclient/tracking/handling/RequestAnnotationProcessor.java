@@ -23,13 +23,19 @@ import javax.annotation.processing.SupportedAnnotationTypes;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.TypeParameterElement;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.ExecutableType;
+import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
+import javax.lang.model.type.TypeVariable;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 import javax.tools.Diagnostic;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Future;
@@ -67,41 +73,105 @@ public class RequestAnnotationProcessor extends AbstractProcessor {
     }
 
     protected void validateReturnType(Element method, TypeMirror payloadType, TypeMirror requestType) {
-        if (!getTypeUtils().isAssignable(payloadType, requestType)) {
-            return;
-        }
-        ExecutableType methodType = (ExecutableType) method.asType();
-        for (TypeMirror i : ((TypeElement) (((DeclaredType) payloadType).asElement())).getInterfaces()) {
-            if (getTypeUtils().isAssignable(payloadType, requestType)) {
-                List<? extends TypeMirror> typeArguments = ((DeclaredType) i).getTypeArguments();
-                if (!typeArguments.isEmpty()) {
-                    TypeMirror futureTypeElement = processingEnv.getElementUtils()
-                            .getTypeElement(Future.class.getCanonicalName()).asType();
+        if (findSuperType(payloadType, requestType) instanceof DeclaredType declaredRequest) {
+            List<? extends TypeMirror> typeArguments = declaredRequest.getTypeArguments();
+            if (typeArguments.isEmpty()) {
+                return;
+            }
 
-                    TypeMirror expectedReturnType = typeArguments.getFirst();
-                    TypeMirror handlerReturnType = methodType.getReturnType();
-                    if (getTypeUtils().isAssignable(getTypeUtils().erasure(handlerReturnType), getTypeUtils().erasure(futureTypeElement))) {
-                        List<? extends TypeMirror> futureTypeArgs = ((DeclaredType) handlerReturnType).getTypeArguments();
-                        if (futureTypeArgs.isEmpty()) {
-                            processingEnv.getMessager().printMessage(
-                                    Diagnostic.Kind.ERROR,
-                                    "Return type of request handler is invalid. Should be assignable to Future<%s>"
-                                            .formatted(expectedReturnType),
-                                    method);
-                            return;
-                        }
-                        handlerReturnType = futureTypeArgs.getFirst();
-                    }
-                    if (!getTypeUtils().isAssignable(handlerReturnType, expectedReturnType)) {
-                        processingEnv.getMessager().printMessage(
-                                Diagnostic.Kind.ERROR,
-                                "Return type of request handler is invalid. Should be " + expectedReturnType,
-                                method);
-                        return;
-                    }
+            TypeMirror expectedReturnType = typeArguments.getFirst();
+            TypeMirror handlerReturnType = ((ExecutableType) method.asType()).getReturnType();
+
+            TypeMirror futureType = getElementUtils().getTypeElement(Future.class.getCanonicalName()).asType();
+            if (getTypeUtils().isAssignable(getTypeUtils().erasure(handlerReturnType),
+                                            getTypeUtils().erasure(futureType))) {
+                List<? extends TypeMirror> futureTypeArgs = ((DeclaredType) handlerReturnType).getTypeArguments();
+                if (futureTypeArgs.isEmpty()) {
+                    processingEnv.getMessager().printMessage(
+                            Diagnostic.Kind.ERROR,
+                            "Return type of request handler is invalid. Should be assignable to Future<"
+                            + expectedReturnType + ">",
+                            method);
+                    return;
                 }
+                handlerReturnType = futureTypeArgs.getFirst();
+            }
+
+            if (!getTypeUtils().isAssignable(handlerReturnType, expectedReturnType)) {
+                processingEnv.getMessager().printMessage(
+                        Diagnostic.Kind.ERROR,
+                        "Return type of request handler is invalid. Should be " + expectedReturnType,
+                        method);
             }
         }
+    }
+
+    private TypeMirror findSuperType(TypeMirror type, TypeMirror target) {
+        return findSuperType(type, target, new HashMap<>());
+    }
+
+    private TypeMirror findSuperType(TypeMirror type, TypeMirror target, Map<TypeVariable, TypeMirror> typeVarMap) {
+        Types types = getTypeUtils();
+
+        if (type == null || type.getKind() != TypeKind.DECLARED) {
+            return null;
+        }
+
+        DeclaredType declaredType = (DeclaredType) type;
+        TypeElement element = (TypeElement) declaredType.asElement();
+
+        if (types.isSameType(types.erasure(type), types.erasure(target))) {
+            return reifyType(declaredType, typeVarMap);
+        }
+
+        // Build map of type vars in this level
+        List<? extends TypeMirror> typeArgs = declaredType.getTypeArguments();
+        List<? extends TypeParameterElement> typeParams = element.getTypeParameters();
+        Map<TypeVariable, TypeMirror> newMap = new HashMap<>(typeVarMap);
+        for (int i = 0; i < Math.min(typeParams.size(), typeArgs.size()); i++) {
+            TypeVariable variable = (TypeVariable) typeParams.get(i).asType();
+            newMap.put(variable, resolveTypeVar(typeArgs.get(i), typeVarMap));
+        }
+
+        // Check interfaces
+        for (TypeMirror iface : element.getInterfaces()) {
+            TypeMirror resolved = findSuperType(iface, target, newMap);
+            if (resolved != null) {
+                return resolved;
+            }
+        }
+
+        // Check superclass
+        TypeMirror superclass = element.getSuperclass();
+        if (superclass.getKind() != TypeKind.NONE) {
+            TypeMirror resolved = findSuperType(superclass, target, newMap);
+            if (resolved != null) {
+                return resolved;
+            }
+        }
+
+        return null;
+    }
+
+    private TypeMirror resolveTypeVar(TypeMirror type, Map<TypeVariable, TypeMirror> map) {
+        if (type instanceof TypeVariable var) {
+            return map.getOrDefault(var, getObjectType());
+        } else {
+            return type;
+        }
+    }
+
+    private DeclaredType reifyType(DeclaredType type, Map<TypeVariable, TypeMirror> map) {
+        List<? extends TypeMirror> args = type.getTypeArguments();
+        List<TypeMirror> resolvedArgs = new ArrayList<>();
+        for (TypeMirror arg : args) {
+            resolvedArgs.add(resolveTypeVar(arg, map));
+        }
+        return getTypeUtils().getDeclaredType((TypeElement) type.asElement(), resolvedArgs.toArray(new TypeMirror[0]));
+    }
+
+    private TypeMirror getObjectType() {
+        return getElementUtils().getTypeElement("java.lang.Object").asType();
     }
 
     @SuppressWarnings("RedundantIfStatement")

@@ -38,7 +38,7 @@ public class AlternativeStripStringsModule extends SimpleModule {
         @SneakyThrows
         public String deserialize(JsonParser parser, DeserializationContext context) {
             String result = parser.getValueAsString();
-            return result.isBlank() ? null : result; //don't trim the final result
+            return result == null || result.isBlank() ? null : result; //don't trim the final result
         }
     }
 }

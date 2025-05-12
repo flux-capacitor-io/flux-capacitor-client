@@ -170,8 +170,8 @@ public class JacksonSerializer extends AbstractSerializer<JsonNode> implements D
     }
 
     @Override
-    public <V> V doConvert(Object value, Class<V> type) {
-        return objectMapper.convertValue(value, type);
+    public <V> V doConvert(Object value, Type type) {
+        return objectMapper.convertValue(value, objectMapper.constructType(type));
     }
 
     @Override

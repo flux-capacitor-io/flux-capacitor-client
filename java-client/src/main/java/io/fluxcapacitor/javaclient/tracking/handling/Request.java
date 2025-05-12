@@ -14,5 +14,21 @@
 
 package io.fluxcapacitor.javaclient.tracking.handling;
 
+import io.fluxcapacitor.common.reflection.ReflectionUtils;
+
+import java.beans.Transient;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
+
+@SuppressWarnings("unused")
 public interface Request<R> {
+
+    @Transient
+    default Type responseType() {
+        Type genericType = ReflectionUtils.getGenericType(getClass(), Request.class);
+        if (genericType instanceof ParameterizedType pt && pt.getActualTypeArguments().length == 1) {
+            return pt.getActualTypeArguments()[0];
+        }
+        return Object.class;
+    }
 }

@@ -20,6 +20,7 @@ import io.fluxcapacitor.javaclient.publishing.routing.RoutingKey;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
 import org.slf4j.LoggerFactory;
 
+import java.lang.reflect.Type;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -38,7 +39,7 @@ public interface HasMessage extends HasMetadata {
         return toMessage().getPayload();
     }
 
-    default <R> R getPayloadAs(Class<R> type) {
+    default <R> R getPayloadAs(Type type) {
         return JsonUtils.convertValue(getPayload(), type);
     }
 

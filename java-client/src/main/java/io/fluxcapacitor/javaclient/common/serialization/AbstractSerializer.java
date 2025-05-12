@@ -185,7 +185,7 @@ public abstract class AbstractSerializer<I> implements Serializer {
 
     @SuppressWarnings("unchecked")
     @Override
-    public <V> V convert(Object value, Class<V> type) {
+    public <V> V convert(Object value, Type type) {
         if (type == null || Object.class.equals(type)) {
             return (V) value;
         }
@@ -266,7 +266,7 @@ public abstract class AbstractSerializer<I> implements Serializer {
 
     protected abstract Object doClone(Object value);
 
-    protected abstract <V> V doConvert(Object value, Class<V> type);
+    protected abstract <V> V doConvert(Object value, Type type);
 
     protected boolean isKnownType(String type) {
         return type != null && ReflectionUtils.classExists(type);

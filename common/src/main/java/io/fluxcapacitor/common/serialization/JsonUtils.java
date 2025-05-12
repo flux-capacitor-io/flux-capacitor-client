@@ -34,6 +34,7 @@ import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.InputStream;
+import java.lang.reflect.Type;
 import java.net.URI;
 import java.net.URL;
 import java.util.Arrays;
@@ -191,6 +192,11 @@ public class JsonUtils {
     }
 
     @SneakyThrows
+    public static <T> T fromJson(String json, Type type) {
+        return fromJson(json, writer.constructType(type));
+    }
+
+    @SneakyThrows
     public static <T> T fromJson(String json, JavaType type) {
         return writer.readValue(json, type);
     }
@@ -209,6 +215,11 @@ public class JsonUtils {
     @SneakyThrows
     public static <T> T fromJson(byte[] json) {
         return (T) reader.readValue(json, Object.class);
+    }
+
+    @SneakyThrows
+    public static <T> T fromJson(byte[] json, Type type) {
+        return fromJson(json, writer.constructType(type));
     }
 
     @SneakyThrows
@@ -243,12 +254,17 @@ public class JsonUtils {
 
     @SneakyThrows
     public static <T> T convertValue(Object fromValue, Class<? extends T> toValueType) {
+        return convertValue(fromValue, (Type) toValueType);
+    }
+
+    @SneakyThrows
+    public static <T> T convertValue(Object fromValue, Type toValueType) {
         if (fromValue instanceof byte[] input && !byte[].class.equals(toValueType)) {
             fromValue = readTree(input);
         } else if (fromValue instanceof String input && !String.class.equals(toValueType)) {
             fromValue = readTree(input);
         }
-        return writer.convertValue(fromValue, toValueType);
+        return writer.convertValue(fromValue, writer.constructType(toValueType));
     }
 
     @SneakyThrows

@@ -20,6 +20,7 @@ import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.SerializedObject;
 
+import java.lang.reflect.Type;
 import java.util.List;
 import java.util.stream.Stream;
 
@@ -135,7 +136,7 @@ public interface Serializer extends ContentFilter {
         return deserializeMessages(Stream.of(message), messageType).findAny().orElseThrow();
     }
 
-    <V> V convert(Object value, Class<V> type);
+    <V> V convert(Object value, Type type);
 
     <V> V clone(Object value);
 

@@ -176,28 +176,24 @@ public class SocketEndpointHandler implements Handler<DeserializingMessage> {
 
         @HandleSocketClose
         protected void onClose(DeserializingMessage message) {
-            if (tryClose()) {
+            ofNullable(pingDeadline).ifPresent(Registration::cancel);
+            try {
                 targetHandler.getInvoker(message).ifPresent(HandlerInvoker::invoke);
+            } finally {
+                if (closed.compareAndSet(false, true)) {
+                    closeCallback.cancel();
+                }
             }
         }
 
         public void abort(int closeCode) {
-            if (tryClose()) {
+            if (isOpen()) {
                 session.close(closeCode);
             }
         }
 
         protected boolean isOpen() {
             return !closed.get();
-        }
-
-        protected boolean tryClose() {
-            if (closed.compareAndSet(false, true)) {
-                ofNullable(pingDeadline).ifPresent(Registration::cancel);
-                closeCallback.cancel();
-                return true;
-            }
-            return false;
         }
 
         public Object unwrap() {

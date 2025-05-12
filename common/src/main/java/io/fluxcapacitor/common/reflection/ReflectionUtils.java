@@ -766,6 +766,10 @@ public class ReflectionUtils {
         return getAnnotation(parameter, annotationType).isPresent();
     }
 
+    public static Type getGenericType(Class<?> candidate, Class<?> wantedClass) {
+        return GenericTypeResolver.getGenericType(candidate, wantedClass);
+    }
+
     @Value
     private static class PropertyNotFoundException extends RuntimeException {
         @NonNull String propertyName;
