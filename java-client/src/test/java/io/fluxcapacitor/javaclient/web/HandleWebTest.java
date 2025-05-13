@@ -661,13 +661,17 @@ public class HandleWebTest {
                 void testEventBeforeOpen() {
                     testFixture
                             .whenEvent(123)
-                            .expectNoEvents()
+                            .expectEvents("not open")
                             .expectNoErrors();
                 }
 
                 @SocketEndpoint
                 @Path(endpointUrl)
                 static class Endpoint {
+                    @HandleEvent
+                    static void handleBefore(Integer event) {
+                        FluxCapacitor.publishEvent("not open");
+                    }
 
                     @HandleSocketOpen
                     Object onOpen(SocketSession session) {

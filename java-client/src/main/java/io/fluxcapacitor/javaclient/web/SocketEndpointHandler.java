@@ -35,6 +35,7 @@ import java.time.Duration;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getTypeAnnotation;
 import static java.util.Optional.ofNullable;
@@ -67,8 +68,9 @@ public class SocketEndpointHandler implements Handler<DeserializingMessage> {
             && HttpRequestMethod.isWebsocket(WebRequest.getMethod(message.getMetadata()))) {
             return getSocketInvoker(message);
         } else {
-            return HandlerInvoker.join(repository.values().stream().flatMap(
-                    i -> targetMatcher.getInvoker(i.unwrap(), message).stream()).toList());
+            return HandlerInvoker.join(Stream.concat(
+                    targetMatcher.getInvoker(null, message).stream(), repository.values().stream().flatMap(
+                            i -> targetMatcher.getInvoker(i.unwrap(), message).stream())).toList());
         }
     }
 
