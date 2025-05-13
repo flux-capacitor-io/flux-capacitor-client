@@ -20,6 +20,7 @@ import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import lombok.SneakyThrows;
 import lombok.ToString;
 
+import java.lang.reflect.Type;
 import java.util.function.Function;
 
 import static io.fluxcapacitor.common.ObjectUtils.memoize;
@@ -27,17 +28,17 @@ import static io.fluxcapacitor.common.ObjectUtils.memoize;
 @ToString(exclude = "objectFunction")
 public class DeserializingObject<T, S extends SerializedObject<T>> {
     private final S serializedObject;
-    private final MemoizingFunction<Class<?>, Object> objectFunction;
+    private final MemoizingFunction<Type, Object> objectFunction;
 
     public S getSerializedObject() {
         return serializedObject;
     }
 
-    protected MemoizingFunction<Class<?>, Object> getObjectFunction() {
+    protected MemoizingFunction<Type, Object> getObjectFunction() {
         return objectFunction;
     }
 
-    public DeserializingObject(S serializedObject, Function<Class<?>, Object> payload) {
+    public DeserializingObject(S serializedObject, Function<Type, Object> payload) {
         this.serializedObject = serializedObject;
         this.objectFunction = memoize(payload);
     }
@@ -48,7 +49,7 @@ public class DeserializingObject<T, S extends SerializedObject<T>> {
     }
 
     @SuppressWarnings("unchecked")
-    public <V> V getPayloadAs(Class<V> type) {
+    public <V> V getPayloadAs(Type type) {
         return (V) objectFunction.apply(type);
     }
 

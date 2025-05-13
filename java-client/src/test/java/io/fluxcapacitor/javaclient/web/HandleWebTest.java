@@ -24,6 +24,7 @@ import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
 import io.fluxcapacitor.javaclient.modeling.Id;
 import io.fluxcapacitor.javaclient.test.TestFixture;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleEvent;
+import io.fluxcapacitor.javaclient.tracking.handling.Request;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.FixedUserProvider;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.MockUser;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.RequiresUser;
@@ -660,13 +661,17 @@ public class HandleWebTest {
                 void testEventBeforeOpen() {
                     testFixture
                             .whenEvent(123)
-                            .expectNoEvents()
+                            .expectEvents("not open")
                             .expectNoErrors();
                 }
 
                 @SocketEndpoint
                 @Path(endpointUrl)
                 static class Endpoint {
+                    @HandleEvent
+                    static void handleBefore(Integer event) {
+                        FluxCapacitor.publishEvent("not open");
+                    }
 
                     @HandleSocketOpen
                     Object onOpen(SocketSession session) {
@@ -708,7 +713,8 @@ public class HandleWebTest {
                             .whenTimeElapses(Duration.ofSeconds(pingDelay))
                             .andThen()
                             .whenTimeElapses(Duration.ofSeconds(pingTimeout))
-                            .expectWebResponse(r -> "close".equals(r.getMetadata().get("function")));
+                            .expectWebResponse(r -> "close".equals(r.getMetadata().get("function")))
+                            .expectEvents("close: testSession");
                 }
 
                 @Test
@@ -730,6 +736,81 @@ public class HandleWebTest {
                     String onMessage(SocketSession session) {
                         return "response: " + session.sessionId();
                     }
+
+                    @HandleSocketClose
+                    void onClose(SocketSession session) {
+                        FluxCapacitor.publishEvent("close: " + session.sessionId());
+                    }
+                }
+            }
+
+            @Nested
+            class RequestTests {
+
+                @BeforeEach
+                void setUp() {
+                    testFixture.registerHandlers(Endpoint.class);
+                }
+
+                @Test
+                void testSendingRequest() {
+                    testFixture.givenWebRequest(toWebRequest(WS_OPEN))
+                            .whenWebRequest(toWebRequest(WS_MESSAGE, SocketResponse.success(SocketRequest.counter.get(), new MyResponse("out"))))
+                            .expectEvents("out");
+                }
+
+                @Test
+                void testReceivingFailedResponse() {
+                    testFixture.givenWebRequest(toWebRequest(WS_OPEN))
+                            .whenWebRequest(toWebRequest(WS_MESSAGE, SocketResponse.error(SocketRequest.counter.get(), "failed")))
+                            .expectEvents("failed");
+                }
+
+                @Test
+                void testReceivingRequest() {
+                    SocketRequest request = new SocketRequest("hello");
+                    testFixture.givenWebRequest(toWebRequest(WS_OPEN))
+                            .whenWebRequest(toWebRequest(WS_MESSAGE, request))
+                            .mapResult(r -> ((WebResponse) r).getPayload())
+                            .expectResult(SocketResponse.success(request.getRequestId(), "hello world"));
+                }
+
+                @Test
+                void closeOpenRequestsOnClose() {
+                    testFixture.givenWebRequest(toWebRequest(WS_OPEN))
+                            .whenWebRequest(toWebRequest(WS_CLOSE))
+                            .expectEvents("Websocket session testSession has closed");
+                }
+
+                @SocketEndpoint
+                @Path(endpointUrl)
+                static class Endpoint {
+
+                    @HandleSocketOpen
+                    void onOpen(SocketSession session) {
+                        session.sendRequest(new MyRequest("in")).whenComplete((r, e) -> {
+                            if (e == null) {
+                                FluxCapacitor.publishEvent(r.getOutput());
+                            } else {
+                                FluxCapacitor.publishEvent(e.getMessage());
+                            }
+                        });
+                    }
+
+                    @HandleSocketMessage
+                    String onMessage(String question) {
+                        return question + " world";
+                    }
+                }
+
+                @Value
+                static class MyRequest implements Request<MyResponse> {
+                    String input;
+                }
+
+                @Value
+                static class MyResponse {
+                    String output;
                 }
             }
 
@@ -762,6 +843,7 @@ public class HandleWebTest {
                             .whenWebRequest(toWebRequest(WS_CLOSE))
                             .expectNoResult()
                             .expectNoWebResponses()
+                            .expectEvents("close: testSession")
                             .andThen()
                             .whenWebRequest(toWebRequest(WS_MESSAGE))
                             .expectExceptionalResult();
@@ -784,13 +866,22 @@ public class HandleWebTest {
                     String onMessage(SocketSession session) {
                         return name + ": " + session.sessionId();
                     }
+
+                    @HandleSocketClose
+                    void onClose(SocketSession session) {
+                        FluxCapacitor.publishEvent("close: " + session.sessionId());
+                    }
                 }
             }
 
             private WebRequest toWebRequest(String method) {
+                return toWebRequest(method, "hello");
+            }
+
+            private WebRequest toWebRequest(String method, Object payload) {
                 return WebRequest.builder().method(method).url(endpointUrl)
                         .metadata(Metadata.of("sessionId", "testSession"))
-                        .payload("hello").build();
+                        .payload(payload).build();
             }
         }
 

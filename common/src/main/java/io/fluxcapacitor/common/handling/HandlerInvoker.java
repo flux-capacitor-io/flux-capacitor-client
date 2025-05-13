@@ -14,15 +14,34 @@
 
 package io.fluxcapacitor.common.handling;
 
+import io.fluxcapacitor.common.ObjectUtils;
+import io.fluxcapacitor.common.ThrowingRunnable;
+import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
+import lombok.SneakyThrows;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Executable;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.Callable;
 import java.util.function.BiFunction;
 
+import static io.fluxcapacitor.common.ObjectUtils.asCallable;
+
 public interface HandlerInvoker {
+
+    static HandlerInvoker noOp() {
+        return SimpleInvoker.noOpInvoker;
+    }
+
+    static HandlerInvoker run(ThrowingRunnable task) {
+        return new SimpleInvoker(asCallable(task));
+    }
+
+    static HandlerInvoker call(Callable<?> task) {
+        return new SimpleInvoker(task);
+    }
 
     static Optional<HandlerInvoker> join(List<? extends HandlerInvoker> invokers) {
         if (invokers.isEmpty()) {
@@ -43,11 +62,15 @@ public interface HandlerInvoker {
         });
     }
 
-    default HandlerInvoker andThen(HandlerInvoker other) {
+    default HandlerInvoker andFinally(HandlerInvoker other) {
         return new DelegatingHandlerInvoker(this) {
             @Override
             public Object invoke(BiFunction<Object, Object, Object> combiner) {
-                return combiner.apply(delegate.invoke(), other.invoke());
+                try {
+                    return delegate.invoke();
+                } finally {
+                    other.invoke();
+                }
             }
         };
     }
@@ -103,4 +126,43 @@ public interface HandlerInvoker {
         }
     }
 
+    @AllArgsConstructor(access = AccessLevel.PRIVATE)
+    final class SimpleInvoker implements HandlerInvoker {
+        private static final SimpleInvoker noOpInvoker = new SimpleInvoker(() -> null);
+
+        private static final Executable method = ObjectUtils.call(() -> SimpleInvoker.class.getMethod("invoke"));
+
+        private final Callable<?> callable;
+
+        @Override
+        public Class<?> getTargetClass() {
+            return SimpleInvoker.class;
+        }
+
+        @Override
+        public Executable getMethod() {
+            return method;
+        }
+
+        @Override
+        public <A extends Annotation> A getMethodAnnotation() {
+            return null;
+        }
+
+        @Override
+        public boolean expectResult() {
+            return false;
+        }
+
+        @Override
+        public boolean isPassive() {
+            return false;
+        }
+
+        @Override
+        @SneakyThrows
+        public Object invoke(BiFunction<Object, Object, Object> combiner) {
+            return callable.call();
+        }
+    }
 }

@@ -200,7 +200,8 @@ public class TestFixture implements Given, When {
         if (!fixtures.isEmpty()) {
             activeFixtures.remove();
             fixtures.forEach(fixture -> shutdownExecutor.execute(
-                    tryCatch(() -> fixture.fluxCapacitor.close(true))));
+                    tryCatch(() -> fixture.fluxCapacitor.execute(
+                            fc -> fixture.fluxCapacitor.close(true)))));
             Optional.ofNullable(FluxCapacitor.instance.get()).ifPresent(fc -> FluxCapacitor.instance.remove());
         }
     }
@@ -1127,7 +1128,7 @@ public class TestFixture implements Given, When {
             return m -> {
                 try {
                     return function.apply(m);
-                } catch (Exception e) {
+                } catch (Throwable e) {
                     testFixture.registerError(e);
                     throw e;
                 } finally {

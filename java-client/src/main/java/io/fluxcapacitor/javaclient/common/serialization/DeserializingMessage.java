@@ -17,6 +17,7 @@ package io.fluxcapacitor.javaclient.common.serialization;
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.ObjectUtils;
 import io.fluxcapacitor.common.ThrowingConsumer;
+import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
@@ -36,6 +37,7 @@ import lombok.Value;
 import lombok.experimental.NonFinal;
 import lombok.extern.slf4j.Slf4j;
 
+import java.lang.reflect.Type;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
@@ -83,7 +85,7 @@ public class DeserializingMessage implements HasMessage {
     @NonFinal
     transient Map<Class<?>, Object> context;
 
-    public DeserializingMessage(SerializedMessage message, Function<Class<?>, Object> payload,
+    public DeserializingMessage(SerializedMessage message, Function<Type, Object> payload,
                                 MessageType messageType, String topic) {
         this(new DeserializingObject<>(message, payload), messageType, topic);
     }
@@ -160,12 +162,12 @@ public class DeserializingMessage implements HasMessage {
 
     public DeserializingMessage withMetadata(Metadata metadata) {
         return ofNullable(delegate).map(d -> new DeserializingMessage(
-                        d.getSerializedObject().withMetadata(metadata), d.getObjectFunction(), messageType, null))
-                .orElseGet(() -> new DeserializingMessage(message.withMetadata(metadata), messageType, null, serializer));
+                        d.getSerializedObject().withMetadata(metadata), d.getObjectFunction(), messageType, topic))
+                .orElseGet(() -> new DeserializingMessage(message.withMetadata(metadata), messageType, topic, serializer));
     }
 
     public DeserializingMessage withPayload(Object payload) {
-        return new DeserializingMessage(toMessage().withPayload(payload), messageType, null, serializer);
+        return new DeserializingMessage(toMessage().withPayload(payload), messageType, topic, serializer);
     }
 
     public String getMessageId() {
@@ -195,9 +197,9 @@ public class DeserializingMessage implements HasMessage {
                 .or(() -> ofNullable(message).map(Message::getPayload)).orElse(null);
     }
 
-    public <R> R getPayloadAs(Class<R> type) {
-        return ofNullable(delegate).map(d -> d.getPayloadAs(type))
-                .orElseGet(() -> ofNullable(message).map(m -> m.getPayloadAs(type)).orElse(null));
+    public <R> R getPayloadAs(Type type) {
+        return ofNullable(delegate).map(d -> d.<R>getPayloadAs(type))
+                .orElseGet(() -> ofNullable(message).map(m -> m.<R>getPayloadAs(type)).orElse(null));
     }
 
     @SuppressWarnings("rawtypes")
@@ -219,6 +221,11 @@ public class DeserializingMessage implements HasMessage {
             serializedMessage = message.serialize(serializer);
         }
         return serializedMessage;
+    }
+
+    public DeserializingMessage withData(Data<byte[]> data) {
+        var serializedMessage = getSerializedObject().withData(data);
+        return serializer.deserializeMessage(serializedMessage, messageType);
     }
 
     @SuppressWarnings("unchecked")

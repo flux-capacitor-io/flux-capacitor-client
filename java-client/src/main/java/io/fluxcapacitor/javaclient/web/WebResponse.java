@@ -36,6 +36,7 @@ import lombok.experimental.Accessors;
 import lombok.experimental.FieldDefaults;
 
 import java.beans.ConstructorProperties;
+import java.lang.reflect.Type;
 import java.net.HttpCookie;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -165,7 +166,7 @@ public class WebResponse extends Message {
     }
 
     @Override
-    public <R> R getPayloadAs(Class<R> type) {
+    public <R> R getPayloadAs(Type type) {
         return JSON_FORMAT.equalsIgnoreCase(getContentType())
                 ? JsonUtils.convertValue(getPayload(), type)
                 : super.getPayloadAs(type);

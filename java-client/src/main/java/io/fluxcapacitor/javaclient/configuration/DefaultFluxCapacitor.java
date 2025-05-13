@@ -92,7 +92,6 @@ import io.fluxcapacitor.javaclient.tracking.metrics.TrackerMonitor;
 import io.fluxcapacitor.javaclient.web.DefaultWebResponseMapper;
 import io.fluxcapacitor.javaclient.web.ForwardingWebConsumer;
 import io.fluxcapacitor.javaclient.web.LocalServerConfig;
-import io.fluxcapacitor.javaclient.web.SocketSessionParameterResolver;
 import io.fluxcapacitor.javaclient.web.WebParamParameterResolver;
 import io.fluxcapacitor.javaclient.web.WebPayloadParameterResolver;
 import io.fluxcapacitor.javaclient.web.WebResponseCompressingInterceptor;
@@ -581,8 +580,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                     interceptor -> handlerDecorators.computeIfPresent(messageType,
                                                                       (t, i) -> interceptor.andThen(i))));
 
-            //add websocket handler decorator and dispatch interceptor
-            handlerDecorators.computeIfPresent(WEBREQUEST, (t, i) -> i.andThen(new WebsocketHandlerDecorator()));
+            //add websocket dispatch interceptor
             dispatchInterceptors.computeIfPresent(WEBRESPONSE, (t, i) -> new WebsocketResponseInterceptor().andThen(i));
 
             //add document handler decorator
@@ -612,6 +610,10 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                                                                       serializer, dispatchInterceptors.get(WEBRESPONSE),
                                                                       webResponseMapper);
 
+            //add websocket request handler decorator
+            var websocketHandlerDecorator = new WebsocketHandlerDecorator(webResponseGateway, serializer);
+            handlerDecorators.computeIfPresent(WEBREQUEST, (t, i) -> i.andThen(websocketHandlerDecorator));
+
             List<ParameterResolver<? super DeserializingMessage>> parameterResolvers =
                     new ArrayList<>(customParameterResolvers);
             if (userProvider != null) {
@@ -620,7 +622,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             parameterResolvers.addAll(List.of(new TriggerParameterResolver(client, serializer),
                                               new DeserializingMessageParameterResolver(),
                                               new MetadataParameterResolver(), new MessageParameterResolver(),
-                                              new SocketSessionParameterResolver(webResponseGateway),
+                                              websocketHandlerDecorator,
                                               new WebParamParameterResolver(),
                                               new WebPayloadParameterResolver(
                                                       !disablePayloadValidation, userProvider != null),
@@ -822,7 +824,8 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                                                       Map<MessageType, HandlerDecorator> handlerDecorators,
                                                       List<ParameterResolver<? super DeserializingMessage>> parameterResolvers,
                                                       Function<Class<?>, HandlerRepository> handlerRepositorySupplier,
-                                                      RepositoryProvider repositorySupplier, ResponseMapper responseMapper) {
+                                                      RepositoryProvider repositorySupplier,
+                                                      ResponseMapper responseMapper) {
             return new DefaultGenericGateway(client.getGatewayClient(messageType, topic), requestHandler,
                                              this.serializer, dispatchInterceptors.get(messageType), messageType,
                                              topic, localHandlerRegistry(messageType, handlerDecorators,

@@ -12,26 +12,33 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.common.handling;
+package io.fluxcapacitor.javaclient.web;
 
+import io.fluxcapacitor.common.serialization.JsonUtils;
 import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.Value;
 
-import java.util.Optional;
+import java.util.concurrent.atomic.AtomicLong;
 
-public interface Handler<M> {
+@Value
+@AllArgsConstructor
+public class SocketRequest {
+    static final AtomicLong counter = new AtomicLong();
+    @Getter(lazy = true)
+    long requestId = nextId();
 
-    Class<?> getTargetClass();
-
-    Optional<HandlerInvoker> getInvoker(M message);
-
-    @AllArgsConstructor
-    abstract class DelegatingHandler<M> implements Handler<M> {
-        protected final Handler<M> delegate;
-
-        @Override
-        public Class<?> getTargetClass() {
-            return delegate.getTargetClass();
-        }
+    private static long nextId() {
+        return counter.incrementAndGet();
     }
 
+    byte[] request;
+
+    public SocketRequest(Object request) {
+        this.request = JsonUtils.asBytes(request);
+    }
+
+    boolean isValid() {
+        return getRequestId() > 0 && request != null;
+    }
 }

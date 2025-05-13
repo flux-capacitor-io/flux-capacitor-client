@@ -22,6 +22,7 @@ import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.common.serialization.UnknownTypeStrategy;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.User;
 
+import java.lang.reflect.Type;
 import java.util.stream.Stream;
 
 public class ProxySerializer implements Serializer {
@@ -37,7 +38,7 @@ public class ProxySerializer implements Serializer {
     }
 
     @Override
-    public <V> V convert(Object o, Class<V> aClass) {
+    public <V> V convert(Object o, Type aClass) {
         throw new UnsupportedOperationException();
     }
 

@@ -33,6 +33,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 
 import static com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES;
 import static com.fasterxml.jackson.databind.SerializationFeature.FAIL_ON_EMPTY_BEANS;
@@ -219,6 +220,10 @@ public class Metadata {
             throw new IllegalStateException(format("Failed to deserialize value %s to a %s for key %s",
                                                    value, type, key), e);
         }
+    }
+
+    public <X extends Throwable> String getOrThrow(Object key, Supplier<? extends X> errorSupplier) throws X {
+        return Optional.ofNullable(get(key)).orElseThrow(errorSupplier);
     }
 
     @JsonIgnore

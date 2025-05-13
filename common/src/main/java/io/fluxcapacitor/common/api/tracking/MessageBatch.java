@@ -17,6 +17,7 @@ package io.fluxcapacitor.common.api.tracking;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import lombok.Value;
+import lombok.With;
 
 import java.util.Arrays;
 import java.util.List;
@@ -24,6 +25,7 @@ import java.util.List;
 @Value
 public class MessageBatch {
     int[] segment;
+    @With
     List<SerializedMessage> messages;
     Long lastIndex;
     Position position;

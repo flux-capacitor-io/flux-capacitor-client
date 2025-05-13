@@ -34,6 +34,7 @@ import lombok.experimental.Accessors;
 import lombok.experimental.FieldDefaults;
 
 import java.beans.ConstructorProperties;
+import java.lang.reflect.Type;
 import java.net.HttpCookie;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -59,9 +60,12 @@ public class WebRequest extends Message {
         return new Builder(metadata);
     }
 
-    @NonNull String path;
-    @NonNull String method;
-    @NonNull Map<String, List<String>> headers;
+    @NonNull
+    String path;
+    @NonNull
+    String method;
+    @NonNull
+    Map<String, List<String>> headers;
 
     @Getter(lazy = true)
     @JsonIgnore
@@ -157,7 +161,7 @@ public class WebRequest extends Message {
     }
 
     @Override
-    public <R> R getPayloadAs(Class<R> type) {
+    public <R> R getPayloadAs(Type type) {
         return JSON_FORMAT.equalsIgnoreCase(getContentType())
                 ? JsonUtils.convertValue(getPayload(), type)
                 : super.getPayloadAs(type);
@@ -200,6 +204,10 @@ public class WebRequest extends Message {
 
     public static String getSocketSessionId(Metadata metadata) {
         return metadata.get("sessionId");
+    }
+
+    public static String requireSocketSessionId(Metadata metadata) {
+        return metadata.getOrThrow("sessionId", () -> new IllegalStateException("`sessionId` is missing in the metadata of the WebRequest"));
     }
 
     @Data
