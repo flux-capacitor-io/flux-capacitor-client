@@ -59,29 +59,40 @@ jobs:
           body: ${{ steps.tag_version.outputs.changelog }}
 
       - name: Login to docker hub
-        uses: actions-hub/docker/login@master
-        env:
-          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-
-      - name: Build test server docker
-        run: |
-          cd test-server
-          docker build -t fluxcapacitorio/flux-capacitor-test:${{ steps.tag_version.outputs.new_version }} -t fluxcapacitorio/flux-capacitor-test:latest .
-          cd ..
-
-      - name: Build proxy docker
-        run: |
-          cd proxy
-          docker build -t fluxcapacitorio/flux-capacitor-proxy:${{ steps.tag_version.outputs.new_version }} -t fluxcapacitorio/flux-capacitor-proxy:latest .
-          cd ..
-
-      - name: Push test server to docker hub
-        uses: actions-hub/docker@master
+        uses: docker/login-action@v3
         with:
-          args: push fluxcapacitorio/flux-capacitor-test
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Push proxy to docker hub
-        uses: actions-hub/docker@master
+      - name: Generate Flux Host JWT
+        id: flux-host-jwt
+        uses: ./.github/actions/generate-jwt
         with:
-          args: push fluxcapacitorio/flux-capacitor-proxy
+          api-key: ${{ secrets.FLUX_HOST_API_KEY }}
+
+      - name: Log in to Flux Host Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: registry.flux.host
+          username: ${{ steps.flux-host-jwt.outputs.userId }}
+          password: ${{ steps.flux-host-jwt.outputs.token }}
+
+      - name: Build and push test server docker
+        uses: docker/build-push-action@v5
+        with:
+          context: test-server/.
+          push: true
+          tags: |
+            fluxcapacitorio/flux-capacitor-test:${{ steps.tag_version.outputs.new_version }}
+            fluxcapacitorio/flux-capacitor-test:latest
+
+      - name: Build and push proxy docker
+        uses: docker/build-push-action@v5
+        with:
+          context: proxy/.
+          push: true
+          tags: |
+            fluxcapacitorio/flux-capacitor-proxy:${{ steps.tag_version.outputs.new_version }}
+            fluxcapacitorio/flux-capacitor-proxy:latest
+            registry.flux.host/flux-capacitor-proxy:${{ steps.tag_version.outputs.new_version }}
+            registry.flux.host/flux-capacitor-proxy:latest
