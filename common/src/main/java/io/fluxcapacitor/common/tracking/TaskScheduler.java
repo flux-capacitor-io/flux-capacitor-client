@@ -23,6 +23,10 @@ import java.time.Instant;
 
 public interface TaskScheduler {
 
+    default void submit(ThrowingRunnable task) {
+        schedule(Duration.ZERO, task);
+    }
+
     default Registration schedule(Duration duration, ThrowingRunnable task) {
         return schedule(clock().instant().plus(duration), task);
     }
@@ -31,11 +35,11 @@ public interface TaskScheduler {
         return schedule(deadline.toEpochMilli(), task);
     }
 
+    Registration schedule(long deadline, ThrowingRunnable task);
+
     Clock clock();
 
     void executeExpiredTasks();
-
-    Registration schedule(long deadline, ThrowingRunnable task);
 
     void shutdown();
 }

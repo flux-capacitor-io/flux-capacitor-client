@@ -86,6 +86,12 @@ public class InMemoryTaskScheduler implements TaskScheduler {
     }
 
     @Override
+    public void submit(ThrowingRunnable task) {
+        TaskScheduler.super.submit(task);
+        executorService.submit(this::executeExpiredTasks);
+    }
+
+    @Override
     public Registration schedule(long deadline, ThrowingRunnable task) {
         Task schedulerTask = new Task(task, deadline);
         tasks.add(schedulerTask);
