@@ -42,7 +42,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
-import java.util.function.Supplier;
 
 import static io.fluxcapacitor.common.ObjectUtils.newThreadFactory;
 import static io.fluxcapacitor.javaclient.persisting.caching.CacheEvictionEvent.Reason.manual;
@@ -59,7 +58,7 @@ public class DefaultCache implements Cache, AutoCloseable {
 
     private final Executor evictionNotifier;
     private final Duration expiry;
-    private final Supplier<Clock> clockSupplier;
+    private final Clock clock;
 
     private final Collection<Consumer<CacheEvictionEvent>> evictionListeners = new CopyOnWriteArrayList<>();
 
@@ -99,8 +98,7 @@ public class DefaultCache implements Cache, AutoCloseable {
             }
         });
         this.evictionNotifier = evictionNotifier;
-        this.clockSupplier = FluxCapacitor.getOptionally().<Supplier<Clock>>map(fc -> fc::clock)
-                .orElseGet(() -> Clock::systemUTC);
+        this.clock = FluxCapacitor.getOptionally().map(FluxCapacitor::clock).orElseGet(Clock::systemUTC);
         this.referencePurger.execute(this::pollReferenceQueue);
         if ((this.expiry = expiry) != null) {
             this.referencePurger.scheduleWithFixedDelay(
@@ -249,11 +247,11 @@ public class DefaultCache implements Cache, AutoCloseable {
         public CacheReference(Object id, Object value) {
             super(value, referenceQueue);
             this.id = id;
-            this.deadline = expiry == null ? null : clockSupplier.get().instant().plus(expiry);
+            this.deadline = expiry == null ? null : clock.instant().plus(expiry);
         }
 
         boolean hasExpired() {
-            return deadline != null && deadline.isBefore(clockSupplier.get().instant());
+            return deadline != null && deadline.isBefore(clock.instant());
         }
     }
 }

@@ -761,6 +761,13 @@ public class HandleWebTest {
                 }
 
                 @Test
+                void testRequestTimeout() {
+                    testFixture.givenWebRequest(toWebRequest(WS_OPEN))
+                            .whenTimeElapses(Endpoint.requestTimeout)
+                            .expectEvents("timeout");
+                }
+
+                @Test
                 void testReceivingFailedResponse() {
                     testFixture.givenWebRequest(toWebRequest(WS_OPEN))
                             .whenWebRequest(toWebRequest(WS_MESSAGE, SocketResponse.error(SocketRequest.counter.get(), "failed")))
@@ -794,13 +801,19 @@ public class HandleWebTest {
                 @Path(endpointUrl)
                 static class Endpoint {
 
+                    static final Duration requestTimeout = Duration.ofSeconds(10);
+
                     @HandleSocketOpen
                     void onOpen(SocketSession session) {
-                        session.sendRequest(new MyRequest("in")).whenComplete((r, e) -> {
+                        session.sendRequest(new MyRequest("in"), requestTimeout)
+                                .whenComplete((r, e) -> {
                             if (e == null) {
                                 FluxCapacitor.publishEvent(r.getOutput());
                             } else {
-                                FluxCapacitor.publishEvent(e.getMessage());
+                                switch (e) {
+                                    case TimeoutException te -> FluxCapacitor.publishEvent("timeout");
+                                    default -> FluxCapacitor.publishEvent(e.getMessage());
+                                }
                             }
                         });
                     }

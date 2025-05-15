@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.javaclient.configuration;
 
+import io.fluxcapacitor.common.DelegatingClock;
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.ObjectUtils;
 import io.fluxcapacitor.common.Registration;
@@ -139,10 +140,12 @@ import static io.fluxcapacitor.common.MessageType.SCHEDULE;
 import static io.fluxcapacitor.common.MessageType.WEBREQUEST;
 import static io.fluxcapacitor.common.MessageType.WEBRESPONSE;
 import static io.fluxcapacitor.common.ObjectUtils.memoize;
+import static io.fluxcapacitor.common.ObjectUtils.newThreadFactory;
 import static io.fluxcapacitor.common.ObjectUtils.newThreadName;
 import static java.lang.Runtime.getRuntime;
 import static java.lang.String.format;
 import static java.util.Arrays.stream;
+import static java.util.concurrent.Executors.newCachedThreadPool;
 import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
@@ -174,8 +177,8 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
     private final CorrelationDataProvider correlationDataProvider;
     private final IdentityProvider identityProvider;
     private final PropertySource propertySource;
-    private final TaskScheduler taskScheduler = new InMemoryTaskScheduler("FluxCapacitor", this::clock);
-    private final AtomicReference<Clock> clock = new AtomicReference<>(Clock.systemUTC());
+    private final DelegatingClock clock;
+    private final TaskScheduler taskScheduler;
     private final Client client;
     private final ThrowingRunnable shutdownHandler;
 
@@ -199,11 +202,11 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
 
     @Override
     public void withClock(@NonNull Clock clock) {
-        this.clock.set(clock);
+        this.clock.setDelegate(clock);
     }
 
     public Clock clock() {
-        return clock.get();
+        return clock;
     }
 
     @Override
@@ -605,13 +608,14 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                 Create components
              */
 
-
             ResultGateway webResponseGateway = new WebResponseGateway(client.getGatewayClient(WEBRESPONSE),
                                                                       serializer, dispatchInterceptors.get(WEBRESPONSE),
                                                                       webResponseMapper);
 
             //add websocket request handler decorator
-            var websocketHandlerDecorator = new WebsocketHandlerDecorator(webResponseGateway, serializer);
+            DelegatingClock clock = new DelegatingClock();
+            TaskScheduler taskScheduler = new InMemoryTaskScheduler("FluxTaskScheduler", clock, newCachedThreadPool(newThreadFactory("FluxTaskScheduler-worker")));
+            var websocketHandlerDecorator = new WebsocketHandlerDecorator(webResponseGateway, serializer, taskScheduler);
             handlerDecorators.computeIfPresent(WEBREQUEST, (t, i) -> i.andThen(websocketHandlerDecorator));
 
             List<ParameterResolver<? super DeserializingMessage>> parameterResolvers =
@@ -768,7 +772,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                             cache, serializer, correlationDataProvider, identityProvider,
                             propertySource instanceof DecryptingPropertySource dps
                                     ? dps : new DecryptingPropertySource(propertySource),
-                            client, shutdownHandler);
+                            clock, taskScheduler, client, shutdownHandler);
 
             if (makeApplicationInstance) {
                 FluxCapacitor.applicationInstance.set(fluxCapacitor);
@@ -800,6 +804,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                                         Scheduler scheduler, UserProvider userProvider, Cache cache,
                                         Serializer serializer, CorrelationDataProvider correlationDataProvider,
                                         IdentityProvider identityProvider, PropertySource propertySource,
+                                        DelegatingClock clock, TaskScheduler taskScheduler,
                                         Client client, ThrowingRunnable shutdownHandler) {
             return new DefaultFluxCapacitor(trackingSupplier, customGatewaySupplier,
                                             commandGateway, queryGateway, eventGateway, resultGateway,
@@ -807,7 +812,8 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                                             aggregateRepository, snapshotStore, eventStore,
                                             keyValueStore, documentStore,
                                             scheduler, userProvider, cache, serializer, correlationDataProvider,
-                                            identityProvider, propertySource, client, shutdownHandler);
+                                            identityProvider, propertySource,
+                                            clock, taskScheduler, client, shutdownHandler);
         }
 
         protected ConsumerConfiguration getDefaultConsumerConfiguration(MessageType messageType) {

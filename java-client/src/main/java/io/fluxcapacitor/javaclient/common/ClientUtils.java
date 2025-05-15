@@ -156,16 +156,16 @@ public class ClientUtils {
     }
 
     public static <T> MemoizingSupplier<T> memoize(Supplier<T> supplier, Duration lifespan) {
-        return new DefaultMemoizingSupplier<>(supplier, lifespan, FluxCapacitor::currentClock);
+        return new DefaultMemoizingSupplier<>(supplier, lifespan, FluxCapacitor.currentClock());
     }
 
     public static <K, V> MemoizingFunction<K, V> memoize(Function<K, V> supplier, Duration lifespan) {
-        return new DefaultMemoizingFunction<>(supplier, lifespan, FluxCapacitor::currentClock);
+        return new DefaultMemoizingFunction<>(supplier, lifespan, FluxCapacitor.currentClock());
     }
 
     public static <T, U, R> MemoizingBiFunction<T, U, R> memoize(BiFunction<T, U, R> supplier,
                                                                  Duration lifespan) {
-        return new DefaultMemoizingBiFunction<>(supplier, lifespan, FluxCapacitor::currentClock);
+        return new DefaultMemoizingBiFunction<>(supplier, lifespan, FluxCapacitor.currentClock());
     }
 
     public static int getRevisionNumber(Object object) {

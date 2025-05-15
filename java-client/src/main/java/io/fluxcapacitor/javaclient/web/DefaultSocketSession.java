@@ -20,6 +20,7 @@ import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.handling.Handler;
 import io.fluxcapacitor.common.handling.HandlerInvoker;
 import io.fluxcapacitor.common.serialization.JsonUtils;
+import io.fluxcapacitor.common.tracking.TaskScheduler;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.publishing.ResultGateway;
@@ -39,7 +40,6 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
@@ -57,7 +57,10 @@ public class DefaultSocketSession implements SocketSession {
     private final String url;
     @Getter
     private final Map<String, List<String>> headers;
+
     private final ResultGateway webResponseGateway;
+    private final TaskScheduler taskScheduler;
+
     private final BiConsumer<DefaultSocketSession, Integer> abortCallback;
 
     private final AtomicBoolean closed = new AtomicBoolean();
@@ -77,9 +80,8 @@ public class DefaultSocketSession implements SocketSession {
     @Override
     public <R> CompletionStage<R> sendRequest(Request<R> request, Duration timeout) {
         SocketRequest socketRequest = SocketRequest.valueOf(request);
-        CompletableFuture<R> response = new CompletableFuture<R>()
-                .orTimeout(timeout.toMillis(), TimeUnit.MILLISECONDS)
-                .whenComplete((r, e) -> pendingRequests.remove(socketRequest.getRequestId()));
+        CompletableFuture<R> response = taskScheduler.orTimeout(new CompletableFuture<R>()
+                .whenComplete((r, e) -> pendingRequests.remove(socketRequest.getRequestId())), timeout);
         pendingRequests.put(socketRequest.getRequestId(), new PendingRequest<>(request, response));
         if (isOpen()) {
             try {

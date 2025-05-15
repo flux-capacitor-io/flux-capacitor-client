@@ -14,7 +14,7 @@
 
 package io.fluxcapacitor.javaclient.persisting.caching;
 
-import io.fluxcapacitor.javaclient.common.DirectExecutor;
+import io.fluxcapacitor.common.DirectExecutorService;
 import lombok.SneakyThrows;
 import org.junit.jupiter.api.Assertions;
 
@@ -25,7 +25,7 @@ public class CacheEvictionTester {
      */
     @SneakyThrows
     public static void main(final String[] args) {
-        try (DefaultCache subject = new DefaultCache(2, DirectExecutor.INSTANCE, null)) {
+        try (DefaultCache subject = new DefaultCache(2, DirectExecutorService.newInstance(), null)) {
             subject.put("foo", new Object());
 
             try {

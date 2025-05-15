@@ -14,34 +14,34 @@
 
 package io.fluxcapacitor.common;
 
+import lombok.AllArgsConstructor;
+import lombok.NonNull;
+
 import java.time.Clock;
-import java.time.Duration;
-import java.util.function.Supplier;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.util.concurrent.atomic.AtomicReference;
 
-public class DefaultMemoizingSupplier<T> implements MemoizingSupplier<T> {
-    private static final Object singleton = new Object();
-    private final MemoizingFunction<Object, T> delegate;
+@AllArgsConstructor
+public class DelegatingClock extends Clock {
+    private final AtomicReference<Clock> delegate = new AtomicReference<>(Clock.systemUTC());
 
-    public DefaultMemoizingSupplier(Supplier<T> delegate) {
-        this(delegate, null, null);
-    }
-
-    public DefaultMemoizingSupplier(Supplier<T> delegate, Duration lifespan, Clock clock) {
-        this.delegate = new DefaultMemoizingFunction<>(o -> delegate.get(), lifespan, clock);
+    public void setDelegate(@NonNull Clock delegate) {
+        this.delegate.set(delegate);
     }
 
     @Override
-    public T get() {
-        return delegate.apply(singleton);
+    public ZoneId getZone() {
+        return delegate.get().getZone();
     }
 
     @Override
-    public boolean isCached() {
-        return delegate.isCached(singleton);
+    public Clock withZone(ZoneId zone) {
+        return delegate.get().withZone(zone);
     }
 
     @Override
-    public void clear() {
-        delegate.clear();
+    public Instant instant() {
+        return delegate.get().instant();
     }
 }

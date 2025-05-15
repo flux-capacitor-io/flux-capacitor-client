@@ -20,6 +20,8 @@ import io.fluxcapacitor.common.ThrowingRunnable;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeoutException;
 
 public interface TaskScheduler {
 
@@ -36,6 +38,14 @@ public interface TaskScheduler {
     }
 
     Registration schedule(long deadline, ThrowingRunnable task);
+
+    default <R> CompletableFuture<R> orTimeout(CompletableFuture<R> future, Duration timeout) {
+        if (!future.isDone()) {
+            Registration r = schedule(timeout, () -> future.completeExceptionally(new TimeoutException()));
+            future.whenComplete((__, e) -> r.cancel());
+        }
+        return future;
+    }
 
     Clock clock();
 

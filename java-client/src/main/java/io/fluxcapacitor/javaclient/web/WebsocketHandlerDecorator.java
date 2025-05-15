@@ -19,6 +19,7 @@ import io.fluxcapacitor.common.handling.Handler.DelegatingHandler;
 import io.fluxcapacitor.common.handling.HandlerInvoker;
 import io.fluxcapacitor.common.handling.ParameterResolver;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
+import io.fluxcapacitor.common.tracking.TaskScheduler;
 import io.fluxcapacitor.javaclient.common.HasMessage;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
@@ -52,6 +53,7 @@ import static java.util.Optional.ofNullable;
 public class WebsocketHandlerDecorator implements HandlerDecorator, ParameterResolver<HasMessage> {
     private final ResultGateway webResponseGateway;
     private final Serializer serializer;
+    private final TaskScheduler taskScheduler;
 
     private final Set<String> websocketPaths = new CopyOnWriteArraySet<>();
     private final Map<String, DefaultSocketSession> openSessions = new ConcurrentHashMap<>();
@@ -64,7 +66,7 @@ public class WebsocketHandlerDecorator implements HandlerDecorator, ParameterRes
             return new DefaultSocketSession(sId, target,
                                             WebRequest.getUrl(m.getMetadata()),
                                             WebRequest.getHeaders(m.getMetadata()),
-                                            webResponseGateway, this::onAbort);
+                                            webResponseGateway, taskScheduler, this::onAbort);
         });
     }
 

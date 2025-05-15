@@ -58,16 +58,16 @@ class ClientUtilsTest {
 
     @Nested
     class MemoizeTests {
-        final AtomicInteger counter = new AtomicInteger();
-        final MemoizingSupplier<Integer> supplier =
-                ClientUtils.memoize(counter::incrementAndGet, Duration.ofSeconds(10));
-
-        private final TestFixture testFixture = TestFixture.create(new Object() {
+        final TestFixture testFixture = TestFixture.create(new Object() {
             @HandleCommand
             int handle() {
                 return supplier.get();
             }
         });
+
+        final AtomicInteger counter = new AtomicInteger();
+        final MemoizingSupplier<Integer> supplier =
+                ClientUtils.memoize(counter::incrementAndGet, Duration.ofSeconds(10));
 
         @Test
         void memoizeWithLifespan_refreshValueAfterLifespan() {

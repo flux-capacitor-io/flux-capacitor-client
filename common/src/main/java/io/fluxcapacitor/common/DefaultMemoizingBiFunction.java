@@ -20,7 +20,6 @@ import java.time.Clock;
 import java.time.Duration;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
-import java.util.function.Supplier;
 
 @AllArgsConstructor
 public class DefaultMemoizingBiFunction<T, U, R> implements MemoizingBiFunction<T, U, R> {
@@ -30,8 +29,8 @@ public class DefaultMemoizingBiFunction<T, U, R> implements MemoizingBiFunction<
         this(delegate, null, null);
     }
 
-    public DefaultMemoizingBiFunction(BiFunction<T, U, R> delegate, Duration lifespan, Supplier<Clock> clockSupplier) {
-        this.function = new DefaultMemoizingFunction<>(p -> delegate.apply(p.getFirst(), p.getSecond()), lifespan, clockSupplier);
+    public DefaultMemoizingBiFunction(BiFunction<T, U, R> delegate, Duration lifespan, Clock clock) {
+        this.function = new DefaultMemoizingFunction<>(p -> delegate.apply(p.getFirst(), p.getSecond()), lifespan, clock);
     }
 
     @Override

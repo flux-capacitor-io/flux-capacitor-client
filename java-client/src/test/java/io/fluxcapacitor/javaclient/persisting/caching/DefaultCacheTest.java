@@ -14,8 +14,8 @@
 
 package io.fluxcapacitor.javaclient.persisting.caching;
 
+import io.fluxcapacitor.common.DirectExecutorService;
 import io.fluxcapacitor.common.ObjectUtils;
-import io.fluxcapacitor.javaclient.common.DirectExecutor;
 import io.fluxcapacitor.javaclient.test.TestFixture;
 import lombok.SneakyThrows;
 import org.junit.jupiter.api.BeforeEach;
@@ -40,7 +40,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class DefaultCacheTest {
 
-    private DefaultCache subject = new DefaultCache(2, DirectExecutor.INSTANCE, null);
+    private DefaultCache subject = new DefaultCache(2, DirectExecutorService.newInstance(), null);
 
     @Test
     void testPutAndGet() {
@@ -212,7 +212,7 @@ class DefaultCacheTest {
         @Test
         void expiryEviction() {
             var testFixture = TestFixture.create();
-            subject = new DefaultCache(2, DirectExecutor.INSTANCE, Duration.ofSeconds(10), Duration.ofMillis(1));
+            subject = new DefaultCache(2, DirectExecutorService.newInstance(), Duration.ofSeconds(10), Duration.ofMillis(1));
             setUp();
             subject.put("a", new Object());
             assertNotNull(subject.get("a"));

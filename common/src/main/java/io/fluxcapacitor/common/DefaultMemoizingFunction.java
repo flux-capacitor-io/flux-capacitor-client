@@ -24,7 +24,6 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 import java.util.function.Function;
-import java.util.function.Supplier;
 
 import static java.util.Optional.ofNullable;
 
@@ -34,7 +33,7 @@ public class DefaultMemoizingFunction<K, V> implements MemoizingFunction<K, V> {
     private final ConcurrentHashMap<Object, Entry> map = new ConcurrentHashMap<>();
     private final Function<K, V> delegate;
     private final Duration lifespan;
-    private final Supplier<Clock> clock;
+    private final Clock clock;
 
     public DefaultMemoizingFunction(Function<K, V> delegate) {
         this(delegate, null, null);
@@ -45,11 +44,11 @@ public class DefaultMemoizingFunction<K, V> implements MemoizingFunction<K, V> {
     public V apply(K key) {
         Entry result = map.compute(
                 Optional.<Object>ofNullable(key).orElse(nullValue),
-                (k, v) -> v == null || (v.expiry != null && v.expiry.isBefore(clock.get().instant())) ? ofNullable(
+                (k, v) -> v == null || (v.expiry != null && v.expiry.isBefore(clock.instant())) ? ofNullable(
                         delegate.apply(k == nullValue ? null : key))
                         .map(value -> new Entry(value,
                                                 lifespan == null ? null :
-                                                        clock.get().instant().plus(lifespan)))
+                                                        clock.instant().plus(lifespan)))
                         .orElse(nullValue) : v);
         return (V) result.getValue();
     }
