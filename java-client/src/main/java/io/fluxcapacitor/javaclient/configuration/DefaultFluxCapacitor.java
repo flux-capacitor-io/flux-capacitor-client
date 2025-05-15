@@ -256,8 +256,10 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         private final Map<MessageType, List<HandlerDecorator>> lowPrioHandlerDecorators = new HashMap<>();
         private final Map<MessageType, List<HandlerDecorator>> highPrioHandlerDecorators = new HashMap<>();
         private final Map<MessageType, List<BatchInterceptor>> generalBatchInterceptors = new HashMap<>();
+        private final DelegatingClock clock = new DelegatingClock();
         private DispatchInterceptor messageRoutingInterceptor = new MessageRoutingInterceptor();
         private SchedulingInterceptor schedulingInterceptor = new SchedulingInterceptor();
+        private TaskScheduler taskScheduler = new InMemoryTaskScheduler("FluxTaskScheduler", clock, newCachedThreadPool(newThreadFactory("FluxTaskScheduler-worker")));
         private ForwardingWebConsumer forwardingWebConsumer;
         private Cache cache = new DefaultCache();
         private Cache relationshipsCache = new DefaultCache(100_000);
@@ -405,6 +407,12 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         @Override
         public FluxCapacitorBuilder replaceWebResponseMapper(WebResponseMapper webResponseMapper) {
             this.webResponseMapper = webResponseMapper;
+            return this;
+        }
+
+        @Override
+        public FluxCapacitorBuilder replaceTaskScheduler(Function<Clock, TaskScheduler> function) {
+            this.taskScheduler = function.apply(clock);
             return this;
         }
 
@@ -613,8 +621,6 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                                                                       webResponseMapper);
 
             //add websocket request handler decorator
-            DelegatingClock clock = new DelegatingClock();
-            TaskScheduler taskScheduler = new InMemoryTaskScheduler("FluxTaskScheduler", clock, newCachedThreadPool(newThreadFactory("FluxTaskScheduler-worker")));
             var websocketHandlerDecorator = new WebsocketHandlerDecorator(webResponseGateway, serializer, taskScheduler);
             handlerDecorators.computeIfPresent(WEBREQUEST, (t, i) -> i.andThen(websocketHandlerDecorator));
 

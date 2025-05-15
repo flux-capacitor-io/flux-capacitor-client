@@ -15,6 +15,7 @@
 package io.fluxcapacitor.javaclient.test;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import io.fluxcapacitor.common.DirectExecutorService;
 import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.ObjectUtils;
@@ -29,6 +30,7 @@ import io.fluxcapacitor.common.handling.Handler;
 import io.fluxcapacitor.common.handling.HandlerFilter;
 import io.fluxcapacitor.common.handling.HandlerInvoker;
 import io.fluxcapacitor.common.serialization.JsonUtils;
+import io.fluxcapacitor.common.tracking.InMemoryTaskScheduler;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.ClientUtils;
 import io.fluxcapacitor.javaclient.common.IdentityProvider;
@@ -228,6 +230,8 @@ public class TestFixture implements Given, When {
                 .addDispatchInterceptor(interceptor)
                 .replaceIdentityProvider(p -> p == IdentityProvider.defaultIdentityProvider
                         ? PredictableIdentityProvider.defaultPredictableIdentityProvider() : p)
+                .replaceTaskScheduler(clock -> new InMemoryTaskScheduler(
+                        "FluxTaskScheduler", clock, DirectExecutorService.newInstance()))
                 .addBatchInterceptor(interceptor).addHandlerInterceptor(interceptor, true);
         this.fluxCapacitorBuilder = fluxCapacitorBuilder;
         this.fluxCapacitor = fluxCapacitorBuilder.build(client);

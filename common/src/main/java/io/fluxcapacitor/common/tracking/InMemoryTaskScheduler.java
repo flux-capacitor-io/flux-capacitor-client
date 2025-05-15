@@ -28,6 +28,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import static io.fluxcapacitor.common.ObjectUtils.asRunnable;
 import static io.fluxcapacitor.common.ObjectUtils.newThreadFactory;
 import static io.fluxcapacitor.common.TimingUtils.isMissedDeadline;
 
@@ -111,8 +112,7 @@ public class InMemoryTaskScheduler implements TaskScheduler {
 
     @Override
     public void submit(ThrowingRunnable task) {
-        TaskScheduler.super.submit(task);
-        executorService.submit(this::executeExpiredTasks);
+        workerPool.submit(asRunnable(task));
     }
 
     @Override

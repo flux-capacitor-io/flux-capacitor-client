@@ -17,6 +17,7 @@ package io.fluxcapacitor.javaclient.configuration;
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.application.PropertySource;
 import io.fluxcapacitor.common.handling.ParameterResolver;
+import io.fluxcapacitor.common.tracking.TaskScheduler;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.IdentityProvider;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
@@ -35,6 +36,8 @@ import io.fluxcapacitor.javaclient.tracking.handling.authentication.UserProvider
 import io.fluxcapacitor.javaclient.web.LocalServerConfig;
 import io.fluxcapacitor.javaclient.web.WebResponseMapper;
 
+import java.time.Clock;
+import java.util.function.Function;
 import java.util.function.UnaryOperator;
 
 /**
@@ -82,6 +85,8 @@ public interface FluxCapacitorBuilder {
     FluxCapacitorBuilder replaceDefaultResponseMapper(ResponseMapper responseMapper);
 
     FluxCapacitorBuilder replaceWebResponseMapper(WebResponseMapper webResponseMapper);
+
+    FluxCapacitorBuilder replaceTaskScheduler(Function<Clock, TaskScheduler> function);
 
     /**
      * Configures a dedicated cache to use for aggregates of the given type. If no dedicated cache is set aggregates

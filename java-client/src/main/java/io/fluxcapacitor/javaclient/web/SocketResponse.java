@@ -16,14 +16,13 @@ package io.fluxcapacitor.javaclient.web;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import io.fluxcapacitor.common.serialization.JsonUtils;
-import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Value;
 
 import java.lang.reflect.Type;
 
 @Value
-@AllArgsConstructor(access = AccessLevel.PRIVATE)
+@AllArgsConstructor
 public class SocketResponse {
     long requestId;
     JsonNode result;

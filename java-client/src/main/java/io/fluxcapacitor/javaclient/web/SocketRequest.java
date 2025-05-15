@@ -25,13 +25,17 @@ import java.util.concurrent.atomic.AtomicLong;
 @Value
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class SocketRequest {
-    static final AtomicLong counter = new AtomicLong();
+    public static final AtomicLong counter = new AtomicLong();
 
     long requestId;
     JsonNode request;
 
     public static SocketRequest valueOf(Object request) {
-        return new SocketRequest(counter.incrementAndGet(), JsonUtils.valueToTree(request));
+        return valueOf(counter.incrementAndGet(), request);
+    }
+
+    public static SocketRequest valueOf(long requestId, Object request) {
+        return new SocketRequest(requestId, JsonUtils.valueToTree(request));
     }
 
     boolean isValid() {
