@@ -33,10 +33,6 @@ public interface SocketSession {
 
     CompletableFuture<Void> sendMessage(Object value, Guarantee guarantee);
 
-    default void sendPing(Object value) {
-        sendPing(value, Guarantee.NONE);
-    }
-
     default <R> CompletionStage<R> sendRequest(Request<R> request) {
         Timeout timeout = ReflectionUtils.getTypeAnnotation(request.getClass(), Timeout.class);
         Duration duration = timeout == null ? Duration.ofSeconds(30)
@@ -45,6 +41,10 @@ public interface SocketSession {
     }
 
     <R> CompletionStage<R> sendRequest(Request<R> request, Duration timeout);
+
+    default void sendPing(Object value) {
+        sendPing(value, Guarantee.NONE);
+    }
 
     CompletableFuture<Void> sendPing(Object value, Guarantee guarantee);
 

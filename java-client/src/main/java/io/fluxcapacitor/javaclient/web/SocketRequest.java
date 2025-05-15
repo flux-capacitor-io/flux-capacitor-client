@@ -14,28 +14,24 @@
 
 package io.fluxcapacitor.javaclient.web;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import io.fluxcapacitor.common.serialization.JsonUtils;
+import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
-import lombok.Getter;
 import lombok.Value;
 
 import java.util.concurrent.atomic.AtomicLong;
 
 @Value
-@AllArgsConstructor
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class SocketRequest {
     static final AtomicLong counter = new AtomicLong();
-    @Getter(lazy = true)
-    long requestId = nextId();
 
-    private static long nextId() {
-        return counter.incrementAndGet();
-    }
+    long requestId;
+    JsonNode request;
 
-    byte[] request;
-
-    public SocketRequest(Object request) {
-        this.request = JsonUtils.asBytes(request);
+    public static SocketRequest valueOf(Object request) {
+        return new SocketRequest(counter.incrementAndGet(), JsonUtils.valueToTree(request));
     }
 
     boolean isValid() {

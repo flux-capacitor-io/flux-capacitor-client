@@ -19,6 +19,7 @@ import io.fluxcapacitor.common.ObjectUtils;
 import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.handling.Handler;
 import io.fluxcapacitor.common.handling.HandlerInvoker;
+import io.fluxcapacitor.common.serialization.JsonUtils;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.publishing.ResultGateway;
@@ -75,14 +76,14 @@ public class DefaultSocketSession implements SocketSession {
 
     @Override
     public <R> CompletionStage<R> sendRequest(Request<R> request, Duration timeout) {
-        SocketRequest socketRequest = new SocketRequest(request);
+        SocketRequest socketRequest = SocketRequest.valueOf(request);
         CompletableFuture<R> response = new CompletableFuture<R>()
                 .orTimeout(timeout.toMillis(), TimeUnit.MILLISECONDS)
                 .whenComplete((r, e) -> pendingRequests.remove(socketRequest.getRequestId()));
         pendingRequests.put(socketRequest.getRequestId(), new PendingRequest<>(request, response));
         if (isOpen()) {
             try {
-                sendMessage(request);
+                sendMessage(socketRequest);
             } catch (Throwable e) {
                 log.error("Failed to send request {}", request, e);
                 response.completeExceptionally(e);
@@ -94,18 +95,18 @@ public class DefaultSocketSession implements SocketSession {
         return response;
     }
 
-    public Optional<HandlerInvoker> tryRequest(DeserializingMessage message,
-                                               Handler<DeserializingMessage> handler) {
+    public Optional<HandlerInvoker> tryHandleRequest(DeserializingMessage message,
+                                                     Handler<DeserializingMessage> handler) {
         SocketRequest request;
         try {
-            request = message.getPayloadAs(SocketRequest.class);
+            request = JsonUtils.fromJson(message.getSerializedObject().getData().getValue(), SocketRequest.class);
         } catch (Throwable ignored) {
             return Optional.empty();
         }
         if (!request.isValid()) {
             return Optional.empty();
         }
-        return message.withData(new Data<>(request.getRequest(), null, 0))
+        return message.withData(new Data<>(JsonUtils.asBytes(request.getRequest()), null, 0))
                 .apply(m -> handler.getInvoker(m)
                         .map(i -> new HandlerInvoker.DelegatingHandlerInvoker(i) {
                             @Override
@@ -118,13 +119,15 @@ public class DefaultSocketSession implements SocketSession {
                                 try {
                                     Object result = delegate.invoke();
                                     if (result instanceof CompletableFuture<?> future) {
-                                        return future.thenApply(r -> SocketResponse.success(request.getRequestId(), r))
+                                        return future.thenApply(r -> SocketResponse.success(
+                                                        request.getRequestId(), JsonUtils.valueToTree(r)))
                                                 .exceptionally(
                                                         e -> SocketResponse.error(request.getRequestId(), ofNullable(
                                                                 ObjectUtils.unwrapException(e).getMessage()).orElse(
                                                                 "Request failed")));
                                     }
-                                    return SocketResponse.success(request.getRequestId(), result);
+                                    return SocketResponse.success(request.getRequestId(),
+                                                                  JsonUtils.valueToTree(result));
                                 } catch (Throwable e) {
                                     return SocketResponse.error(request.getRequestId(),
                                                                 ofNullable(e.getMessage()).orElse("Request failed"));

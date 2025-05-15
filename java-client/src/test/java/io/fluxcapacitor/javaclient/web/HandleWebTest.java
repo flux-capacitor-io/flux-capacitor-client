@@ -15,6 +15,7 @@
 package io.fluxcapacitor.javaclient.web;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.TextNode;
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
@@ -767,8 +768,15 @@ public class HandleWebTest {
                 }
 
                 @Test
+                void testDeserializeRequest() {
+                    testFixture.whenApplying(fc -> JsonUtils.convertValue(
+                            SocketRequest.valueOf("hello"), SocketRequest.class).getRequest())
+                            .expectResult(TextNode.valueOf("hello"));
+                }
+
+                @Test
                 void testReceivingRequest() {
-                    SocketRequest request = new SocketRequest("hello");
+                    SocketRequest request = SocketRequest.valueOf("hello");
                     testFixture.givenWebRequest(toWebRequest(WS_OPEN))
                             .whenWebRequest(toWebRequest(WS_MESSAGE, request))
                             .mapResult(r -> ((WebResponse) r).getPayload())

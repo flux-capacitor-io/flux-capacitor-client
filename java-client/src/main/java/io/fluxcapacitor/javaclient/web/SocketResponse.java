@@ -14,21 +14,23 @@
 
 package io.fluxcapacitor.javaclient.web;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import io.fluxcapacitor.common.serialization.JsonUtils;
+import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Value;
 
 import java.lang.reflect.Type;
 
 @Value
-@AllArgsConstructor
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class SocketResponse {
     long requestId;
-    byte[] response;
+    JsonNode result;
     String error;
 
     public static SocketResponse success(long requestId, Object response) {
-        return new SocketResponse(requestId, JsonUtils.asBytes(response), null);
+        return new SocketResponse(requestId, JsonUtils.valueToTree(response), null);
     }
 
     public static SocketResponse error(long requestId, String error) {
@@ -36,10 +38,10 @@ public class SocketResponse {
     }
 
     boolean isValid() {
-        return requestId > 0 && (response != null || error != null);
+        return requestId > 0 && (result != null || error != null);
     }
 
     public Object deserialize(Type type) {
-        return JsonUtils.fromJson(response, type);
+        return JsonUtils.convertValue(result, type);
     }
 }

@@ -138,7 +138,7 @@ public class WebsocketHandlerDecorator implements HandlerDecorator, ParameterRes
                     return delegate.getInvoker(message);
                 }
                 return ofNullable(openSessions.get(requireSocketSessionId(message.getMetadata())))
-                        .flatMap(session -> session.tryRequest(message, delegate)
+                        .flatMap(session -> session.tryHandleRequest(message, delegate)
                                 .or(() -> session.tryCompleteRequest(message)))
                         .or(() -> delegate.getInvoker(message));
             }
