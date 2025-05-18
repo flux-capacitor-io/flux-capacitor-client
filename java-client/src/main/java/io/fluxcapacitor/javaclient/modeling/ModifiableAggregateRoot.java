@@ -109,8 +109,8 @@ public class ModifiableAggregateRoot<T> extends DelegatingEntity<T> implements A
     }
 
     @Override
-    public <E extends Exception> Entity<T> assertLegal(Object command) throws E {
-        entityHelper.intercept(command, this).forEach(c -> entityHelper.assertLegal(c, this));
+    public <E extends Exception> Entity<T> assertLegal(Object update) throws E {
+        entityHelper.intercept(update, this).forEach(c -> entityHelper.assertLegal(c, this));
         return this;
     }
 

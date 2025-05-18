@@ -655,7 +655,7 @@ public interface FluxCapacitor extends AutoCloseable {
             && entity.rootAnnotation().eventSourced()
             && entity.id().toString().equals(Entity.getAggregateId(message))
             && Entity.hasSequenceNumber(message)) {
-            return entity.playBackToEvent(message.getMessageId());
+            return entity.playBackToEvent(message.getIndex(), message.getMessageId());
         }
         return entity;
     }

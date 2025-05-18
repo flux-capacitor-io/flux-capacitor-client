@@ -56,7 +56,7 @@ public class NoOpEntity<T> implements Entity<T> {
     }
 
     @Override
-    public <E extends Exception> NoOpEntity<T> assertLegal(Object command) throws E {
+    public <E extends Exception> NoOpEntity<T> assertLegal(Object update) throws E {
         return this;
     }
 

@@ -44,16 +44,15 @@ public class EntityParameterResolver implements ParameterResolver<Object> {
     protected Entity<?> getMatchingEntity(Object input, Parameter parameter) {
         if (input instanceof HasEntity) {
             return ((HasEntity) input).getEntity();
-        } else if (input instanceof HasMessage) {
-            var type = Entity.getAggregateType((HasMessage) input);
+        } else if (input instanceof HasMessage message) {
+            var type = Entity.getAggregateType(message);
             if (type == null) {
                 return null;
             }
             if (Entity.class.isAssignableFrom(parameter.getType())
-                || Optional.ofNullable(Entity.getAggregateType((HasMessage) input)).map(
+                || Optional.of(type).map(
                         t -> parameter.getType().isAssignableFrom(t)).orElse(false)) {
-                return Optional.ofNullable(Entity.getAggregateId((HasMessage) input))
-                        .or(() -> ((HasMessage) input).computeRoutingKey())
+                return Optional.ofNullable(Entity.getAggregateId(message)).or(message::computeRoutingKey)
                         .flatMap(possibleEntityId -> FluxCapacitor.getOptionally()
                                 .map(fc -> FluxCapacitor.loadEntity(possibleEntityId)))
                         .filter(e -> isAssignable(parameter, e))

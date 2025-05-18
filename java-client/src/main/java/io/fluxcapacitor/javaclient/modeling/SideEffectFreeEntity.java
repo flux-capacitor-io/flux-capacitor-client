@@ -73,8 +73,8 @@ public class SideEffectFreeEntity<T> implements Entity<T> {
     }
 
     @Override
-    public <E extends Exception> Entity<T> assertLegal(Object command) throws E {
-        delegate().assertLegal(command);
+    public <E extends Exception> Entity<T> assertLegal(Object update) throws E {
+        delegate().assertLegal(update);
         return this;
     }
 

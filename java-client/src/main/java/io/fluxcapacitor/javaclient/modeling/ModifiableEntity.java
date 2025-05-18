@@ -38,8 +38,8 @@ public class ModifiableEntity<T> extends DelegatingEntity<T> {
     ModifiableAggregateRoot<?> root;
 
     @Override
-    public <E extends Exception> Entity<T> assertLegal(Object command) throws E {
-        root.assertLegal(command);
+    public <E extends Exception> Entity<T> assertLegal(Object update) throws E {
+        root.assertLegal(update);
         return this;
     }
 

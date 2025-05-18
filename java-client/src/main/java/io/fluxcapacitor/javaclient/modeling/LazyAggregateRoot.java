@@ -168,7 +168,7 @@ public class LazyAggregateRoot<T> implements AggregateRoot<T> {
     }
 
     @Override
-    public <E extends Exception> Entity<T> assertLegal(Object command) throws E {
+    public <E extends Exception> Entity<T> assertLegal(Object update) throws E {
         throw new UnsupportedOperationException("This aggregate is read-only.");
     }
 }
