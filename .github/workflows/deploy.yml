@@ -39,7 +39,7 @@ jobs:
           mvn -B versions:set -DnewVersion=${{ steps.tag_version.outputs.new_tag }}
 
       - name: Deploy to Maven Central
-        run: mvn -P deploy --batch-mode deploy
+        run: mvn -P deploy -B deploy
         env:
           MAVEN_USERNAME: ${{ secrets.CENTRAL_TOKEN_USERNAME }}
           MAVEN_PASSWORD: ${{ secrets.CENTRAL_TOKEN_PASSWORD }}
