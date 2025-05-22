@@ -39,6 +39,8 @@ jobs:
       - name: Set maven version
         run: |
           mvn -B versions:set -DnewVersion=${{ steps.tag_version.outputs.new_tag }}
+        env:
+          MAVEN_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
 
       - name: Deploy to Maven Central
         run: mvn -P deploy --batch-mode deploy
