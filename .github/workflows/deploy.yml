@@ -23,10 +23,10 @@ jobs:
           java-version: '21'
           cache: 'maven'
           server-id: central
-          server-username: MAVEN_USERNAME
-          server-password: MAVEN_PASSWORD
-          gpg-private-key: ${{ secrets.GPG_SIGNING_KEY }}
-          gpg-passphrase: GPG_PASSPHRASE
+          server-username: ${{ secrets.CENTRAL_TOKEN_USERNAME }}
+          server-password: ${{ secrets.CENTRAL_TOKEN_PASSWORD }}
+          gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
+          gpg-passphrase: ${{ secrets.GPG_PASSPHRASE }}
 
       - name: Bump version and push tag
         uses: mathieudutour/github-tag-action@v6.2
@@ -42,10 +42,6 @@ jobs:
 
       - name: Deploy to Maven Central
         run: mvn -P deploy --batch-mode deploy
-        env:
-          MAVEN_USERNAME: ${{ secrets.CENTRAL_TOKEN_USERNAME }}
-          MAVEN_PASSWORD: ${{ secrets.CENTRAL_TOKEN_PASSWORD }}
-          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
 
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
