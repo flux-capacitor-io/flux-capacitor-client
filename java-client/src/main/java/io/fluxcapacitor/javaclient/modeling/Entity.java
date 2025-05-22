@@ -395,7 +395,8 @@ public interface Entity<T> {
 
     /**
      * Finds a version of this entity matching the given eventIndex or eventId. This method plays back the aggregate
-     * until the aggregate's {@link #lastEventIndex()} <= eventIndex or {@link #lastEventId()} equals eventId.
+     * until the aggregate's {@link #lastEventIndex()} smaller or equal to eventIndex or {@link #lastEventId()} equals
+     * eventId.
      *
      * @param eventIndex the index of the event to revert to, or null if the index is not provided
      * @param eventId    the unique ID of the event to revert to
