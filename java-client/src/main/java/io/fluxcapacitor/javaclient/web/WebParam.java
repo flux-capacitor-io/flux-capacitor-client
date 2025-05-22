@@ -19,11 +19,29 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Meta-annotation for parameters that inject parameter values present in HTTP requests.
+ * Meta-annotation for parameter annotations used to inject values from an HTTP request.
+ * <p>
+ * Used internally by Flux to locate and bind request values to handler method parameters
+ * based on the specified {@link WebParameterSource}.
+ * </p>
+ *
+ * @see PathParam
+ * @see QueryParam
+ * @see HeaderParam
+ * @see FormParam
+ * @see CookieParam
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.ANNOTATION_TYPE)
 public @interface WebParam {
+    /**
+     * Optional name of the parameter (e.g. path variable or query param).
+     * If empty, defaults to the method parameter's name.
+     */
     String value() default "";
+
+    /**
+     * The source of the parameter within the request (e.g. path, query, header).
+     */
     WebParameterSource type();
 }

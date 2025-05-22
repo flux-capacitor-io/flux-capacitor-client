@@ -27,21 +27,31 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Annotation to be placed on the (interface of) a message payload class with handler methods, such as
- * {@link HandleCommand @HandleCommand}.
+ * Indicates that a message payload class can handle itself as a message handler.
  * <p>
- * If this annotation is present a handler will automatically be created for (implementations of) the annotated type.
- * The handler will behave like any standalone, non-local handler. Note that if this annotation would not be present,
- * the payload class would function as local handler.
- * <p>
- * You can optionally add a {@link Consumer @Consumer} annotation to consume and handle the message in an isolated
- * process. If the Consumer annotation is not present, the handler will be registered with the default message consumer
- * for the current application.
- * <p>
- * If Spring is used, annotated types will be automatically registered as handlers during a component scan. When Spring
- * isn't used, or when testing using an async TestFixtures, make sure to register the class manually as a handler.
+ * When this annotation is present on a class (or its interface), Flux will automatically register a handler for any
+ * implementation of that type. The resulting handler behaves like a standard external consumer: the message is first
+ * published to the appropriate message log and then tracked and processed via the configured consumer infrastructure.
+ * </p>
  *
- * @see Consumer
+ * <p>
+ * Without this annotation, a payload class with handler methods (e.g., {@link HandleCommand}) would be treated as a
+ * local handler. That means it would be executed immediately, bypassing the message log and any tracking.
+ * </p>
+ *
+ * <p>
+ * You may also annotate the class with {@link Consumer} to configure message consumption in an isolated consumer group.
+ * If no {@code @Consumer} annotation is present, the handler will be assigned to the application's default consumer.
+ * </p>
+ *
+ * <p>
+ * <strong>Spring integration:</strong> When using Spring, types annotated with {@code @TrackSelf} will be
+ * automatically
+ * detected and registered as handlers via component scanning. When not using Spring, or when testing using an
+ * asynchronous {@code TestFixture}, you must register the class manually.
+ * </p>
+ *
+ * @see Consumer on how to configure message consumption in an isolated consumer group.
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)

@@ -22,11 +22,27 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
+/**
+ * Marks a method or constructor as a handler for scheduled messages ({@link MessageType#SCHEDULE}).
+ * <p>
+ * These handlers are invoked in response to scheduled triggers, typically time-based.
+ * </p>
+ *
+ * @see HandleMessage
+ * @see MessageType#SCHEDULE
+ */
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.METHOD, ElementType.CONSTRUCTOR})
 @HandleMessage(MessageType.SCHEDULE)
 public @interface HandleSchedule {
+    /**
+     * If {@code true}, disables this handler during discovery.
+     */
     boolean disabled() default false;
+
+    /**
+     * Restricts which payload types this handler may be invoked for.
+     */
     Class<?>[] allowedClasses() default {};
 }

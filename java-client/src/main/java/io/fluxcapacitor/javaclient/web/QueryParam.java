@@ -19,11 +19,12 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Injects the value of an HTTP query parameter.
+ * Injects an HTTP query parameter into a handler method parameter.
  *
+ * <h2>Example:</h2>
  * <pre>{@code
- * @HandleGet("/user")
- * UserProfile getUser(@QueryParam String id) { }
+ * @HandleGet("/search")
+ * public List<User> search(@QueryParam String keyword) { ... }
  * }</pre>
  */
 @Retention(RetentionPolicy.RUNTIME)

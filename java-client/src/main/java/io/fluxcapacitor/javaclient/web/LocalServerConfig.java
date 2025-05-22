@@ -19,9 +19,33 @@ import lombok.Builder.Default;
 import lombok.NonNull;
 import lombok.Value;
 
+/**
+ * Configuration for the local HTTP server used to handle {@code WebRequest} messages outside of Flux Capacitor's own
+ * web handling framework.
+ * <p>
+ * This configuration is primarily intended for users who prefer to delegate web request handling to a custom or
+ * third-party locally running HTTP server (e.g., Spring MVC, Javalin, etc.) instead of the built-in Flux Capacitor web
+ * stack.
+ * <p>
+ * <strong>Note:</strong> This feature is not commonly used and may be deprecated or removed in future versions.
+ */
 @Value
 @Builder
 public class LocalServerConfig {
-    @NonNull Integer port;
-    @Default boolean ignore404 = true;
+
+    /**
+     * The port number on which the local server should listen.
+     * <p>
+     * Required to forward web requests to the external server.
+     */
+    @NonNull
+    Integer port;
+
+    /**
+     * Whether to ignore 404 (Not Found) responses for unmatched requests.
+     * <p>
+     * If {@code true}, 404s returned by the local server will be ignored by the dispatcher. Defaults to {@code true}.
+     */
+    @Default
+    boolean ignore404 = true;
 }

@@ -48,6 +48,29 @@ import static io.fluxcapacitor.javaclient.persisting.caching.CacheEvictionEvent.
 import static io.fluxcapacitor.javaclient.persisting.caching.CacheEvictionEvent.Reason.memoryPressure;
 import static io.fluxcapacitor.javaclient.persisting.caching.CacheEvictionEvent.Reason.size;
 
+/**
+ * Default implementation of the {@link Cache} interface using key-level synchronized access and soft references for
+ * value storage.
+ * <p>
+ * This cache is optimized for concurrent environments and provides built-in support for:
+ * <ul>
+ *     <li><strong>Automatic eviction</strong> based on max size (LRU policy)</li>
+ *     <li><strong>Reference-based eviction</strong> when values are no longer strongly reachable (via {@link SoftReference})</li>
+ *     <li><strong>Expiration</strong> after a configurable duration</li>
+ *     <li><strong>Eviction notification</strong> via registered {@link CacheEvictionEvent} listeners</li>
+ * </ul>
+ *
+ * <p>
+ * The cache ensures thread safety through synchronized access on its internal {@link LinkedHashMap} and per-key locking
+ * using {@code intern()} on a string prefix plus key combination. While this does introduce some memory overhead due to
+ * string interning, it ensures atomic updates for concurrent access to the same key.
+ *
+ * <p><strong>Threading:</strong> Eviction listeners and expiration polling run on background threads.
+ * The {@code valueMap} itself is backed by a synchronized {@link LinkedHashMap} with LRU eviction behavior.</p>
+ *
+ * @see Cache
+ * @see CacheEvictionEvent
+ */
 @AllArgsConstructor
 @Slf4j
 public class DefaultCache implements Cache, AutoCloseable {
@@ -67,22 +90,39 @@ public class DefaultCache implements Cache, AutoCloseable {
 
     private final ReferenceQueue<Object> referenceQueue = new ReferenceQueue<>();
 
+    /**
+     * Constructs a cache with a default maximum size of 1,000,000 entries and no expiration.
+     */
     public DefaultCache() {
         this(1_000_000);
     }
 
+    /**
+     * Constructs a cache with a specified max size and no expiration.
+     */
     public DefaultCache(int maxSize) {
         this(maxSize, null);
     }
 
+    /**
+     * Constructs a cache with specified size and expiration. Uses a single-threaded executor for eviction
+     * notifications.
+     */
     public DefaultCache(int maxSize, Duration expiry) {
         this(maxSize, Executors.newSingleThreadExecutor(newThreadFactory("DefaultCache-evictionNotifier")), expiry);
     }
 
+    /**
+     * Constructs a cache with specified size, executor for eviction notifications and expiration.
+     */
     public DefaultCache(int maxSize, Executor evictionNotifier, Duration expiry) {
         this(maxSize, evictionNotifier, expiry, Duration.ofMinutes(1));
     }
 
+    /**
+     * Constructs a cache with full configuration of size, eviction executor, expiration delay, and expiration check
+     * frequency.
+     */
     public DefaultCache(int maxSize, Executor evictionNotifier, Duration expiry, Duration expiryCheckDelay) {
         this.valueMap = Collections.synchronizedMap(new LinkedHashMap<>(Math.min(128, maxSize), 0.75f, true) {
             @Override
@@ -107,6 +147,10 @@ public class DefaultCache implements Cache, AutoCloseable {
         }
     }
 
+    /**
+     * Returns a synchronized computation that adds, removes, or updates a cache entry. Internally uses per-key
+     * {@link String#intern()} synchronization to prevent race conditions.
+     */
     @Override
     public <T> T compute(Object id, BiFunction<? super Object, ? super T, ? extends T> mappingFunction) {
         synchronized ((mutexPrecursor + id).intern()) {

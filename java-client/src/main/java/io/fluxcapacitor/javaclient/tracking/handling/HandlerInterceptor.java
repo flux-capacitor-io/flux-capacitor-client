@@ -18,6 +18,7 @@ import io.fluxcapacitor.common.handling.Handler;
 import io.fluxcapacitor.common.handling.HandlerInvoker;
 import io.fluxcapacitor.common.handling.HandlerInvoker.DelegatingHandlerInvoker;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
+import io.fluxcapacitor.javaclient.tracking.BatchInterceptor;
 import lombok.AllArgsConstructor;
 
 import java.util.Optional;
@@ -25,30 +26,89 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 
 /**
- * Mechanism that enables modification of a message before it is handled by a handler. A {@link HandlerInterceptor} can
- * also be used to monitor handled messages, block message handling altogether, and/or inspect or modify the return
- * value of a handler.
+ * Intercepts individual message handling operations, enabling cross-cutting behavior around handler invocation.
+ * <p>
+ * A {@code HandlerInterceptor} can be used to inspect or modify messages before they are passed to a handler, monitor
+ * and log handler executions, block certain messages from being handled, or inspect and modify the return value after
+ * handling.
+ * </p>
+ *
+ * <p>
+ * Interceptors are typically configured via
+ * {@link io.fluxcapacitor.javaclient.tracking.Consumer#handlerInterceptors()}, or applied programmatically using the
+ * {@link #wrap(Handler)} method.
+ * </p>
+ *
+ * <h2>Common Use Cases:</h2>
+ * <ul>
+ *   <li>Validating or transforming a message before it reaches the handler</li>
+ *   <li>Adding logging, tracing, or metrics for observability</li>
+ *   <li>Conditionally suppressing handler invocation</li>
+ *   <li>Decorating or modifying the result of a handler method</li>
+ * </ul>
+ *
+ * <h2>Example:</h2>
+ * <pre>{@code
+ * public class LoggingHandlerInterceptor implements HandlerInterceptor {
+ *     @Override
+ *     public Function<DeserializingMessage, Object> interceptHandling(
+ *             Function<DeserializingMessage, Object> next, HandlerInvoker invoker) {
+ *         return message -> {
+ *             log.info("Before handling: {}", message.getPayload());
+ *             Object result = next.apply(message);
+ *             log.info("After handling: {}", result);
+ *             return result;
+ *         };
+ *     }
+ * }
+ * }</pre>
+ *
+ * @see io.fluxcapacitor.javaclient.tracking.Consumer#handlerInterceptors()
+ * @see BatchInterceptor
  */
 @FunctionalInterface
 public interface HandlerInterceptor extends HandlerDecorator {
 
     /**
-     * Intercepts a message before it's handled. The underlying handler can be invoked using the given {@code function}.
+     * Intercepts the message handling logic.
      * <p>
-     * Before invoking the handler it is possible to inspect or modify the message. It is also possible to block a
-     * message simply by returning a function that returns without invoking the handler.
+     * The {@code function} parameter represents the next step in the handling chain— typically the actual message
+     * handler. The {@code invoker} provides metadata and invocation logic for the underlying handler method.
+     * </p>
+     *
      * <p>
-     * After invoking the handler it is possible to inspect or modify the response.
+     * Within this method, an interceptor may:
+     * <ul>
+     *   <li>Modify the {@code DeserializingMessage} before passing it to the handler</li>
+     *   <li>Bypass the handler entirely and return a value directly</li>
+     *   <li>Wrap the result after the handler is invoked</li>
+     * </ul>
+     *
      * <p>
-     * The given {@code invoker} contains information about the underlying handler.
+     * Note: Interceptors may return a different {@code DeserializingMessage}, but it must be compatible
+     * with a handler method in the same target class. If no suitable handler is found, an exception will be thrown.
+     * </p>
+     *
+     * @param function the next step in the handler chain (typically the handler itself)
+     * @param invoker  the metadata and execution strategy for the actual handler method
+     * @return a decorated function that wraps handling behavior
      */
     Function<DeserializingMessage, Object> interceptHandling(Function<DeserializingMessage, Object> function,
                                                              HandlerInvoker invoker);
 
+    /**
+     * Wraps a {@link Handler} with this interceptor, producing an intercepted handler.
+     *
+     * @param handler the original handler to wrap
+     * @return an intercepted handler that applies this interceptor to all handled messages
+     */
     default Handler<DeserializingMessage> wrap(Handler<DeserializingMessage> handler) {
         return new InterceptedHandler(handler, this);
     }
 
+    /**
+     * Implementation of {@link Handler} that delegates to another handler and applies a {@code HandlerInterceptor}.
+     */
     @AllArgsConstructor
     class InterceptedHandler implements Handler<DeserializingMessage> {
         private final Handler<DeserializingMessage> delegate;

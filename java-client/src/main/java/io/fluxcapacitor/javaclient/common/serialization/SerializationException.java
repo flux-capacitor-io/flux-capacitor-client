@@ -16,6 +16,10 @@ package io.fluxcapacitor.javaclient.common.serialization;
 
 public class SerializationException extends RuntimeException {
 
+    public SerializationException() {
+        super();
+    }
+
     public SerializationException(String message) {
         super(message);
     }

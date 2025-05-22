@@ -14,16 +14,37 @@
 
 package io.fluxcapacitor.javaclient.tracking;
 
+import io.fluxcapacitor.common.ObjectUtils;
+
 import java.util.concurrent.Callable;
 
+/**
+ * An interface to handle errors encountered during message tracking and processing, with the ability to retry
+ * operations.
+ */
 @FunctionalInterface
 public interface ErrorHandler {
+    /**
+     * Handles an error encountered during message processing and provides an option to retry the operation.
+     *
+     * @param error         the Throwable instance representing the error that occurred
+     * @param errorMessage  a descriptive message providing context about the error
+     * @param retryFunction a Callable representing the operation to retry in case of failure
+     * @return an Object which represents the result of the error handling or retry operation. In case an exception is
+     * thrown, tracking will be suspended. In case an error is returned but not thrown, tracking will continue, and the
+     * error may be logged as a Result message. Any other return value may be logged as a Result message.
+     */
     Object handleError(Throwable error, String errorMessage, Callable<?> retryFunction);
 
+    /**
+     * Handles an error encountered during message processing and provides an option to retry the operation. Invoked
+     * when the return value of the error handler (even if the return value is an exception) is not relevant.
+     *
+     * @param error         the Throwable instance representing the error that occurred
+     * @param errorMessage  a descriptive message providing context about the error
+     * @param retryFunction a Callable representing the operation to retry in case of failure
+     */
     default void handleError(Throwable error, String errorMessage, Runnable retryFunction) {
-        handleError(error, errorMessage, () -> {
-            retryFunction.run();
-            return null;
-        });
+        handleError(error, errorMessage, ObjectUtils.asCallable(retryFunction));
     }
 }

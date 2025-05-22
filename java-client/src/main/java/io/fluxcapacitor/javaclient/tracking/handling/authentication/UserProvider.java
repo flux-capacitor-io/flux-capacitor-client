@@ -21,31 +21,109 @@ import java.util.Optional;
 import java.util.ServiceLoader;
 import java.util.ServiceLoader.Provider;
 
+/**
+ * Service interface for managing {@link User} identities in Flux Capacitor.
+ * <p>
+ * A {@code UserProvider} is responsible for extracting, resolving, and injecting user identity information into
+ * messages. It enables user-aware processing by:
+ * <ul>
+ *   <li>Resolving the current authenticated {@link User}</li>
+ *   <li>Looking up users by ID or from message metadata</li>
+ *   <li>Storing user metadata into messages for downstream correlation</li>
+ * </ul>
+ * <p>
+ * Implementations of this interface can be registered via Java’s {@link ServiceLoader}. When multiple implementations
+ * are found, they are combined using {@link #andThen(UserProvider)}.
+ *
+ * @see User
+ */
 public interface UserProvider {
 
+    /**
+     * Default {@code UserProvider} discovered via {@link ServiceLoader}. If multiple providers are found, they are
+     * chained using {@link #andThen(UserProvider)}. May be {@code null} if no provider is registered.
+     */
     UserProvider defaultUserProvider = Optional.of(ServiceLoader.load(UserProvider.class))
             .flatMap(loader -> loader.stream().map(Provider::get).reduce(UserProvider::andThen)).orElse(null);
 
+    /**
+     * Returns the currently active user, typically injected by the current context.
+     *
+     * @return the active {@link User}, or {@link User#getCurrent()} if not explicitly provided
+     */
     default User getActiveUser() {
         return User.getCurrent();
     }
 
+    /**
+     * Retrieves a {@link User} by their unique ID.
+     *
+     * @param userId an identifier for the user, usually a string or numeric value
+     * @return the corresponding {@link User}, or {@code null} if no match is found
+     */
     User getUserById(Object userId);
 
+    /**
+     * Returns the {@link User} representing the system (non-human) identity. Typically used for scheduled messages,
+     * internal services, etc.
+     */
     User getSystemUser();
 
+    /**
+     * Extracts the {@link User} from a given {@link HasMessage} instance. Implementations may inspect message metadata
+     * or payload to resolve the user identity.
+     *
+     * @param message the message containing potential user-related metadata
+     * @return the resolved {@link User}, or {@code null} if no user info was found
+     */
     User fromMessage(HasMessage message);
 
+    /**
+     * Checks if the given metadata contains user information that can be resolved by this provider.
+     *
+     * @param metadata the metadata to inspect
+     * @return {@code true} if the metadata contains recognizable user information
+     */
     boolean containsUser(Metadata metadata);
 
+    /**
+     * Removes any user-related metadata entries from the given {@link Metadata}.
+     *
+     * @param metadata the metadata to clean
+     * @return a new {@link Metadata} instance without any user-specific keys
+     */
     Metadata removeFromMetadata(Metadata metadata);
 
+    /**
+     * Adds user-related metadata to a message, overwriting existing values if present.
+     *
+     * @param metadata the original metadata
+     * @param user     the user whose info should be added
+     * @return new metadata including the user identity
+     */
     default Metadata addToMetadata(Metadata metadata, User user) {
         return addToMetadata(metadata, user, false);
     }
 
+    /**
+     * Adds user-related metadata to a message.
+     *
+     * @param metadata the original metadata
+     * @param user     the user to include
+     * @param ifAbsent if {@code true}, metadata is only added if not already present
+     * @return updated {@link Metadata} with user info conditionally added
+     */
     Metadata addToMetadata(Metadata metadata, User user, boolean ifAbsent);
 
+    /**
+     * Combines this provider with another.
+     * <p>
+     * The returned provider will try this provider first, falling back to {@code other} if a user cannot be resolved.
+     * This is useful for composing multiple resolution strategies.
+     *
+     * @param other another user provider to chain after this one
+     * @return a new {@code UserProvider} that delegates to both providers
+     */
     default UserProvider andThen(UserProvider other) {
         return new DelegatingUserProvider(this) {
             @Override
@@ -84,5 +162,4 @@ public interface UserProvider {
             }
         };
     }
-
 }

@@ -25,8 +25,32 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
+/**
+ * A {@link Cache} implementation that partitions values across two internal caches based on a provided
+ * {@link Predicate}.
+ * <p>
+ * If a value matches the {@code selector}, it is stored in the delegate cache; otherwise, it is stored in the
+ * {@code nextCache}. This is particularly useful when certain types of objects (e.g., aggregates, projections) require
+ * specialized caching behavior while others do not.
+ *
+ * <p><strong>Chaining:</strong> {@code SelectiveCache} instances can be chained by using another
+ * {@code SelectiveCache} as the {@code nextCache}. This enables complex multi-level cache routing logic, where each
+ * level applies a different selector to direct objects to a different backing cache.
+ *
+ * <p><strong>Example use case:</strong> Route aggregates to one cache and all other entities to a fallback cache:
+ * <pre>{@code
+ * Predicate<Object> aggregateSelector = SelectiveCache.aggregateSelector(MyAggregate.class);
+ * Cache aggregateCache = new DefaultCache();
+ * Cache fallbackCache = new DefaultCache();
+ * Cache selectiveCache = new SelectiveCache(aggregateCache, aggregateSelector, fallbackCache);
+ * }</pre>
+ */
 @AllArgsConstructor
 public class SelectiveCache implements Cache {
+    /**
+     * Utility predicate to match aggregates of a given root type. This checks the type of the value inside an
+     * {@link Entity}, or the declared type if the value is null.
+     */
     public static Predicate<Object> aggregateSelector(Class<?> type) {
         return v -> {
             if (v instanceof Entity<?> aggregateRoot) {
@@ -41,6 +65,12 @@ public class SelectiveCache implements Cache {
     private final Predicate<Object> selector;
     private final Cache nextCache;
 
+    /**
+     * Constructs a {@code SelectiveCache} with a default in-memory delegate cache.
+     *
+     * @param nextCache The fallback cache used when {@code selector} does not match a value
+     * @param selector  A predicate to decide which cache a value should go into
+     */
     public SelectiveCache(Cache nextCache, Predicate<Object> selector) {
         this(new DefaultCache(), selector, nextCache);
     }

@@ -48,6 +48,30 @@ import java.util.stream.Collectors;
 import static io.fluxcapacitor.common.api.Data.JSON_FORMAT;
 import static io.fluxcapacitor.javaclient.web.WebUtils.asHeaderMap;
 
+/**
+ * Represents a web request message within the Flux platform.
+ * <p>
+ * This message is routed to handlers using annotations like {@link HandleWeb}, {@link HandleGet}, or
+ * {@link HandleSocketOpen}.
+ * </p>
+ *
+ * <p>
+ * {@code WebRequest} extends {@link Message} and includes additional metadata such as:
+ * </p>
+ * <ul>
+ *   <li>{@code path} – the requested URI</li>
+ *   <li>{@code method} – HTTP or WebSocket method (e.g. GET, WS_OPEN)</li>
+ *   <li>{@code headers} – request headers</li>
+ *   <li>{@code cookies} – parsed from the Cookie header</li>
+ * </ul>
+ *
+ * <p>
+ * It also provides a fluent {@code Builder} API to construct requests programmatically.
+ * </p>
+ *
+ * @see WebResponse
+ * @see HandleWeb
+ */
 @Value
 @EqualsAndHashCode(callSuper = true)
 @ToString(exclude = {"headers", "cookies"})
@@ -207,7 +231,8 @@ public class WebRequest extends Message {
     }
 
     public static String requireSocketSessionId(Metadata metadata) {
-        return metadata.getOrThrow("sessionId", () -> new IllegalStateException("`sessionId` is missing in the metadata of the WebRequest"));
+        return metadata.getOrThrow("sessionId", () -> new IllegalStateException(
+                "`sessionId` is missing in the metadata of the WebRequest"));
     }
 
     @Data

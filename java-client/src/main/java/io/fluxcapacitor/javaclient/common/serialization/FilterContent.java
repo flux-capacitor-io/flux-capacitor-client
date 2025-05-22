@@ -23,14 +23,35 @@ import java.lang.annotation.Target;
 
 
 /**
- * Annotation to be placed on methods of values that need to be filtered before they're passed to a given {@link User}.
+ * Indicates that a method should be invoked to filter a value before it is exposed to a specific {@link User}.
  * <p>
- * For a value to be filtered use {@link Serializer#filterContent(Object, User)}. The user will be automatically
- * injected into annotated methods.
+ * This annotation is used in conjunction with {@link Serializer#filterContent(Object, User)} to dynamically
+ * determine whether and how an object (or part of it) should be visible to the given user.
+ * </p>
+ *
  * <p>
- * Both root and nested values are filtered (including if the value is in an array). You can either return the current
- * value (i.e. {@code this}) from the annotated method, or return a modified value if the user is not allowed to see all
- * properties. You can also return {@code null} to remove the value for the user entirely.
+ * The annotated method should return one of the following:
+ * <ul>
+ *   <li>{@code this} – if the value is fully visible to the user</li>
+ *   <li>a modified copy – if only a subset of the value should be shown</li>
+ *   <li>{@code null} – if the value must be hidden entirely</li>
+ * </ul>
+ *
+ * <p>
+ * Filtering is applied recursively to nested structures, including fields in collections and arrays.
+ * </p>
+ *
+ * <p><strong>Injection:</strong> The {@link User} instance will be automatically passed to the annotated method.</p>
+ *
+ * <h2>Example</h2>
+ * <pre>{@code
+ * @FilterContent
+ * public Order filter(User user) {
+ *     return user.hasRole("admin") ? this : new Order(maskedFieldsOnly());
+ * }
+ * }</pre>
+ *
+ * @see Serializer#filterContent(Object, User)
  */
 @Target({ElementType.METHOD, ElementType.ANNOTATION_TYPE})
 @Retention(RetentionPolicy.RUNTIME)

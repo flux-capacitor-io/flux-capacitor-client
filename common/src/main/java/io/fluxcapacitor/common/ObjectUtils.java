@@ -141,6 +141,13 @@ public class ObjectUtils {
         };
     }
 
+    public static Callable<?> asCallable(Runnable runnable) {
+        return () -> {
+            runnable.run();
+            return null;
+        };
+    }
+
     public static void tryRun(Runnable task) {
         try {
             task.run();

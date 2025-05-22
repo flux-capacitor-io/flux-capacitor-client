@@ -19,11 +19,12 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Injects the value of an HTTP cookie.
+ * Injects the value of an HTTP cookie into a handler method parameter.
  *
+ * <h2>Example:</h2>
  * <pre>{@code
- * @HandleGet("/user")
- * UserProfile getUser(@CookieParam String token) { }
+ * @HandleGet("/profile")
+ * public User getProfile(@CookieParam("auth_token") String token) { ... }
  * }</pre>
  */
 @Retention(RetentionPolicy.RUNTIME)

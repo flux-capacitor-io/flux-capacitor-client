@@ -14,6 +14,29 @@
 
 package io.fluxcapacitor.javaclient.common.serialization;
 
+import java.util.stream.Stream;
+
+/**
+ * Defines the strategy for handling unknown or unresolvable types during deserialization.
+ * <p>
+ * This is used by {@link Serializer} implementations to determine how to proceed
+ * when a type identifier is not recognized (e.g., missing class, renamed type).
+ * </p>
+ *
+ * <ul>
+ *   <li>{@link #AS_INTERMEDIATE} – Treat unknown types as intermediate representations.
+ *   Deserialization may still proceed later based on structural conversion or inspection.</li>
+ *
+ *   <li>{@link #IGNORE} – Silently skip unknown types. The deserialized stream will exclude them.</li>
+ *
+ *   <li>{@link #FAIL} – Immediately throw a {@link DeserializationException} upon encountering an unknown type.</li>
+ * </ul>
+ *
+ * @see Serializer#deserialize(Stream, UnknownTypeStrategy)
+ * @see DeserializationException
+ */
 public enum UnknownTypeStrategy {
-    AS_INTERMEDIATE, IGNORE, FAIL
+    AS_INTERMEDIATE,
+    IGNORE,
+    FAIL
 }

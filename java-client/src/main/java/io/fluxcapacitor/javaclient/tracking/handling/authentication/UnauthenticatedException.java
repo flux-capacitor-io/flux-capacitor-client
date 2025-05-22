@@ -16,6 +16,12 @@ package io.fluxcapacitor.javaclient.tracking.handling.authentication;
 
 import io.fluxcapacitor.javaclient.common.exception.FunctionalException;
 
+/**
+ * Thrown to signal that the user is not authenticated.
+ * <p>
+ * This typically occurs when no valid authentication token is present or the session has expired.
+ * </p>
+ */
 public class UnauthenticatedException extends FunctionalException {
     public UnauthenticatedException(String message) {
         super(message);

@@ -14,16 +14,50 @@
 
 package io.fluxcapacitor.javaclient.web;
 
+import io.fluxcapacitor.javaclient.publishing.WebRequestGateway;
 import lombok.Builder;
 import lombok.Builder.Default;
 import lombok.Value;
 
 import java.time.Duration;
 
+/**
+ * Configuration settings for a {@link WebRequest} sent via the {@link WebRequestGateway}.
+ * <p>
+ * These settings influence how the request is processed and forwarded by the Flux proxy. While currently limited to a
+ * few essential fields, this class is designed for extensibility and may be expanded over time to support headers,
+ * retry policies, authentication strategies, and more.
+ *
+ * <p><strong>Example usage:</strong></p>
+ * <pre>{@code
+ * WebRequestSettings settings = WebRequestSettings.builder()
+ *     .httpVersion(HttpVersion.HTTP_2)
+ *     .timeout(Duration.ofSeconds(30))
+ *     .consumer("google-traffic")
+ *     .build();
+ * }</pre>
+ *
+ * @see WebRequestGateway#sendAndWait(WebRequest, WebRequestSettings)
+ */
 @Value
 @Builder(toBuilder = true)
 public class WebRequestSettings {
-    @Default HttpVersion httpVersion = HttpVersion.HTTP_1_1;
-    @Default Duration timeout = Duration.ofMinutes(1);
-    @Default String consumer = "forward-proxy";
+
+    /**
+     * HTTP version to be used for the web request (e.g., HTTP/1.1 or HTTP/2).
+     */
+    @Default
+    HttpVersion httpVersion = HttpVersion.HTTP_1_1;
+
+    /**
+     * Maximum duration to wait for the response before timing out.
+     */
+    @Default
+    Duration timeout = Duration.ofMinutes(1);
+
+    /**
+     * Name of the consumer responsible for handling the request, typically {@code "forward-proxy"}.
+     */
+    @Default
+    String consumer = "forward-proxy";
 }

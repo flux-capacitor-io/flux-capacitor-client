@@ -23,10 +23,24 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
+/**
+ * Marks a method as a handler for {@link MessageType#WEBRESPONSE} messages.
+ * <p>
+ * This is typically used to inspect response messages emitted by Flux applications that originally handled
+ * {@link MessageType#WEBREQUEST} messages.
+ * </p>
+ *
+ * @see HandleWeb
+ * @see MessageType#WEBRESPONSE
+ */
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.METHOD)
 @HandleMessage(MessageType.WEBRESPONSE)
 public @interface HandleWebResponse {
+
+    /**
+     * If {@code true}, disables this handler during discovery.
+     */
     boolean disabled() default false;
 }

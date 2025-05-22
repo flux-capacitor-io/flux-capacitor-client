@@ -22,6 +22,13 @@ import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
 
+/**
+ * Indicates that a request (typically a command or query) contains one or more field-level violations that prevent
+ * further processing.
+ * <p>
+ * The {@link #violations} set contains a sorted list of human-readable violation messages.
+ * </p>
+ */
 @Getter
 public class ValidationException extends FunctionalException {
     private final SortedSet<String> violations;

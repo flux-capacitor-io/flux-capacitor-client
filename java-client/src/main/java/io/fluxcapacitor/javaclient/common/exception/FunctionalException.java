@@ -17,6 +17,23 @@ package io.fluxcapacitor.javaclient.common.exception;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.EqualsAndHashCode;
 
+/**
+ * Base class for user-facing exceptions that are intended to be serialized and transferred across system boundaries
+ * (e.g., back to a calling client or frontend application).
+ * <p>
+ * Unlike typical internal exceptions, {@code FunctionalException}s represent errors that are meaningful to the
+ * originator of a request — such as validation issues, authentication failures, or rejected commands.
+ * </p>
+ *
+ * <p>
+ * These exceptions are explicitly allowed to travel via Flux Platform and may appear in the result of a failed
+ * command or query.
+ * </p>
+ *
+ * <p>
+ * To support clean serialization and prevent internal leakage, stack traces and suppressed exceptions are excluded.
+ * </p>
+ */
 @EqualsAndHashCode
 @JsonIgnoreProperties({"localizedMessage", "cause", "stackTrace", "suppressed"})
 public abstract class FunctionalException extends RuntimeException {

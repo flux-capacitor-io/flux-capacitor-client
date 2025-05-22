@@ -34,6 +34,21 @@ import java.util.function.Supplier;
 
 import static io.fluxcapacitor.common.ObjectUtils.memoize;
 
+/**
+ * Represents a serialized form of a search document within a Flux Capacitor collection.
+ * <p>
+ * A {@code SerializedDocument} can encapsulate either:
+ * <ul>
+ *     <li>A serialized payload (via {@link Data}) for efficient transmission and storage</li>
+ *     <li>A lazily deserialized {@link Document} instance for direct access</li>
+ * </ul>
+ * One of these two must always be present. If only one is provided, the other will be derived lazily.
+ * <p>
+ * Serialized documents are produced by a {@code DocumentSerializer} and consumed by the {@code DocumentStore}
+ * for indexing, searching, and retrieval.
+ *
+ * @see Document
+ */
 @Value
 @Builder(toBuilder = true)
 public class SerializedDocument {

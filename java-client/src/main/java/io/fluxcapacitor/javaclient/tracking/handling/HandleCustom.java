@@ -22,6 +22,12 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
+/**
+ * Marks a method or constructor as a handler for messages from a custom message topic.
+ *
+ * @see HandleMessage
+ * @see MessageType#CUSTOM
+ */
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.METHOD, ElementType.CONSTRUCTOR})
@@ -31,6 +37,20 @@ public @interface HandleCustom {
      * Specifies the topic name.
      */
     String value();
+
+    /**
+     * If {@code true}, disables this handler during discovery.
+     */
     boolean disabled() default false;
+
+    /**
+     * If {@code true}, this handler is considered passive and will not emit a result message. Useful when the handler
+     * is for side effects only.
+     */
+    boolean passive() default false;
+
+    /**
+     * Restricts which payload types this handler may be invoked for.
+     */
     Class<?>[] allowedClasses() default {};
 }

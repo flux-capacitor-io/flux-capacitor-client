@@ -17,6 +17,11 @@ package io.fluxcapacitor.javaclient.tracking;
 import java.time.Duration;
 import java.util.Optional;
 
+/**
+ * Interface for controlling flow regulation in a consumer. Implementations of this interface can dictate whether the
+ * consumer should pause fetching or consuming messages, and for how long. This is useful in scenarios where controlling
+ * message consumption rate ensures better system performance or resource utilization.
+ */
 public interface FlowRegulator {
 
     /**
@@ -24,7 +29,7 @@ public interface FlowRegulator {
      * consume any messages.
      * <p>
      * After the given pause duration, this method will be called again to determine if fetching should continue or be
-     * paused for longer. I.e. the consumer will not continue until this method returns an empty optional.
+     * paused for longer – i.e., the consumer will not continue until this method returns an empty optional.
      */
     default Optional<Duration> pauseDuration() {
         return Optional.empty();

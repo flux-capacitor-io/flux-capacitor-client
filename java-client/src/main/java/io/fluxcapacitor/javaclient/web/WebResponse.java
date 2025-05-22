@@ -21,6 +21,7 @@ import io.fluxcapacitor.common.serialization.compression.CompressionAlgorithm;
 import io.fluxcapacitor.common.serialization.compression.CompressionUtils;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
+import io.fluxcapacitor.javaclient.tracking.handling.ResponseMapper;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.User;
 import lombok.AccessLevel;
 import lombok.Data;
@@ -52,6 +53,27 @@ import static io.fluxcapacitor.common.api.Data.JSON_FORMAT;
 import static io.fluxcapacitor.javaclient.web.WebUtils.asHeaderMap;
 import static java.util.stream.Collectors.toList;
 
+/**
+ * Represents a response to a {@link WebRequest} in the Flux platform.
+ * <p>
+ * {@code WebResponse} extends {@link Message} and includes:
+ * </p>
+ * <ul>
+ *   <li>{@code status} – HTTP status code (e.g. 200, 404)</li>
+ *   <li>{@code headers} – HTTP headers</li>
+ *   <li>{@code cookies} – parsed from {@code Set-Cookie}</li>
+ *   <li>{@code contentType} – inferred from headers</li>
+ * </ul>
+ *
+ * <p>
+ * The response payload may be encoded and compressed (e.g. gzip) based on metadata.
+ * It supports transformation, enrichment, and construction via a {@code Builder}.
+ * </p>
+ *
+ * @see WebRequest
+ * @see ResponseMapper
+ * @see WebResponseMapper
+ */
 @Value
 @EqualsAndHashCode(callSuper = true)
 @ToString(callSuper = true)

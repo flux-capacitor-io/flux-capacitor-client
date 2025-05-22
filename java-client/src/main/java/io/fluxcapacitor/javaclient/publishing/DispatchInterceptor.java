@@ -21,31 +21,54 @@ import io.fluxcapacitor.javaclient.common.Message;
 import static java.util.Optional.ofNullable;
 
 /**
- * Mechanism that enables modification of a message before it is dispatched to local handlers or Flux Capacitor. Also
- * can be used to monitor outgoing messages or block message publication altogether.
+ * Mechanism that enables modification, monitoring, or conditional suppression of messages before they are dispatched to
+ * local handlers or published to the Flux platform.
+ * <p>
+ * A {@code DispatchInterceptor} allows observing and transforming messages during the dispatch process. It is typically
+ * used to inject metadata, rewrite payloads, log outgoing messages, or prevent dispatching certain messages based on
+ * custom rules.
+ *
+ * <p><strong>Key behaviors:</strong>
+ * <ul>
+ *   <li>{@link #interceptDispatch} is used for altering or blocking a message before it's handled or published.</li>
+ *   <li>{@link #modifySerializedMessage} can change the final serialized message before it's stored or sent to the Flux platform.</li>
+ *   <li>{@link #monitorDispatch} is a post-processing hook for monitoring without side effects or blocking.</li>
+ * </ul>
+ *
+ * @see io.fluxcapacitor.javaclient.configuration.FluxCapacitorBuilder#addDispatchInterceptor
  */
 @FunctionalInterface
 public interface DispatchInterceptor {
 
+    /**
+     * No-op implementation of the {@code DispatchInterceptor} that returns the original message unchanged.
+     */
     DispatchInterceptor noOp = (m, messageType, topic) -> m;
 
-
     /**
-     * Intercepts the publication of a message. Implementers can use this to modify the contents of a message or block
-     * the publication altogether.
+     * Intercepts the dispatch of a message before it is serialized and published or locally handled.
      * <p>
-     * Return {@code null} or throw an exception to prevent publication of the message.
+     * You may modify the message or return {@code null} to block dispatching. Throwing an exception also prevents
+     * dispatching.
+     *
+     * @param message     the message to be dispatched
+     * @param messageType the type of the message (e.g., COMMAND, EVENT, etc.)
+     * @param topic       the target topic or null if not applicable
+     * @return the modified message, the same message, or {@code null} to prevent dispatch
      */
     Message interceptDispatch(Message message, MessageType messageType, String topic);
 
     /**
-     * Enables modification of the {@link SerializedMessage} before it is published.
+     * Allows modifications to the serialized representation of the message before it is actually published.
      * <p>
-     * This method is invoked by message gateways right before publication of a message (so right after
-     * {@link #monitorDispatch} is invoked).
-     * <p>
-     * Although message publication is stopped when {@code null} is returned or an exception is thrown, it is preferable
-     * to use {@link #interceptDispatch} for that.
+     * This is called after {@link #interceptDispatch} and should not be used to block dispatching — use
+     * {@link #interceptDispatch} for that purpose instead.
+     *
+     * @param serializedMessage the serialized form of the message
+     * @param message           the deserialized message object
+     * @param messageType       the message type
+     * @param topic             the target topic
+     * @return the modified or original {@link SerializedMessage}
      */
     default SerializedMessage modifySerializedMessage(SerializedMessage serializedMessage,
                                                       Message message, MessageType messageType, String topic) {
@@ -53,15 +76,25 @@ public interface DispatchInterceptor {
     }
 
     /**
-     * Monitors the dispatch of a message after all dispatch interceptors have had a change to stop or modify the
-     * message. Don't use this method to prevent message handling or publication.
+     * Hook to observe the dispatch of a message. This method is called after all interceptors have had a chance to
+     * block or modify the message.
      * <p>
-     * This method is invoked by message gateways right before local handling of a message and optional publication.
+     * Use this for logging or metrics, but <em>not</em> to alter or block the message.
+     *
+     * @param message     the final message about to be handled or published
+     * @param messageType the type of the message
+     * @param topic       the topic to which the message is dispatched (can be null)
      */
     default void monitorDispatch(Message message, MessageType messageType, String topic) {
-        //no op
+        // No-op by default
     }
 
+    /**
+     * Chains this interceptor with another. The resulting interceptor applies this one first, then the next one.
+     *
+     * @param nextInterceptor the interceptor to run after this one
+     * @return a new {@code DispatchInterceptor} representing the combined logic
+     */
     default DispatchInterceptor andThen(DispatchInterceptor nextInterceptor) {
         return new DispatchInterceptor() {
             @Override

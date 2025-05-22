@@ -19,11 +19,12 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Injects the value of a URI template variable or a path segment containing the template parameter.
+ * Injects a path variable from the URI into a handler method parameter.
  *
+ * <h2>Example:</h2>
  * <pre>{@code
- * @HandleGet("/user/{id}")
- * UserProfile getUser(@PathParam String id) { }
+ * @HandleGet("/users/{id}")
+ * User getUser(@PathParam String id) { ... }
  * }</pre>
  */
 @Retention(RetentionPolicy.RUNTIME)

@@ -20,12 +20,32 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
+/**
+ * Handles incoming HTTP {@code GET} requests for the specified path(s).
+ * <p>
+ * This is a specialization of {@link HandleWeb} for {@code GET} method requests.
+ * </p>
+ *
+ * @see HandleWeb
+ */
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.METHOD)
 @HandleWeb(value = "", method = HttpRequestMethod.GET)
 public @interface HandleGet {
+    /**
+     * One or more path patterns this handler applies to (e.g. {@code /users}, {@code /accounts/*}). If empty, the
+     * handler is applied to all paths.
+     */
     String[] value() default {};
+
+    /**
+     * If {@code true}, disables this handler during discovery.
+     */
     boolean disabled() default false;
+
+    /**
+     * If {@code true}, the handler will not publish a response to the {@code WebResponse} log.
+     */
     boolean passive() default false;
 }

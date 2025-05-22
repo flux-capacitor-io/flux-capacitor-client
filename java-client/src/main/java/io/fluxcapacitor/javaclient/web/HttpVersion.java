@@ -14,6 +14,22 @@
 
 package io.fluxcapacitor.javaclient.web;
 
+/**
+ * Enumerates supported HTTP protocol versions for web requests and responses handled through the Flux platform.
+ * <p>
+ * This enum may be used for routing, logging, or adapting behavior based on the protocol version negotiated during HTTP
+ * or WebSocket communication.
+ * </p>
+ *
+ * <ul>
+ *   <li>{@link #HTTP_1_1} – Standard HTTP/1.1 protocol</li>
+ *   <li>{@link #HTTP_2} – Modern HTTP/2 protocol with multiplexing support</li>
+ * </ul>
+ *
+ * <p>
+ * Note: WebSocket support in most platforms is based on HTTP/1.1.
+ * </p>
+ */
 public enum HttpVersion {
     HTTP_1_1, HTTP_2
 }

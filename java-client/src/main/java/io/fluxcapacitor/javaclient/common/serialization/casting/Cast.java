@@ -20,9 +20,30 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
+/**
+ * Meta-annotation that indicates a method performs a revision-based type transformation.
+ * <p>
+ * This annotation is used internally to mark casting methods — either upcasters or downcasters —
+ * and encodes the change in revision level.
+ * </p>
+ *
+ * <ul>
+ *   <li>A positive {@code revisionDelta} indicates an upcast (e.g. {@code +1})</li>
+ *   <li>A negative {@code revisionDelta} indicates a downcast (e.g. {@code -1})</li>
+ * </ul>
+ *
+ * @see Upcast
+ * @see Downcast
+ */
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.ANNOTATION_TYPE)
 public @interface Cast {
+
+    /**
+     * The relative revision change this cast represents.
+     * <p>
+     * Positive for upcasts, negative for downcasts.
+     */
     int revisionDelta();
 }

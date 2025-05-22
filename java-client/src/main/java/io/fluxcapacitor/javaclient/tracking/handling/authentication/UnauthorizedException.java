@@ -16,6 +16,10 @@ package io.fluxcapacitor.javaclient.tracking.handling.authentication;
 
 import io.fluxcapacitor.javaclient.common.exception.FunctionalException;
 
+/**
+ * Thrown when an authenticated user attempts to access a resource or perform an action for which they lack the required
+ * permissions.
+ */
 public class UnauthorizedException extends FunctionalException {
     public UnauthorizedException(String message) {
         super(message);

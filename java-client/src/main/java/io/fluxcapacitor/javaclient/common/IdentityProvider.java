@@ -18,14 +18,60 @@ import java.util.Iterator;
 import java.util.Optional;
 import java.util.ServiceLoader;
 
+/**
+ * Strategy interface for generating unique identifiers used throughout the Flux platform.
+ * <p>
+ * An {@code IdentityProvider} produces identifiers for messages, schedules, user sessions,
+ * documents, and other entities that require uniqueness.
+ * </p>
+ *
+ * <p>
+ * The interface defines two types of identifiers:
+ * </p>
+ * <ul>
+ *   <li>{@link #nextFunctionalId()} – the main ID used in application-level constructs</li>
+ *   <li>{@link #nextTechnicalId()} – defaults to {@code nextFunctionalId()}, but may be overridden for traceability</li>
+ * </ul>
+ *
+ * <p>
+ * Implementations can be discovered automatically using {@link java.util.ServiceLoader}.
+ * If none are found, {@link UuidFactory} is used by default.
+ * </p>
+ *
+ * <h2>Example Usage</h2>
+ * <pre>{@code
+ * String id = IdentityProvider.defaultIdentityProvider.nextFunctionalId();
+ * }</pre>
+ *
+ * @see UuidFactory
+ */
 @FunctionalInterface
 public interface IdentityProvider {
-    IdentityProvider defaultIdentityProvider = Optional.of(ServiceLoader.load(IdentityProvider.class)).map(
-            ServiceLoader::iterator).filter(Iterator::hasNext).map(Iterator::next).orElseGet(UuidFactory::new);
 
+    /**
+     * The default identity provider, resolved using {@link ServiceLoader}, or falling back to {@link UuidFactory}.
+     */
+    IdentityProvider defaultIdentityProvider = Optional.of(ServiceLoader.load(IdentityProvider.class))
+            .map(ServiceLoader::iterator)
+            .filter(Iterator::hasNext)
+            .map(Iterator::next)
+            .orElseGet(UuidFactory::new);
+
+    /**
+     * Returns a new functional ID, suitable for user-visible or application-level tracking.
+     *
+     * @return a unique, non-null identifier string
+     */
     String nextFunctionalId();
 
-    default String nextTechnicalId(){
+    /**
+     * Returns a new technical ID, suitable for lower-level operations such as internal tracing.
+     * <p>
+     * Defaults to {@link #nextFunctionalId()}, but can be overridden.
+     *
+     * @return a unique identifier string
+     */
+    default String nextTechnicalId() {
         return nextFunctionalId();
     }
 }

@@ -19,11 +19,12 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Injects the value of an HTTP request header.
+ * Injects an HTTP request header into a handler method parameter.
  *
+ * <h2>Example:</h2>
  * <pre>{@code
  * @HandleGet("/terms")
- * String getTerms(@HeaderParam("Accept-Language") String language) { }
+ * public String getTerms(@HeaderParam("Accept-Language") String language) { ... }
  * }</pre>
  */
 @Retention(RetentionPolicy.RUNTIME)

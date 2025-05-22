@@ -25,15 +25,38 @@ import java.util.List;
 import java.util.stream.Stream;
 
 /**
- * Mechanism to convert objects to a byte array and vice versa.
+ * Mechanism to serialize and deserialize objects to and from {@code byte[]} representations.
+ * <p>
+ * A {@code Serializer} transforms Java objects into {@link Data} containers (holding raw byte arrays) and restores them
+ * back, optionally using format hints or handling type revisions via upcasting/downcasting.
+ * </p>
+ *
+ * <p>
+ * It also provides lazy deserialization and registration hooks for custom (de)casters. This makes it central to Flux
+ * Capacitor’s persistence, transport, and replay systems.
+ * </p>
+ *
+ * <h2>Responsibilities</h2>
+ * <ul>
+ *   <li>Serialize objects with optional format hints</li>
+ *   <li>Deserialize to objects or messages, lazily if needed</li>
+ *   <li>Support revisioned types via upcasting and downcasting</li>
+ *   <li>Enable flexible error strategies for unknown types</li>
+ * </ul>
+ *
+ * @see Data
+ * @see DeserializingObject
+ * @see SerializedObject
+ * @see DeserializationException
+ * @see SerializationException
  */
 public interface Serializer extends ContentFilter {
 
     /**
-     * Serializes an object to a {@link Data} object containing a byte array.
+     * Serializes the given object to a {@link Data} wrapper using the default format.
      *
-     * @param object The instance to serialize
-     * @return Data object containing byte array representation of the object
+     * @param object the object to serialize
+     * @return the serialized object wrapped in {@link Data}
      * @throws SerializationException if serialization fails
      */
     default Data<byte[]> serialize(Object object) {
@@ -41,11 +64,11 @@ public interface Serializer extends ContentFilter {
     }
 
     /**
-     * Serializes an object using the given desired {@code format} to a {@link Data} object containing a byte array. If
-     * format is {@code null} the default format of this serializer may be used.
+     * Serializes the given object into a {@link Data} wrapper using the specified format.
      *
-     * @param object The instance to serialize
-     * @return Data object containing byte array representation of the object
+     * @param object the object to serialize
+     * @param format the desired serialization format (e.g. \"json\"); may be {@code null}
+     * @return serialized object as {@link Data}
      * @throws SerializationException if serialization fails
      */
     Data<byte[]> serialize(Object object, String format);
@@ -81,7 +104,8 @@ public interface Serializer extends ContentFilter {
      */
     @SuppressWarnings({"unchecked", "rawtypes"})
     default <T> T deserialize(SerializedObject<byte[]> data, Class<T> type) {
-        List<DeserializingObject<T, ?>> list = deserialize((Stream) Stream.of(data), UnknownTypeStrategy.AS_INTERMEDIATE).toList();
+        List<DeserializingObject<T, ?>> list =
+                deserialize((Stream) Stream.of(data), UnknownTypeStrategy.AS_INTERMEDIATE).toList();
         if (list.size() != 1) {
             throw new DeserializationException(
                     String.format("Invalid deserialization result for a '%s'. Expected a single object but got %s",
@@ -112,47 +136,154 @@ public interface Serializer extends ContentFilter {
     <I extends SerializedObject<byte[]>> Stream<DeserializingObject<byte[], I>> deserialize(
             Stream<I> dataStream, UnknownTypeStrategy unknownTypeStrategy);
 
+    /**
+     * Deserializes a stream of {@link SerializedMessage} into {@link DeserializingMessage} instances with the specified
+     * {@link MessageType}.
+     *
+     * @param dataStream  the stream of messages
+     * @param messageType the type of message (COMMAND, EVENT, etc.)
+     * @return stream of deserialized messages
+     */
     default Stream<DeserializingMessage> deserializeMessages(Stream<SerializedMessage> dataStream,
                                                              MessageType messageType) {
         return deserializeMessages(dataStream, messageType, (String) null);
     }
 
+    /**
+     * Deserializes a stream of {@link SerializedMessage} into {@link DeserializingMessage} instances with the specified
+     * {@link MessageType}.
+     *
+     * @param dataStream  the stream of messages
+     * @param messageType the type of message (COMMAND, EVENT, etc.)
+     * @param topic       the topic of the message if the type is CUSTOM or DOCUMENT, otherwise {@code null}
+     * @return stream of deserialized messages
+     */
     default Stream<DeserializingMessage> deserializeMessages(Stream<SerializedMessage> dataStream,
                                                              MessageType messageType, String topic) {
         return deserializeMessages(dataStream, messageType, topic, UnknownTypeStrategy.AS_INTERMEDIATE);
     }
 
+    /**
+     * Deserializes a stream of {@link SerializedMessage} into {@link DeserializingMessage} instances with the specified
+     * {@link MessageType}.
+     *
+     * @param dataStream          the stream of messages
+     * @param messageType         the type of message (COMMAND, EVENT, etc.)
+     * @param unknownTypeStrategy value that determines what to do when encountering unknown types
+     * @return stream of deserialized messages
+     */
     default Stream<DeserializingMessage> deserializeMessages(Stream<SerializedMessage> dataStream,
-                                                             MessageType messageType, UnknownTypeStrategy unknownTypeStrategy) {
+                                                             MessageType messageType,
+                                                             UnknownTypeStrategy unknownTypeStrategy) {
         return deserializeMessages(dataStream, messageType, null, unknownTypeStrategy);
     }
 
+    /**
+     * Deserializes a stream of {@link SerializedMessage} into {@link DeserializingMessage} instances with the specified
+     * {@link MessageType}.
+     *
+     * @param dataStream          the stream of messages
+     * @param messageType         the type of message (COMMAND, EVENT, etc.)
+     * @param topic               the topic of the message if the type is CUSTOM or DOCUMENT, otherwise {@code null}
+     * @param unknownTypeStrategy value that determines what to do when encountering unknown types
+     * @return stream of deserialized messages
+     */
     default Stream<DeserializingMessage> deserializeMessages(Stream<SerializedMessage> dataStream,
-                                                             MessageType messageType, String topic, UnknownTypeStrategy unknownTypeStrategy) {
+                                                             MessageType messageType, String topic,
+                                                             UnknownTypeStrategy unknownTypeStrategy) {
         return deserialize(dataStream, unknownTypeStrategy).map(s -> new DeserializingMessage(s, messageType, topic));
     }
 
+    /**
+     * Deserializes a single {@link SerializedMessage} into a {@link DeserializingMessage}. If the input data cannot be
+     * deserialized to a single result (due to upcasting) a {@link DeserializationException} is thrown.
+     *
+     * @param message     the message to deserialize
+     * @param messageType the message type
+     * @return the deserialized message
+     */
     default DeserializingMessage deserializeMessage(SerializedMessage message, MessageType messageType) {
-        return deserializeMessages(Stream.of(message), messageType).findAny().orElseThrow();
+        return deserializeMessages(Stream.of(message), messageType).findAny()
+                .orElseThrow(DeserializationException::new);
     }
 
+    /**
+     * Converts a given object to another type using the serializer's object mapping rules.
+     *
+     * @param value the input value
+     * @param type  the target type
+     * @param <V>   the result type
+     * @return the converted value
+     */
     <V> V convert(Object value, Type type);
 
+    /**
+     * Creates a deep copy of the given object using serialization.
+     *
+     * @param value the object to clone
+     * @param <V> the type of the value
+     * @return a deep copy
+     */
     <V> V clone(Object value);
 
+    /**
+     * Registers one or more upcaster candidates.
+     *
+     * @param casterCandidates beans with upcasting logic
+     * @return a registration handle
+     */
     Registration registerUpcasters(Object... casterCandidates);
 
+    /**
+     * Registers one or more downcaster candidates.
+     *
+     * @param casterCandidates beans with downcasting logic
+     * @return a registration handle
+     */
     Registration registerDowncasters(Object... casterCandidates);
 
+    /**
+     * Registers upcasters and downcasters in one step.
+     *
+     * @param casterCandidates beans with casting logic
+     * @return a merged registration handle
+     */
     default Registration registerCasters(Object... casterCandidates) {
         return registerUpcasters(casterCandidates).merge(registerDowncasters(casterCandidates));
     }
 
+    /**
+     * Registers a mapping from an old type identifier to a new one.
+     *
+     * @param oldType the legacy type name
+     * @param newType the canonical or updated type name
+     * @return a registration handle
+     */
     Registration registerTypeCaster(String oldType, String newType);
 
+    /**
+     * Returns the upcasted type name for a legacy type identifier.
+     *
+     * @param type the original type
+     * @return the remapped (or unchanged) type name
+     */
     String upcastType(String type);
 
+    /**
+     * Downcasts the given object to a previous revision.
+     *
+     * @param object the object to downcast
+     * @param desiredRevision the target revision
+     * @return a revisioned form of the object
+     */
     Object downcast(Object object, int desiredRevision);
 
+    /**
+     * Downcasts a {@link Data} object to the specified revision level.
+     *
+     * @param data the serialized data
+     * @param desiredRevision the target revision number
+     * @return a transformed object matching the older revision
+     */
     Object downcast(Data<?> data, int desiredRevision);
 }

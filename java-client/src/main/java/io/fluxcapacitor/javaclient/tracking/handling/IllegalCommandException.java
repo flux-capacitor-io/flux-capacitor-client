@@ -16,6 +16,13 @@ package io.fluxcapacitor.javaclient.tracking.handling;
 
 import io.fluxcapacitor.javaclient.common.exception.FunctionalException;
 
+/**
+ * Thrown to indicate that a command was rejected due to business logic violations.
+ * <p>
+ * This is typically used when a command is syntactically valid but semantically unacceptable in the current system
+ * state.
+ * </p>
+ */
 public class IllegalCommandException extends FunctionalException {
     public IllegalCommandException(String message) {
         super(message);

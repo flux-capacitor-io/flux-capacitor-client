@@ -54,6 +54,25 @@ import java.util.stream.StreamSupport;
 
 import static java.util.Optional.ofNullable;
 
+/**
+ * Wrapper for a {@link Message} that supports lazy deserialization, context caching, type adaptation, and
+ * batch-level execution utilities.
+ * <p>
+ * {@code DeserializingMessage} combines a {@link SerializedMessage} with deserialization and routing logic while
+ * maintaining the original message context (type, topic, metadata, and payload).
+ * </p>
+ *
+ * <h2>Key Features</h2>
+ * <ul>
+ *   <li>Supports on-demand deserialization of a {@link Message}</li>
+ *   <li>Provides thread-local access to the message that is currently being handled</li>
+ *   <li>Allows attaching resources to the current message or message batch/li>
+ * </ul>
+ *
+ * @see Message
+ * @see SerializedMessage
+ * @see Serializer
+ */
 @Value
 @Slf4j
 @AllArgsConstructor(access = AccessLevel.NONE)
@@ -102,7 +121,8 @@ public class DeserializingMessage implements HasMessage {
         this(message, messageType, null, serializer);
     }
 
-    public DeserializingMessage(@NonNull Message message, MessageType messageType, String topic, Serializer serializer) {
+    public DeserializingMessage(@NonNull Message message, MessageType messageType, String topic,
+                                Serializer serializer) {
         this.messageType = messageType;
         this.topic = topic;
         this.message = message;
@@ -134,6 +154,7 @@ public class DeserializingMessage implements HasMessage {
         return handleBatch(Stream.of(this)).map(action).toList().get(0);
     }
 
+    @Override
     public Message toMessage() {
         if (message == null) {
             message = asMessage();
@@ -154,6 +175,7 @@ public class DeserializingMessage implements HasMessage {
         };
     }
 
+    @Override
     public Metadata getMetadata() {
         return ofNullable(delegate).map(DeserializingObject::getSerializedObject)
                 .map(SerializedMessage::getMetadata)
@@ -163,13 +185,15 @@ public class DeserializingMessage implements HasMessage {
     public DeserializingMessage withMetadata(Metadata metadata) {
         return ofNullable(delegate).map(d -> new DeserializingMessage(
                         d.getSerializedObject().withMetadata(metadata), d.getObjectFunction(), messageType, topic))
-                .orElseGet(() -> new DeserializingMessage(message.withMetadata(metadata), messageType, topic, serializer));
+                .orElseGet(
+                        () -> new DeserializingMessage(message.withMetadata(metadata), messageType, topic, serializer));
     }
 
     public DeserializingMessage withPayload(Object payload) {
         return new DeserializingMessage(toMessage().withPayload(payload), messageType, topic, serializer);
     }
 
+    @Override
     public String getMessageId() {
         return ofNullable(delegate).map(DeserializingObject::getSerializedObject)
                 .map(SerializedMessage::getMessageId)
@@ -182,6 +206,7 @@ public class DeserializingMessage implements HasMessage {
                         ? IndexUtils.indexFromTimestamp(((Schedule) message).getDeadline()) : null);
     }
 
+    @Override
     public Instant getTimestamp() {
         return ofNullable(delegate).map(DeserializingObject::getSerializedObject)
                 .map(SerializedMessage::getTimestamp).map(Instant::ofEpochMilli)
@@ -192,16 +217,19 @@ public class DeserializingMessage implements HasMessage {
         return ofNullable(delegate).map(DeserializingObject::isDeserialized).orElse(true);
     }
 
+    @Override
     public <V> V getPayload() {
         return ofNullable(delegate).<V>map(DeserializingObject::getPayload)
                 .or(() -> ofNullable(message).map(Message::getPayload)).orElse(null);
     }
 
+    @Override
     public <R> R getPayloadAs(Type type) {
         return ofNullable(delegate).map(d -> d.<R>getPayloadAs(type))
                 .orElseGet(() -> ofNullable(message).map(m -> m.<R>getPayloadAs(type)).orElse(null));
     }
 
+    @Override
     @SuppressWarnings("rawtypes")
     public Class<?> getPayloadClass() {
         return ofNullable(delegate).<Class>map(DeserializingObject::getPayloadClass)

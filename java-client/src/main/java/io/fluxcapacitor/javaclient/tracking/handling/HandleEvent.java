@@ -22,11 +22,43 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
+/**
+ * Marks a method or constructor as an event handler for incoming messages of type {@link MessageType#EVENT}.
+ * <p>
+ * This annotation is used to designate methods that should be invoked when an event message is received.
+ * It can be applied to instance methods or constructors. Constructors or static methods may be used for initializing stateful
+ * handlers (see {@link Stateful}) in response to creation events.
+ * </p>
+ *
+ * <p>
+ * Event handlers typically return {@code void}, as event processing is usually side-effect driven
+ * and does not produce a result to be returned or published.
+ * </p>
+ *
+ * <h2>Example:</h2>
+ * <pre>{@code
+ * @HandleEvent
+ * void on(UserCreated event) {
+ *     //do something with the event
+ * }
+ * }</pre>
+ *
+ * @see HandleMessage
+ * @see MessageType#EVENT
+ */
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.METHOD, ElementType.CONSTRUCTOR})
 @HandleMessage(MessageType.EVENT)
 public @interface HandleEvent {
+
+    /**
+     * If {@code true}, disables this handler during discovery.
+     */
     boolean disabled() default false;
+
+    /**
+     * Restricts which payload types this handler may be invoked for.
+     */
     Class<?>[] allowedClasses() default {};
 }

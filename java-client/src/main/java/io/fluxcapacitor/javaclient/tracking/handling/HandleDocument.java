@@ -24,7 +24,15 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Annotation used on handler methods or constructors that handle search document messages in a given collection.
+ * Marks a method or constructor as a handler for document messages within a search collection.
+ * <p>
+ * This is a specialization of {@link HandleMessage} for {@link MessageType#DOCUMENT} messages. Handlers can either
+ * specify a collection name or a document class.
+ * </p>
+ *
+ * @see Searchable
+ * @see HandleMessage
+ * @see MessageType#DOCUMENT
  */
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
@@ -32,21 +40,18 @@ import java.lang.annotation.Target;
 @HandleMessage(MessageType.DOCUMENT)
 public @interface HandleDocument {
     /**
-     * Optional parameter to specify the collection name. If set, the class returned in {@link #documentClass()}
-     * is ignored.
+     * Optional name of the document collection. If provided, {@link #documentClass()} is ignored.
      */
     String value() default "";
 
     /**
-     * Optional parameter to specify the class of the documents to be handled. If the class is annotated with {@link Searchable} or has an
-     * annotation that itself is annotated with {@link Searchable}, the annotation will be used to determine the
-     * document collection, otherwise the simple name of the class will be used as document collection.
-     * <p>
-     * If {@link #value()} is specified the returned class here will be ignored.
-     *
-     * @see Searchable
+     * Optional class of the documents to handle. If annotated with {@link Searchable}, the annotation defines the
+     * collection; otherwise the class name is used.
      */
     Class<?> documentClass() default Void.class;
 
+    /**
+     * If {@code true}, disables this handler during discovery.
+     */
     boolean disabled() default false;
 }

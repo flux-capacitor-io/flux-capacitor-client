@@ -17,10 +17,44 @@ package io.fluxcapacitor.javaclient.tracking.handling;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.javaclient.common.Message;
 
+/**
+ * A strategy interface for converting arbitrary response objects into {@link Message} instances.
+ * <p>
+ * This abstraction allows handler return values (or other types of responses) to be wrapped in a consistent message
+ * format, optionally including {@link Metadata}.
+ * </p>
+ *
+ * <p>
+ * Implementations may handle different return types (e.g., plain objects, enriched result objects, or already wrapped
+ * {@code Message} instances) depending on the needs of the message pipeline.
+ * </p>
+ *
+ * <h2>Use Cases</h2>
+ * <ul>
+ *   <li>Transforming handler return values into {@link Message} envelopes for result publication</li>
+ *   <li>Injecting custom metadata or headers into result messages</li>
+ *   <li>Supporting custom serialization formats or protocols</li>
+ * </ul>
+ *
+ * @see Message
+ * @see Metadata
+ */
 public interface ResponseMapper {
 
+    /**
+     * Maps the given response object to a {@link Message}. The response may be a plain object or a {@link Message}.
+     *
+     * @param response the response object to be mapped
+     * @return a {@link Message} representing the response
+     */
     Message map(Object response);
 
+    /**
+     * Maps the given response object and metadata to a {@link Message}.
+     *
+     * @param response the response object to be transformed
+     * @param metadata optional metadata to include in the message
+     * @return a {@link Message} representing the response and metadata
+     */
     Message map(Object response, Metadata metadata);
-
 }

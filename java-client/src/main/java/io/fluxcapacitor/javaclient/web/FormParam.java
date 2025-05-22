@@ -19,17 +19,19 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Injects the value of a form field or an entire form.
+ * Injects an individual form field or a complete form object into a handler method parameter.
+ * <p>
+ * The request must use {@code application/x-www-form-urlencoded} or {@code multipart/form-data}.
+ * </p>
  *
+ * <h2>Examples:</h2>
  * <pre>{@code
  * @HandlePost("/newsletter")
- * void handle(@FormParam String email) { }
+ * void subscribe(@FormParam String email) { ... }
  *
  * @HandlePost("/user")
- * UserId form(@FormParam UserData form) { }
+ * UserId createUser(@FormParam UserForm form) { ... }
  * }</pre>
- * <p>
- * The HTTP request must be encoded as application/x-www-form-urlencoded or multipart/form-data.
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.PARAMETER)

@@ -14,6 +14,27 @@
 
 package io.fluxcapacitor.common.api;
 
+/**
+ * Marker interface for objects that carry associated {@link Metadata}.
+ * <p>
+ * Implementations of this interface expose a structured metadata map that can be
+ * used for routing, correlation, trace propagation, or other contextual behavior
+ * within the Flux platform.
+ * </p>
+ *
+ * <p>
+ * Typical implementers include {@code Message}, {@link SerializedMessage}, and custom types
+ * that participate in message tracking or enrichment.
+ * </p>
+ *
+ * @see Metadata
+ */
 public interface HasMetadata {
+
+    /**
+     * Returns the {@link Metadata} associated with this object.
+     *
+     * @return metadata attached to this instance; never {@code null}
+     */
     Metadata getMetadata();
 }

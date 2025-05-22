@@ -31,6 +31,25 @@ import java.util.Map;
 import static io.fluxcapacitor.javaclient.FluxCapacitor.currentTime;
 import static java.time.temporal.ChronoUnit.MILLIS;
 
+/**
+ * Represents a scheduled message to be delivered at a specific future time.
+ * <p>
+ * {@code Schedule} extends {@link Message} with a {@code scheduleId} and a {@code deadline} indicating when
+ * the message should be delivered.
+ * </p>
+ *
+ * <p>
+ * It supports transformation and enrichment just like a regular {@link Message}, and includes convenience
+ * methods for rescheduling.
+ * </p>
+ *
+ * <h2>Use Case</h2>
+ * <pre>{@code
+ * new Schedule(new Reminder("water the plants"), Duration.ofHours(1));
+ * }</pre>
+ *
+ * @see Message
+ */
 @Value
 @EqualsAndHashCode(callSuper = true)
 @ToString(callSuper = true)

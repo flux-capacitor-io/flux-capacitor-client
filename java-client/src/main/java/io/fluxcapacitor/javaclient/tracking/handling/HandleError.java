@@ -22,11 +22,27 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
+/**
+ * Marks a method or constructor as a handler for error messages ({@link MessageType#ERROR}).
+ * <p>
+ * These handlers can be used to react to e.g.: failed message handling or system errors.
+ * </p>
+ *
+ * @see HandleMessage
+ * @see MessageType#ERROR
+ */
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.METHOD, ElementType.CONSTRUCTOR})
 @HandleMessage(MessageType.ERROR)
 public @interface HandleError {
+    /**
+     * If {@code true}, disables this handler during discovery.
+     */
     boolean disabled() default false;
+
+    /**
+     * Restricts which payload types this handler may be invoked for.
+     */
     Class<?>[] allowedClasses() default {};
 }

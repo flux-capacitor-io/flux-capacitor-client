@@ -20,8 +20,11 @@ import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
+import io.fluxcapacitor.javaclient.scheduling.Schedule;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.User;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.UserProvider;
+import io.fluxcapacitor.javaclient.web.WebRequest;
+import io.fluxcapacitor.javaclient.web.WebResponse;
 import lombok.Getter;
 import lombok.Value;
 import lombok.With;
@@ -36,6 +39,29 @@ import java.util.Optional;
 
 import static io.fluxcapacitor.javaclient.FluxCapacitor.currentIdentityProvider;
 
+/**
+ * Represents a unit of communication within the Flux platform, wrapping a payload and its metadata.
+ * <p>
+ * A {@code Message} serves as the base class for all messages in Flux (e.g., commands, events, queries, web requests).
+ * It contains a strongly typed payload, immutable metadata, a globally unique message ID, and a timestamp.
+ * </p>
+ *
+ * <p>
+ * Messages can be enriched with metadata, transformed with a new payload, or serialized for transmission.
+ * </p>
+ *
+ * <h2>Key Features</h2>
+ * <ul>
+ *   <li>Immutable, with {@code withX} and {@code addMetadata} methods for safe transformation</li>
+ *   <li>Supports auto-generation of message ID and timestamp if not provided</li>
+ *   <li>Lazy routing key computation via {@code getRoutingKey()}</li>
+ * </ul>
+ *
+ * @see Metadata
+ * @see Schedule
+ * @see WebRequest
+ * @see WebResponse
+ */
 @Value
 @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS, defaultImpl = Message.class)
 @NonFinal

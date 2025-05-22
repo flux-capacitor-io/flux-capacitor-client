@@ -29,7 +29,18 @@ import java.util.concurrent.TimeUnit;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 /**
- * Annotation used on a handler class that functions as a web socket endpoint for a single websocket session.
+ * Declares a WebSocket endpoint that represents a single active client session.
+ * <p>
+ * This annotation is used on handler classes with annotations like {@link HandleSocketMessage} that manage WebSocket
+ * communication and lifecycle events (e.g. handshake, open, message, close).
+ * </p>
+ *
+ * <p>
+ * Socket endpoint beans are prototype-scoped, meaning a new instance is created per WebSocket session.
+ * </p>
+ *
+ * @see HandleSocketOpen
+ * @see HandleSocketMessage
  */
 @Documented
 @Target(ElementType.TYPE)
@@ -40,37 +51,33 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 public @interface SocketEndpoint {
 
     /**
-     * Configuration of the keep-alive mechanism that periodically pings the client. Enabled by default.
+     * Configures the WebSocket session keep-alive mechanism (ping/pong).
      */
     AliveCheck aliveCheck() default @AliveCheck;
 
-
     /**
-     * Annotation used to configure a keep-alive mechanism for web socket sessions.
-     * This mechanism periodically pings the connected client to ensure the session remains active.
+     * Controls periodic keep-alive pings to detect inactive sessions.
      */
     @interface AliveCheck {
 
         /**
-         * Flag to enable or disable the keep-alive mechanism. Defaults to {@code true}, i.e. enabled.
+         * Whether the keep-alive mechanism is enabled. Defaults to {@code true}.
          */
         boolean value() default true;
 
         /**
-         * Returns the unit for {@link #pingDelay()} and {@link #pingTimeout()}. Defaults to {@link TimeUnit#SECONDS}.
+         * Unit for ping intervals and timeouts.
          */
         TimeUnit timeUnit() default SECONDS;
 
         /**
-         * Returns the time between two pings in {@link #timeUnit()} units.
+         * Interval between pings in {@link #timeUnit()}.
          */
         long pingDelay() default 60;
 
         /**
-         * Returns the time allowed after a ping to get a pong response in {@link #timeUnit()} units. If no pong is
-         * received in time, the session will be automatically closed.
+         * Time allowed to receive a pong after a ping. If exceeded, the session is closed.
          */
         long pingTimeout() default 60;
     }
-
 }

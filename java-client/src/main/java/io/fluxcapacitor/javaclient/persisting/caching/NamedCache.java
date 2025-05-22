@@ -23,6 +23,13 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.UnaryOperator;
 
+/**
+ * A {@link Cache} implementation that wraps a delegate cache and applies a transformation to each key (ID) before
+ * delegating operations to the underlying cache.
+ * <p>
+ * This allows multiple cache users to safely share the same underlying {@code Cache} instance without risk of key
+ * collisions. Typical use cases include namespacing by type, context, or scope.
+ */
 @AllArgsConstructor
 public class NamedCache implements Cache {
     private final Cache delegate;

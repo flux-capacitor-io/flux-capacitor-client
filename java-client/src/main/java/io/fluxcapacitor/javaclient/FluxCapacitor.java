@@ -86,16 +86,28 @@ import static io.fluxcapacitor.common.MessageType.NOTIFICATION;
 import static java.util.Arrays.stream;
 
 /**
- * High-level client for Flux Capacitor. If you are using anything other than this to interact with the service at
- * runtime you're probably doing it wrong.
+ * High-level entry point for all interactions with the Flux Capacitor platform.
  * <p>
- * To start handling messages build an instance of this API and invoke {@link #registerHandlers}.
+ * This interface exposes static convenience methods to publish and track messages, interact with aggregates, schedule
+ * tasks, index/search documents, and more. It is designed to reduce boilerplate and promote location transparency in
+ * message-driven systems.
+ * </p>
+ *
+ * <h2>Usage Patterns</h2>
+ * <ul>
+ *   <li>To send or publish messages, use static methods such as {@link #sendCommand(Object)} or {@link #publishEvent(Object)}.</li>
+ *   <li>To track incoming messages, register handlers using {@link #registerHandlers(Object...)}.</li>
+ *   <li>To interact with aggregates, use {@link #loadAggregate(Id)} or {@link #aggregateRepository()}.</li>
+ * </ul>
+ *
  * <p>
- * Once you are handling messages you can simply use the static methods provided (e.g. to publish messages etc). In
- * those cases it is not necessary to inject an instance of this API. This minimizes the need for dependencies in your
- * functional classes and maximally cashes in on location transparency.
+ * Most applications will never need to hold or inject a {@code FluxCapacitor} instance directly.
+ * Instead, the platform automatically binds the relevant instance to a thread-local scope, allowing access via static methods.
+ * </p>
+ *
  * <p>
- * To build an instance of this client check out {@link DefaultFluxCapacitor}.
+ * A concrete instance is typically constructed using {@link DefaultFluxCapacitor}.
+ * </p>
  */
 public interface FluxCapacitor extends AutoCloseable {
 
@@ -107,9 +119,16 @@ public interface FluxCapacitor extends AutoCloseable {
     AtomicReference<FluxCapacitor> applicationInstance = new AtomicReference<>();
 
     /**
-     * Flux Capacitor instance bound to the current thread. Normally there's only one FluxCapacitor client per
-     * application. Before messages are passed to message handlers the FluxCapacitor client binds itself to this field.
-     * By doing so message handlers can interact with Flux Capacitor without injecting any dependencies.
+     * Thread-local binding of the current {@code FluxCapacitor} instance.
+     * <p>
+     * This is automatically set during message processing to ensure that handlers can invoke commands, queries, or
+     * schedule events without explicitly injecting dependencies.
+     * </p>
+     *
+     * <p>
+     * Example: Inside a {@code @HandleCommand} method, you can call {@code FluxCapacitor.sendCommand(...)} and it will
+     * automatically use the correct instance, without needing manual wiring.
+     * </p>
      */
     ThreadLocal<FluxCapacitor> instance = new ThreadLocal<>();
 
@@ -149,16 +168,20 @@ public interface FluxCapacitor extends AutoCloseable {
     }
 
     /**
-     * Gets the {@link IdentityProvider} of the current FluxCapacitor to generate a unique identifier. If there is no
-     * current FluxCapacitor instance a new UUID is generated.
+     * Generates a functional ID using the current {@link IdentityProvider}. This is typically used for
+     * application-level entities such as aggregates or user-defined messages.
+     *
+     * @return a unique, traceable identifier string
      */
     static String generateId() {
         return currentIdentityProvider().nextFunctionalId();
     }
 
     /**
-     * Fetches the {@link IdentityProvider} of the current FluxCapacitor. If there is no current FluxCapacitor instance
-     * a new UUID factory is generated.
+     * Fetches the configured identity provider used for both functional and technical IDs. The default is a
+     * {@link UuidFactory} that generates UUIDs.
+     * <p>
+     * If there is no current FluxCapacitor instance, a new UUID factory is generated.
      */
     static IdentityProvider currentIdentityProvider() {
         return getOptionally().map(FluxCapacitor::identityProvider).orElseGet(UuidFactory::new);
@@ -176,9 +199,9 @@ public interface FluxCapacitor extends AutoCloseable {
     /**
      * Publishes the given application event. The event may be an instance of a {@link Message} in which case it will be
      * published as is. Otherwise the event is published using the passed value as payload without additional metadata.
-     * <p>
-     * Note that the published event will not be available for event sourcing as it is does not belong to any
-     * aggregate.
+     *
+     * <p><strong>Note:</strong> These events are <em>not</em> persisted for event sourcing. To publish domain events as
+     * part of an aggregate lifecycle, apply the events using {@link Entity#apply} after loading an entity.</p>
      *
      * @see #aggregateRepository() if you're interested in publishing events that belong to an aggregate.
      */
@@ -188,6 +211,9 @@ public interface FluxCapacitor extends AutoCloseable {
 
     /**
      * Publishes an event with given payload and metadata.
+     *
+     * <p><strong>Note:</strong> These events are <em>not</em> persisted for event sourcing. To publish domain events as
+     * part of an aggregate lifecycle, apply the events using {@link Entity#apply} after loading an entity.</p>
      *
      * @see #publishEvent(Object) for more info
      */
@@ -199,9 +225,8 @@ public interface FluxCapacitor extends AutoCloseable {
      * Publishes given application events. The events may be instances of {@link Message} in which case they will be
      * published as is. Otherwise, the events are published using the passed value as payload without additional
      * metadata.
-     * <p>
-     * Note that the published events will not be available for event sourcing as they do not belong to any
-     * aggregate.
+     * <p><strong>Note:</strong> These events are <em>not</em> persisted for event sourcing. To publish domain events as
+     * part of an aggregate lifecycle, apply the events using {@link Entity#apply} after loading an entity.</p>
      *
      * @see #aggregateRepository() if you're interested in publishing events that belong to an aggregate.
      */

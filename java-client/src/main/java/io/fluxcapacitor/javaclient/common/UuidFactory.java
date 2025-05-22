@@ -18,14 +18,38 @@ import lombok.AllArgsConstructor;
 
 import java.util.UUID;
 
+/**
+ * Default implementation of {@link IdentityProvider} that generates random UUIDs.
+ * <p>
+ * Optionally removes dashes from the UUID to produce a more compact identifier.
+ * </p>
+ *
+ * <h2>Example Output</h2>
+ * <ul>
+ *   <li>{@code 61f3c6d26c9c42d3b56b4c0a7e34c939} (if {@code removeDashes = true})</li>
+ *   <li>{@code 61f3c6d2-6c9c-42d3-b56b-4c0a7e34c939} (if {@code removeDashes = false})</li>
+ * </ul>
+ */
 @AllArgsConstructor
 public class UuidFactory implements IdentityProvider {
+
+    /**
+     * Whether to remove dashes from generated UUIDs.
+     */
     private final boolean removeDashes;
 
+    /**
+     * Creates a {@code UuidFactory} that removes dashes (default behavior).
+     */
     public UuidFactory() {
         this(true);
     }
 
+    /**
+     * Returns a new UUID string, optionally stripped of dashes.
+     *
+     * @return a unique identifier string
+     */
     @Override
     public String nextFunctionalId() {
         String id = UUID.randomUUID().toString();

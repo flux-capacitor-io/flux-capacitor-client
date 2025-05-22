@@ -22,11 +22,27 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
+/**
+ * Marks a method or constructor as a handler for result messages ({@link MessageType#RESULT}).
+ * <p>
+ * These handlers are typically used to process responses from other systems or components.
+ * </p>
+ *
+ * @see HandleMessage
+ * @see MessageType#RESULT
+ */
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.METHOD, ElementType.CONSTRUCTOR})
 @HandleMessage(MessageType.RESULT)
 public @interface HandleResult {
+    /**
+     * If {@code true}, disables this handler during discovery.
+     */
     boolean disabled() default false;
+
+    /**
+     * Restricts which payload types this handler may be invoked for.
+     */
     Class<?>[] allowedClasses() default {};
 }

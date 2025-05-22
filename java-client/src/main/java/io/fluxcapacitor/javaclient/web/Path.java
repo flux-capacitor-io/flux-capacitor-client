@@ -22,19 +22,34 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Annotation used by web handlers that specifies the root of the URI path. This annotation can be present at package,
- * class or method level. The annotation at the most specific level overrides the value from lower levels, e.g. @Root on
- * a class will override the package level annotation.
+ * Declares the root URI path prefix for web handlers.
+ * <p>
+ * Can be applied at the package, class, or method level to compose full request paths.
+ * The most specific annotation overrides more general ones (e.g. method &gt; class &gt; package).
+ * </p>
+ *
+ * <p>
+ * The path value is automatically normalized (ensuring slashes are added if necessary).
+ * </p>
+ *
+ * <h2>Example:</h2>
+ * <pre>{@code
+ * @Path("/users")
+ * public class UserController {
+ *
+ *     @HandleGet("/{id}")
+ *     public User getUser(@PathParam String id) { ... }
+ * }
+ * }</pre>
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.METHOD, ElementType.CONSTRUCTOR, ElementType.TYPE, ElementType.PACKAGE})
 @Inherited
 @Documented
 public @interface Path {
+
     /**
-     * Defines the root URI path for web handlers. This value is prepended to the value of web handler annotations like
-     * {@link HandleGet @HandleGet}. A missing forward slash at beginning or end will automatically be added if
-     * required.
+     * Defines the URI path prefix to prepend to route patterns defined in handler annotations.
      */
     String value();
 }

@@ -21,7 +21,9 @@ import lombok.AllArgsConstructor;
 import lombok.SneakyThrows;
 
 import java.lang.annotation.Annotation;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Executable;
+import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.Callable;
@@ -29,20 +31,51 @@ import java.util.function.BiFunction;
 
 import static io.fluxcapacitor.common.ObjectUtils.asCallable;
 
+/**
+ * Represents an invocable handler method.
+ * <p>
+ * A {@code HandlerInvoker} is typically resolved by a {@link Handler} for a specific message, and is responsible for
+ * invoking the actual handler method, including any surrounding interceptors or decorators.
+ * </p>
+ *
+ * @see Handler
+ */
 public interface HandlerInvoker {
 
+    /**
+     * Returns a no-op invoker that performs no action and returns {@code null}.
+     */
     static HandlerInvoker noOp() {
         return SimpleInvoker.noOpInvoker;
     }
 
+    /**
+     * Wraps a {@link ThrowingRunnable} in a {@code HandlerInvoker}.
+     *
+     * @param task the task to run
+     * @return a {@code HandlerInvoker} that runs the given task
+     */
     static HandlerInvoker run(ThrowingRunnable task) {
         return new SimpleInvoker(asCallable(task));
     }
 
+    /**
+     * Wraps a {@link Callable} in a {@code HandlerInvoker}.
+     *
+     * @param task the task to call
+     * @return a {@code HandlerInvoker} that invokes the given callable
+     */
     static HandlerInvoker call(Callable<?> task) {
         return new SimpleInvoker(task);
     }
 
+    /**
+     * Joins a list of invokers into a single composite invoker. The result of each invocation is combined using the
+     * provided combiner function.
+     *
+     * @param invokers a list of invokers to join
+     * @return an optional containing the combined invoker, or empty if the list is empty
+     */
     static Optional<HandlerInvoker> join(List<? extends HandlerInvoker> invokers) {
         if (invokers.isEmpty()) {
             return Optional.empty();
@@ -62,6 +95,13 @@ public interface HandlerInvoker {
         });
     }
 
+    /**
+     * Composes this invoker with another to be invoked in a {@code finally} block. The second invoker will always run,
+     * even if the first one fails.
+     *
+     * @param other the invoker to run after this one
+     * @return a combined invoker with finalization behavior
+     */
     default HandlerInvoker andFinally(HandlerInvoker other) {
         return new DelegatingHandlerInvoker(this) {
             @Override
@@ -75,22 +115,69 @@ public interface HandlerInvoker {
         };
     }
 
+    /**
+     * The target class that contains the handler method.
+     *
+     * @return the declaring class of the handler
+     */
     Class<?> getTargetClass();
 
+    /**
+     * The {@link Executable} representing the handler method (can be a static or instance {@link Method} or
+     * {@link Constructor}).
+     *
+     * @return the executable method
+     */
     Executable getMethod();
 
+    /**
+     * Retrieves a specific annotation from the handler method, if present.
+     *
+     * @param <A> the annotation type
+     * @return the annotation instance, or {@code null} if not found
+     */
     <A extends Annotation> A getMethodAnnotation();
 
+    /**
+     * Indicates whether the handler method has a return value.
+     * <p>
+     * This is based on the method's signature: if it returns {@code void}, this returns {@code false};
+     * otherwise, it returns {@code true}.
+     * </p>
+     *
+     * @return {@code true} if the method returns a value; {@code false} if it is {@code void}
+     */
     boolean expectResult();
 
+    /**
+     * Indicates whether this handler operates in passive mode (i.e., results will not be published).
+     *
+     * @return {@code true} if passive; otherwise {@code false}
+     */
     boolean isPassive();
 
+    /**
+     * Invokes the handler using the default result-combining strategy (returns the first result).
+     *
+     * @return the result of the handler invocation
+     */
     default Object invoke() {
         return invoke((firstResult, secondResult) -> firstResult);
     }
 
+    /**
+     * Invokes the handler and combines results using the given combiner function. Used when aggregating results from
+     * multiple invokers (e.g. {@link #join(List)}).
+     *
+     * @param resultCombiner function to combine multiple results
+     * @return the combined result
+     */
     Object invoke(BiFunction<Object, Object, Object> resultCombiner);
 
+    /**
+     * A {@code HandlerInvoker} that delegates all behavior to another instance. This is commonly used to wrap or extend
+     * behavior without altering core logic.
+     */
     @AllArgsConstructor
     abstract class DelegatingHandlerInvoker implements HandlerInvoker {
         protected final HandlerInvoker delegate;
@@ -126,6 +213,10 @@ public interface HandlerInvoker {
         }
     }
 
+    /**
+     * A simple invoker backed by a {@link Callable}, typically used for test utilities or framework-internal logic. Not
+     * associated with any actual handler method.
+     */
     @AllArgsConstructor(access = AccessLevel.PRIVATE)
     final class SimpleInvoker implements HandlerInvoker {
         private static final SimpleInvoker noOpInvoker = new SimpleInvoker(() -> null);

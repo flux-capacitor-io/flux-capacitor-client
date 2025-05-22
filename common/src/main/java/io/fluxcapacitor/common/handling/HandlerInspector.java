@@ -45,53 +45,158 @@ import static java.util.Comparator.reverseOrder;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Stream.concat;
 
+/**
+ * Utility for inspecting and constructing handler components from annotated methods.
+ * <p>
+ * The {@code HandlerInspector} scans classes for methods that match handler criteria (e.g., {@code @HandleCommand}),
+ * and constructs {@link Handler}, {@link HandlerMatcher}, and {@link HandlerInvoker} instances based on those methods.
+ * It supports both stateless (singleton) and stateful handlers by accepting target suppliers and parameter resolvers.
+ * </p>
+ *
+ * <p>
+ * This class is the core of the handler discovery and resolution mechanism in Flux Capacitor, bridging the gap between
+ * annotated user-defined classes and runtime message dispatch infrastructure.
+ * </p>
+ *
+ * <h2>Capabilities</h2>
+ * <ul>
+ *     <li>Detect handler methods on a class based on annotations and signatures</li>
+ *     <li>Create {@link Handler} instances that provide lifecycle-aware invocation logic</li>
+ *     <li>Build {@link HandlerMatcher}s that analyze message applicability</li>
+ *     <li>Support parameter resolution for dependency injection and message binding</li>
+ * </ul>
+ *
+ * @see Handler
+ * @see HandlerMatcher
+ * @see HandlerInvoker
+ */
 public class HandlerInspector {
 
+    /**
+     * Returns whether the given class contains at least one method or constructor that matches the handler
+     * configuration.
+     *
+     * @param targetClass          the class to inspect
+     * @param handlerConfiguration the handler configuration to match against
+     * @return {@code true} if at least one method or constructor is a valid handler
+     */
     public static boolean hasHandlerMethods(Class<?> targetClass,
                                             HandlerConfiguration<?> handlerConfiguration) {
         return concat(getAllMethods(targetClass).stream(), stream(targetClass.getConstructors()))
                 .anyMatch(m -> handlerConfiguration.methodMatches(targetClass, m));
     }
 
+    /**
+     * Creates a {@link Handler} for the given target object and annotation type. This variant uses a default no-op
+     * parameter resolver.
+     *
+     * @param target           the handler instance
+     * @param methodAnnotation the annotation to detect handler methods (e.g. {@code @HandleCommand})
+     * @param <M>              the message type
+     * @return a new {@code Handler} instance
+     */
     public static <M> Handler<M> createHandler(Object target, Class<? extends Annotation> methodAnnotation) {
         return createHandler(target, methodAnnotation, List.of((p, a) -> o -> o));
     }
 
+    /**
+     * Creates a {@link Handler} backed by a target supplier and parameter resolvers. Suitable for stateful handlers
+     * where the instance depends on the message content.
+     *
+     * @param target             the handler instance
+     * @param parameterResolvers resolvers for handler method parameters
+     * @param methodAnnotation   the annotation to detect handler methods (e.g. {@code @HandleCommand})
+     * @param <M>                the message type
+     * @return a handler capable of resolving and invoking methods on the target
+     */
     public static <M> Handler<M> createHandler(Object target, Class<? extends Annotation> methodAnnotation,
                                                List<ParameterResolver<? super M>> parameterResolvers) {
         return createHandler(target, parameterResolvers,
                              HandlerConfiguration.builder().methodAnnotation(methodAnnotation).build());
     }
 
+    /**
+     * Creates a {@link Handler} backed by a target supplier and parameter resolvers. Suitable for stateful handlers
+     * where the instance depends on the message content.
+     *
+     * @param target             the handler instance
+     * @param parameterResolvers resolvers for handler method parameters
+     * @param config             handler configuration settings
+     * @param <M>                the message type
+     * @return a handler capable of resolving and invoking methods on the target
+     */
     public static <M> Handler<M> createHandler(Object target, List<ParameterResolver<? super M>> parameterResolvers,
                                                HandlerConfiguration<? super M> config) {
         return createHandler(m -> target, target.getClass(), parameterResolvers, config);
     }
 
+    /**
+     * Creates a {@link Handler} backed by a target supplier and parameter resolvers. Suitable for stateful handlers
+     * where the instance depends on the message content.
+     *
+     * @param targetSupplier     provides the handler instance to use for a given message
+     * @param targetClass        the class containing handler methods
+     * @param parameterResolvers resolvers for handler method parameters
+     * @param config             handler configuration settings
+     * @param <M>                the message type
+     * @return a handler capable of resolving and invoking methods on the target
+     */
     public static <M> Handler<M> createHandler(Function<M, ?> targetSupplier, Class<?> targetClass,
                                                List<ParameterResolver<? super M>> parameterResolvers,
                                                HandlerConfiguration<? super M> config) {
         return new DefaultHandler<>(targetClass, targetSupplier, inspect(targetClass, parameterResolvers, config));
     }
 
-    public static <M> HandlerMatcher<Object, M> inspect(Class<?> c,
+    /**
+     * Inspects the given class for methods matching the specified annotation and builds a {@link HandlerMatcher}.
+     * <p>
+     * This matcher can later be used to resolve a {@link HandlerInvoker} for a target object and message.
+     * </p>
+     *
+     * @param targetClass        the class containing handler methods
+     * @param parameterResolvers resolvers for handler method parameters
+     * @param methodAnnotation   the annotation to detect handler methods (e.g. {@code @HandleCommand})
+     */
+    public static <M> HandlerMatcher<Object, M> inspect(Class<?> targetClass,
                                                         List<ParameterResolver<? super M>> parameterResolvers,
                                                         Class<? extends Annotation> methodAnnotation) {
-        return inspect(c, parameterResolvers,
+        return inspect(targetClass, parameterResolvers,
                        HandlerConfiguration.builder().methodAnnotation(methodAnnotation).build());
     }
 
-    public static <M> HandlerMatcher<Object, M> inspect(Class<?> c,
+    /**
+     * Inspects the given class for methods matching the specified annotation and builds a {@link HandlerMatcher}.
+     * <p>
+     * This matcher can later be used to resolve a {@link HandlerInvoker} for a target object and message.
+     * </p>
+     *
+     * @param targetClass        the class containing handler methods
+     * @param parameterResolvers resolvers for handler method parameters
+     * @param config             handler configuration settings
+     */
+    public static <M> HandlerMatcher<Object, M> inspect(Class<?> targetClass,
                                                         List<ParameterResolver<? super M>> parameterResolvers,
                                                         HandlerConfiguration<? super M> config) {
-        return new ObjectHandlerMatcher<>(concat(getAllMethods(c).stream(), stream(c.getDeclaredConstructors()))
-                                                  .filter(m -> config.methodMatches(c, m))
-                                                  .flatMap(m -> Stream.of(
-                                                          new MethodHandlerMatcher<>(m, c, parameterResolvers, config)))
-                                                  .sorted(comparator).collect(toList()),
-                                          config.invokeMultipleMethods());
+        return new ObjectHandlerMatcher<>(
+                concat(getAllMethods(targetClass).stream(), stream(targetClass.getDeclaredConstructors()))
+                        .filter(m -> config.methodMatches(targetClass, m))
+                        .flatMap(m -> Stream.of(
+                                new MethodHandlerMatcher<>(m, targetClass, parameterResolvers, config)))
+                        .sorted(comparator).collect(toList()),
+                config.invokeMultipleMethods());
     }
 
+    /**
+     * A matcher that encapsulates metadata and resolution logic for a single handler method or constructor.
+     * <p>
+     * Resolves parameter values using {@link ParameterResolver}s and builds a {@link HandlerInvoker}
+     * for invoking the method on a given target instance.
+     * </p>
+     *
+     * <p>
+     * This matcher supports prioritization, specificity analysis, and filtering based on annotations and parameters.
+     * </p>
+     */
     @Getter
     public static class MethodHandlerMatcher<M> implements HandlerMatcher<Object, M> {
         protected static final Comparator<MethodHandlerMatcher<?>> comparator = Comparator.comparing(
@@ -289,6 +394,12 @@ public class HandlerInspector {
         }
     }
 
+    /**
+     * A composite {@link HandlerMatcher} that delegates to a list of individual matchers.
+     * <p>
+     * Supports invoking one or multiple methods depending on configuration.
+     * </p>
+     */
     @AllArgsConstructor
     public static class ObjectHandlerMatcher<M> implements HandlerMatcher<Object, M> {
         private final List<HandlerMatcher<Object, M>> methodHandlers;

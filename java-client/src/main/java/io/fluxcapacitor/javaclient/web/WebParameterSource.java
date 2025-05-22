@@ -14,6 +14,36 @@
 
 package io.fluxcapacitor.javaclient.web;
 
+/**
+ * Enumerates the sources of parameter values in an HTTP or WebSocket request.
+ * <p>
+ * This enum is used by {@link WebParam} and its derived annotations (e.g. {@link PathParam}, {@link QueryParam})
+ * to specify where the value should be extracted from.
+ * </p>
+ *
+ * <ul>
+ *   <li>{@link #PATH} – Extracted from URI template variables (e.g., {@code /user/{id}})</li>
+ *   <li>{@link #QUERY} – Extracted from the query string (e.g., {@code ?id=123})</li>
+ *   <li>{@link #HEADER} – Extracted from HTTP headers</li>
+ *   <li>{@link #COOKIE} – Extracted from cookies</li>
+ *   <li>{@link #FORM} – Extracted from form fields (URL-encoded or multipart)</li>
+ * </ul>
+ *
+ * @see WebParam
+ */
 public enum WebParameterSource {
-    PATH, QUERY, HEADER, COOKIE, FORM
+    /** URI path parameters (e.g. /items/{id}) */
+    PATH,
+
+    /** HTTP query string parameters (e.g. ?search=abc) */
+    QUERY,
+
+    /** HTTP request headers */
+    HEADER,
+
+    /** Cookies sent in the request */
+    COOKIE,
+
+    /** Form fields (application/x-www-form-urlencoded or multipart/form-data) */
+    FORM
 }

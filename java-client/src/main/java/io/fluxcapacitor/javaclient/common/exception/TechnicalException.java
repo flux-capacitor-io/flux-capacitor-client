@@ -16,6 +16,26 @@ package io.fluxcapacitor.javaclient.common.exception;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
+/**
+ * Exception indicating a technical or unexpected failure within the application.
+ * <p>
+ * Unlike {@link FunctionalException}, which is designed to communicate business or user-facing errors,
+ * {@code TechnicalException} represents low-level, infrastructure, or unforeseen errors such as I/O issues,
+ * serialization failures, or unexpected runtime failures.
+ * </p>
+ *
+ * <p>
+ * These exceptions are typically used to wrap application exceptions or surface errors that should not be transferred
+ * to clients or external systems. However, they are still serialized cleanly (without stack traces) for logging or
+ * fallback handling.
+ * </p>
+ *
+ * <p>
+ * Stack traces and suppressed exceptions are excluded to prevent information leakage during serialization.
+ * </p>
+ *
+ * @see FunctionalException
+ */
 @JsonIgnoreProperties({"localizedMessage", "cause", "stackTrace", "suppressed"})
 public class TechnicalException extends RuntimeException {
 

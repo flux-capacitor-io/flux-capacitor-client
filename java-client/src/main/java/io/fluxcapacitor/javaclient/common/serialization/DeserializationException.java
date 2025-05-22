@@ -16,6 +16,10 @@ package io.fluxcapacitor.javaclient.common.serialization;
 
 public class DeserializationException extends RuntimeException {
 
+    public DeserializationException() {
+        super();
+    }
+
     public DeserializationException(String message) {
         super(message);
     }
