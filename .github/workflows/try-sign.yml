@@ -1,0 +1,36 @@
+name: Deploy
+
+on:
+  push:
+    branches: [ move-from-osshr ]
+
+env:
+  BUILD_ENVIRONMENT: github
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out Git repository
+        uses: actions/checkout@v4
+
+      - name: Install Java and Maven
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+          cache: 'maven'
+          server-id: central
+          server-username: ${{ secrets.CENTRAL_TOKEN_USERNAME }}
+          server-password: ${{ secrets.CENTRAL_TOKEN_PASSWORD }}
+          gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
+          gpg-passphrase: ${{ secrets.GPG_PASSPHRASE }}
+
+      - name: Set maven version
+        run: |
+          mvn -B versions:set -DnewVersion=0.0.1
+
+      - name: Deploy to Maven Central
+        run: mvn -P deploy --batch-mode deploy
+        env:
+          MAVEN_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
