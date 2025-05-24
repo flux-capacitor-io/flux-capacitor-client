@@ -21,25 +21,56 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Annotation to mark a type or package that should be registered in the {@link TypeRegistry}.
+ * Annotation to register a class or package for inclusion in the {@link TypeRegistry}.
  * <p>
- * If the marked type is a package, all types in the package and its ancestor packages will be registered.
+ * Registered types are used to enable simplified type resolution, for example when deserializing JSON that references a
+ * type by name or when using {@code TestFixture} helpers to specify input/output types.
  * <p>
- * Registered types can be referenced by their simple type (e.g.: Foo) when used as input in TestFixtures or when
- * deserializing using {@link JsonUtils}. If multiple classes share the same simple name, it is also possible to pass
- * the last part of the fully qualified class name (e.g.: example.Foo) to select a class.
+ * If this annotation is placed on a <strong>class</strong>, that class will be registered in the {@code TypeRegistry}.
+ * If placed on a <strong>package</strong>, all types in that package and its ancestor packages will be registered.
  * <p>
- * To reference a type in a JSON string use the {@code @class} attribute. For example: {@code {"@class": "Foo"}}.
+ * Types or packages marked with {@code @RegisterType} are discovered and indexed during annotation processing. This
+ * means that they must be available on the classpath at compile time, and annotation processing must be enabled for the
+ * type registry to function correctly.
  *
- * @see TypeRegistry
+ * <h2>Usage</h2>
+ * Registered types can be referenced by:
+ * <ul>
+ *   <li>Simple class name (e.g., {@code "Foo"})</li>
+ *   <li>Disambiguated name using trailing segments (e.g., {@code "example.Foo"})</li>
+ * </ul>
+ * <p>
+ * This is especially useful when a type is referenced in serialized form using the {@code "@class"} attribute:
+ * <pre>{@code
+ * {
+ *   "@class": "Foo",
+ *   "name": "Example"
+ * }
+ * }</pre>
+ * <p>
+ * If multiple classes have the same simple name, Flux will attempt to resolve the type using the shortest suffix
+ * that still uniquely identifies it (e.g., {@code "billing.Foo"} vs. {@code "shipping.Foo"}). If conflicts remain,
+ * the returned type is unpredictable.
+ *
+ * <h2>Filtering using {@link #contains()}</h2>
+ * You can restrict which types are registered by specifying patterns to match against the class name:
+ * <pre>{@code
+ * @RegisterType(contains = {"Dto", "Request"})
+ * }</pre>
+ * This ensures that only classes whose names include {@code "Dto"} or {@code "Request"} will be registered.
  */
 @Retention(RetentionPolicy.CLASS)
 @Target({ElementType.PACKAGE, ElementType.TYPE})
 @Inherited
 public @interface RegisterType {
+
     /**
-     * Specifies regular expression values found in the types that should be matched. A type is only matched if this
-     * array is empty or if one or more of the specified regular expression values can be found in the type name.
+     * Optional filters to determine which types should be registered based on name matching.
+     * <p>
+     * If this array is left empty (the default), all types in the annotated class or package are included. If provided,
+     * a type is only registered if one or more of these regular expressions match the class name.
+     *
+     * @return array of regex patterns used to match class names for registration
      */
     String[] contains() default {};
 }

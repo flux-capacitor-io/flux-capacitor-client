@@ -16,13 +16,55 @@ package io.fluxcapacitor.common.api;
 
 import lombok.Value;
 
+/**
+ * A platform-generated event that indicates a client has disconnected from the Flux platform.
+ * <p>
+ * Includes metadata about the reason and method of disconnection.
+ *
+ * <h2>Use Cases</h2>
+ * <ul>
+ *   <li>Detect ungraceful client shutdowns or connection drops</li>
+ *   <li>Monitor client session lifecycle and availability</li>
+ * </ul>
+ *
+ * @see ConnectEvent
+ */
 @Value
 public class DisconnectEvent implements ClientEvent {
+
+    /**
+     * Logical client name that initiated the disconnection.
+     */
     String client;
+
+    /**
+     * Unique client instance ID.
+     */
     String clientId;
+
+    /**
+     * Internal (websocket) session ID used during the connection.
+     */
     String sessionId;
+
+    /**
+     * Timestamp when the disconnection occurred.
+     */
     long timestamp = System.currentTimeMillis();
+
+    /**
+     * Name of the service the client was connected to (e.g., {@code event-sourcing-endpoint}).
+     */
     String service;
+
+    /**
+     * Close code indicating the reason for disconnection. Often follows WebSocket close codes or internal custom
+     * codes.
+     */
     int code;
+
+    /**
+     * Optional reason string providing additional detail for the disconnect.
+     */
     String reason;
 }

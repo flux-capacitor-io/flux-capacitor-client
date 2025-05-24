@@ -16,6 +16,35 @@ package io.fluxcapacitor.common.serialization;
 
 import java.util.Optional;
 
+/**
+ * Interface for resolving registered types by alias or simplified name.
+ * <p>
+ * A {@code TypeRegistry} is used to look up the fully qualified class name associated with a given alias.
+ * Aliases may be:
+ * <ul>
+ *   <li>Simple class names (e.g., {@code "ProjectCreated"})</li>
+ *   <li>Shortened fully qualified names (e.g., {@code "project.ProjectCreated"})</li>
+ * </ul>
+ * <p>
+ * This mechanism is commonly used in deserialization of message payloads or documents, where the
+ * {@code @class} property in a JSON object indicates the type name.
+ *
+ * <h2>Example</h2>
+ * If a class {@code com.example.project.ProjectCreated} is registered using {@link RegisterType}, the registry may resolve:
+ * <pre>{@code
+ * getTypeName("ProjectCreated") -> "com.example.project.ProjectCreated"
+ * getTypeName("project.ProjectCreated") -> "com.example.project.ProjectCreated"
+ * }</pre>
+ *
+ * @see RegisterType
+ */
 public interface TypeRegistry {
+
+    /**
+     * Returns the fully qualified class name associated with the given alias or type key.
+     *
+     * @param alias the name or alias to resolve, typically obtained from {@code @class} in JSON
+     * @return an {@code Optional} containing the resolved fully qualified class name, or empty if not found
+     */
     Optional<String> getTypeName(String alias);
 }

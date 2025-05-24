@@ -35,9 +35,25 @@ import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
 
+/**
+ * Represents aggregate statistics for a group of documents, including values for specified fields.
+ * <p>
+ * Grouping is defined by a {@link Group} key (based on document field values), and statistics are
+ * computed per requested field path.
+ *
+ * @see FieldStats
+ */
 @Value
 public class DocumentStats {
 
+    /**
+     * Computes document statistics from a stream of documents.
+     *
+     * @param documents Stream of input documents
+     * @param fields    Fields to compute statistics for
+     * @param groupBy   Paths to group by
+     * @return A list of {@link DocumentStats}, one per group
+     */
     public static List<DocumentStats> compute(Stream<Document> documents, List<String> fields, List<String> groupBy) {
         var finalFields = fields.isEmpty() ? List.of("") : fields;
         Map<List<String>, List<Document>> groups = documents.collect(
@@ -60,9 +76,21 @@ public class DocumentStats {
         return new Group(result);
     }
 
+    /**
+     * Computed statistics per field path.
+     */
     Map<String, FieldStats> fieldStats;
+
+    /**
+     * The group (combination of field values) this statistics entry represents.
+     */
     Group group;
 
+    /**
+     * Statistical summary for a single document field.
+     * <p>
+     * Includes common numeric metrics, or {@code null} if no numeric values were found.
+     */
     @Value
     @AllArgsConstructor
     public static class FieldStats {
@@ -72,7 +100,13 @@ public class DocumentStats {
         BigDecimal sum;
         BigDecimal average;
 
-        protected FieldStats(List<Document> documents, String path) {
+        /**
+         * Constructs a {@code FieldStats} instance by scanning all numeric entries for a given path.
+         *
+         * @param documents List of documents in the group
+         * @param path      Path of the field to compute stats for
+         */
+        public FieldStats(List<Document> documents, String path) {
             this.count = documents.size();
             List<BigDecimal> values = path.isBlank() ? List.of()
                     : documents.stream().flatMap(d -> d.getEntryAtPath(path).stream())
@@ -81,8 +115,8 @@ public class DocumentStats {
             if (values.isEmpty()) {
                 min = max = sum = average = null;
             } else {
-                min = values.get(0);
-                max = values.get(values.size() - 1);
+                min = values.getFirst();
+                max = values.getLast();
                 sum = values.stream().reduce(BigDecimal.ZERO, BigDecimal::add);
                 average = sum.divide(new BigDecimal(values.size()), new MathContext(10, RoundingMode.HALF_UP))
                         .stripTrailingZeros();

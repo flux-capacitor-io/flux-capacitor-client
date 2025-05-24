@@ -14,31 +14,30 @@
 
 package io.fluxcapacitor.common.api;
 
-import lombok.Value;
-
 /**
- * A generic response containing a boolean value, typically used to indicate success/failure.
+ * Marker interface for responses to {@link Request} objects (including commands and queries).
  * <p>
- * Often used for requests such as checks or validations where the outcome is binary.
+ * Implementations of this interface are returned by the Flux platform and matched to
+ * their corresponding {@link Request} using the {@code requestId}.
  * </p>
  *
- * @see RequestResult
+ * <p>
+ * A typical {@code RequestResult} contains minimal payload and metadata for monitoring,
+ * and may override {@link #toMetric()} to avoid logging full results.
+ * </p>
+ *
+ * @see Request
+ * @see ErrorResult
  */
-@Value
-public class BooleanResult implements RequestResult {
+public interface RequestResult extends JsonType {
 
     /**
-     * ID correlating this result with its originating request.
+     * The requestId of the original {@link Request} this result corresponds to.
      */
-    long requestId;
+    long getRequestId();
 
     /**
-     * Whether the operation was successful.
+     * The timestamp (in epoch milliseconds) when this result was generated.
      */
-    boolean success;
-
-    /**
-     * Time at which the result was generated.
-     */
-    long timestamp = System.currentTimeMillis();
+    long getTimestamp();
 }

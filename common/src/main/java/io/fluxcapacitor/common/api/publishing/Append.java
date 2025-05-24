@@ -25,10 +25,36 @@ import java.util.List;
 
 import static java.util.Optional.ofNullable;
 
+/**
+ * Command to publish messages to a specific log in Flux (e.g., commands, events, metrics, etc.).
+ * <p>
+ * The messages are written to the log associated with the given {@link #messageType}.
+ * Each message is represented as a {@link SerializedMessage} and is appended to the log
+ * in the order provided.
+ * <p>
+ * This operation is typically used by low-level clients (such as {@code GatewayClient})
+ * that need full control over message serialization and targeting. High-level APIs usually
+ * delegate to this command internally.
+ *
+ * @see MessageType
+ * @see SerializedMessage
+ */
 @Value
 public class Append extends Command {
+
+    /**
+     * The type of messages being appended (e.g., COMMAND, EVENT, etc.).
+     */
     MessageType messageType;
+
+    /**
+     * The serialized messages to append to the log.
+     */
     List<SerializedMessage> messages;
+
+    /**
+     * The delivery guarantee used when appending messages.
+     */
     Guarantee guarantee;
 
     @JsonIgnore
@@ -55,6 +81,9 @@ public class Append extends Command {
         return new Metric(getMessageType(), getSize(), getGuarantee());
     }
 
+    /**
+     * Metric payload used for internal monitoring and logging.
+     */
     @Value
     public static class Metric {
         MessageType messageType;

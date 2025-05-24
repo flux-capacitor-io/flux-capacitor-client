@@ -16,9 +16,47 @@ package io.fluxcapacitor.common.api;
 
 import lombok.Value;
 
+import java.util.concurrent.CompletableFuture;
+
+/**
+ * A generic error response returned when a request could not be completed successfully.
+ * <p>
+ * Contains a textual error message explaining the failure. This class is often returned in place of the expected
+ * {@link RequestResult} if an error occurs in the Flux platform or client.
+ * </p>
+ *
+ * <h2>Exception Behavior</h2>
+ * If an {@code ErrorResult} is received for a {@link Request}, the associated {@link CompletableFuture} will be
+ * completed exceptionally with a {@code ServiceException} that wraps the error message. This allows applications to
+ * handle errors via standard {@code future.exceptionally(...)} mechanisms.
+ *
+ * <pre>{@code
+ * keyValueClient.send(new GetValue("missingKey"))
+ *            .exceptionally(error -> {
+ *                if (error instanceof ServiceException) {
+ *                    log.warn("Failed: " + error.getMessage());
+ *                }
+ *                return null;
+ *            });
+ * }</pre>
+ *
+ * @see RequestResult
+ */
 @Value
-public class ErrorResult implements QueryResult {
+public class ErrorResult implements RequestResult {
+
+    /**
+     * ID correlating this result with its originating request.
+     */
     long requestId;
+
+    /**
+     * Time at which the error occurred.
+     */
     long timestamp = System.currentTimeMillis();
+
+    /**
+     * The error message returned from the Flux platform or client logic.
+     */
     String message;
 }

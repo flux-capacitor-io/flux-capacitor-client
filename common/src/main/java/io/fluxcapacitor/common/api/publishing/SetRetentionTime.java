@@ -19,9 +19,28 @@ import io.fluxcapacitor.common.api.Command;
 import lombok.EqualsAndHashCode;
 import lombok.Value;
 
+/**
+ * Command to set or update the retention period for a message log in the Flux platform.
+ * <p>
+ * This determines how long messages remain stored before they are eligible for automatic deletion.
+ * The retention applies to logs such as events, commands, metrics, etc., depending on where
+ * the command is routed.
+ * <p>
+ * Note: This is a low-level command primarily used for administrative or system configuration purposes.
+ *
+ * @see io.fluxcapacitor.common.MessageType
+ */
 @EqualsAndHashCode(callSuper = true)
 @Value
 public class SetRetentionTime extends Command {
+
+    /**
+     * The new retention time in seconds. If {@code null}, the default retention policy is used.
+     */
     Long retentionTimeInSeconds;
+
+    /**
+     * The delivery guarantee to use when applying the change.
+     */
     Guarantee guarantee;
 }

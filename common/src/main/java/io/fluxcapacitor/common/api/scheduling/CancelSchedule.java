@@ -18,11 +18,32 @@ import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.Command;
 import lombok.Value;
 
+/**
+ * Command to cancel a previously scheduled message using its {@link #scheduleId}.
+ * <p>
+ * This command instructs Flux to remove a scheduled message if it hasn't yet been delivered.
+ * Cancellation is idempotent — if the schedule does not exist, the command has no effect.
+ * </p>
+ *
+ * @see io.fluxcapacitor.common.api.scheduling.Schedule
+ * @see io.fluxcapacitor.common.api.scheduling.SerializedSchedule
+ */
 @Value
 public class CancelSchedule extends Command {
+
+    /**
+     * The ID of the scheduled message to be cancelled.
+     */
     String scheduleId;
+
+    /**
+     * Delivery guarantee for the cancellation action.
+     */
     Guarantee guarantee;
 
+    /**
+     * Returns the routing key used for this command. Equals the {@code scheduleId}.
+     */
     @Override
     public String routingKey() {
         return scheduleId;

@@ -22,6 +22,22 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.Parameter;
 import java.util.function.Function;
 
+/**
+ * Resolves handler method parameters by injecting the message payload.
+ *
+ * <p>This resolver matches a parameter when its declared type is assignable from the actual payload class
+ * of the incoming message.
+ *
+ * <p>This resolver is typically used in conjunction with filters such as {@link PayloadFilter} to determine
+ * handler compatibility based on payload types.
+ *
+ * <p>Special care is taken to allow null payloads for parameters that are declared nullable,
+ * which can occur during upcasting or transformation pipelines.
+ *
+ * @see HasMessage#getPayload()
+ * @see HasMessage#getPayloadClass()
+ * @see ParameterResolver
+ */
 public class PayloadParameterResolver implements ParameterResolver<HasMessage> {
     @Override
     public boolean matches(Parameter p, Annotation methodAnnotation, HasMessage value) {
@@ -38,6 +54,16 @@ public class PayloadParameterResolver implements ParameterResolver<HasMessage> {
         return message.getPayload() != null || ReflectionUtils.isNullable(parameter); //may be the case after upcasting
     }
 
+    /**
+     * Indicates that this resolver contributes to disambiguating handler methods when multiple handlers are present in
+     * the same target class.
+     *
+     * <p>This is useful when more than one method matches a message, and the framework must
+     * decide which method is more specific. If this returns {@code true}, the resolver's presence and compatibility
+     * with the parameter may influence which handler is selected.
+     *
+     * @return true, signaling that this resolver helps determine method specificity
+     */
     @Override
     public boolean determinesSpecificity() {
         return true;

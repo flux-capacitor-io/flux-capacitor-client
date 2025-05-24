@@ -23,8 +23,19 @@ import java.util.List;
 
 import static java.util.stream.Collectors.toList;
 
+/**
+ * <strong>Deprecated:</strong> This command was used in older versions of Flux to store values and block
+ * until they were persisted.
+ * <p>
+ * This pattern is no longer used or emitted by Flux clients and should not be relied upon in new development.
+ * Use {@link StoreValues} with {@link Guarantee#STORED} instead for explicit durability semantics.
+ * </p>
+ *
+ * @deprecated Use {@link StoreValues} instead. This class remains for compatibility but is no longer used.
+ */
 @Value
 @EqualsAndHashCode(callSuper = true)
+@Deprecated
 public class StoreValuesAndWait extends Command {
     List<KeyValuePair> values;
 
@@ -48,6 +59,9 @@ public class StoreValuesAndWait extends Command {
         return new Metric(values.stream().map(KeyValuePair::getKey).collect(toList()), values.size());
     }
 
+    /**
+     * Metric representation of the deprecated store call.
+     */
     @Value
     public static class Metric {
         List<String> keys;

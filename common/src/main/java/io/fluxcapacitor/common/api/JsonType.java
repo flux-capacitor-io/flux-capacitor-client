@@ -26,7 +26,6 @@ import io.fluxcapacitor.common.api.keyvalue.GetValue;
 import io.fluxcapacitor.common.api.keyvalue.GetValueResult;
 import io.fluxcapacitor.common.api.keyvalue.StoreValueIfAbsent;
 import io.fluxcapacitor.common.api.keyvalue.StoreValues;
-import io.fluxcapacitor.common.api.keyvalue.StoreValuesAndWait;
 import io.fluxcapacitor.common.api.modeling.GetAggregateIds;
 import io.fluxcapacitor.common.api.modeling.GetAggregateIdsResult;
 import io.fluxcapacitor.common.api.modeling.GetRelationships;
@@ -68,6 +67,34 @@ import io.fluxcapacitor.common.api.tracking.ReadResult;
 import io.fluxcapacitor.common.api.tracking.ResetPosition;
 import io.fluxcapacitor.common.api.tracking.StorePosition;
 
+/**
+ * Marker interface for all low-level request and response types in the Flux protocol.
+ * <p>
+ * Each implementation of {@code JsonType} represents a command, query, or result that can be sent to or received from
+ * the Flux platform. These types are serialized using polymorphic JSON with the {@code type} discriminator, enabling
+ * dynamic dispatch and flexible message routing.
+ *
+ * <h2>Serialization</h2>
+ * Implementations of this interface are serialized with {@code @JsonTypeInfo} and {@code @JsonSubTypes} annotations,
+ * allowing automatic deserialization on both the client and platform side.
+ *
+ * <h2>Metrics Logging</h2>
+ * Implementations may override {@link #toMetric()} to emit a smaller, structured representation of the object to the
+ * metrics log for observability and auditing. This is especially useful for requests or results that carry large or
+ * sensitive payloads.
+ *
+ * <h2>Examples</h2>
+ * <ul>
+ *     <li>{@link io.fluxcapacitor.common.api.tracking.Read}</li>
+ *     <li>{@link io.fluxcapacitor.common.api.search.SearchDocuments}</li>
+ *     <li>{@link io.fluxcapacitor.common.api.scheduling.Schedule}</li>
+ *     <li>{@link io.fluxcapacitor.common.api.keyvalue.GetValueResult}</li>
+ * </ul>
+ *
+ * @see io.fluxcapacitor.common.api.Request
+ * @see io.fluxcapacitor.common.api.RequestResult
+ * @see io.fluxcapacitor.common.api.Command
+ */
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME)
 @JsonSubTypes({
         //common
@@ -119,7 +146,6 @@ import io.fluxcapacitor.common.api.tracking.StorePosition;
 
         //key-value
         @JsonSubTypes.Type(value = StoreValues.class, name = "storeValues"),
-        @JsonSubTypes.Type(value = StoreValuesAndWait.class, name = "storeValuesAndWait"),
         @JsonSubTypes.Type(value = GetValue.class, name = "getValue"),
         @JsonSubTypes.Type(value = GetValueResult.class, name = "getValueResult"),
         @JsonSubTypes.Type(value = DeleteValue.class, name = "deleteValue"),
@@ -145,8 +171,15 @@ import io.fluxcapacitor.common.api.tracking.StorePosition;
         @JsonSubTypes.Type(value = GetFacetStatsResult.class, name = "getFacetStatsResult"),
 })
 public interface JsonType {
+    /**
+     * Converts this object into a compact metric representation for logging or monitoring.
+     * <p>
+     * Used by the Flux client to avoid logging large payloads directly while still tracking platform usage.
+     *
+     * @return a safe and compact object suitable for serialization to the metrics log
+     */
     @JsonIgnore
-    default Object toMetric(){
+    default Object toMetric() {
         return this;
     }
 }

@@ -21,15 +21,40 @@ import lombok.Value;
 import java.util.Set;
 import java.util.stream.Stream;
 
+/**
+ * Command to inform the Flux platform about changes in entity-aggregate relationships.
+ * <p>
+ * These relationships allow the platform to determine which aggregate contains a given entity.
+ * This is crucial when targeting nested entities with commands or when appending resulting events
+ * to the appropriate aggregate.
+ */
 @Value
 public class UpdateRelationships extends Command {
+
+    /**
+     * A set of new relationships between entities and aggregates that were just created or reinforced.
+     */
     Set<Relationship> associations;
+
+    /**
+     * A set of relationships that are no longer valid or were explicitly removed.
+     */
     Set<Relationship> dissociations;
+
+    /**
+     * Guarantees storage semantics such as durability for this update (e.g., STORED, NONE).
+     */
     Guarantee guarantee;
 
+    /**
+     * Returns a routing key to optimize dispatching. Uses the first available aggregate ID
+     * from the set of associations or dissociations.
+     */
     @Override
     public String routingKey() {
-        return Stream.concat(associations.stream(), dissociations.stream()).map(Relationship::getAggregateId)
-                .findFirst().orElse(null);
+        return Stream.concat(associations.stream(), dissociations.stream())
+                .map(Relationship::getAggregateId)
+                .findFirst()
+                .orElse(null);
     }
 }

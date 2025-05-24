@@ -59,19 +59,57 @@ import lombok.With;
 @AllArgsConstructor
 public class SerializedMessage implements SerializedObject<byte[]>, HasMetadata {
 
+    /**
+     * The serialized representation of the message payload.
+     */
     @NonNull
     private Data<byte[]> data;
+
+    /**
+     * Structured metadata associated with the message, such as headers or routing info.
+     */
     @With
     private Metadata metadata;
+
+    /**
+     * The segment number for this message, used for partitioning and consistent hashing.
+     */
     @With
     private Integer segment;
+
+    /**
+     * The index of the message within its segment. Used for message ordering and deduplication.
+     */
     private Long index;
+
+    /**
+     * The identifier of the source that published this message.
+     */
     private String source;
+
+    /**
+     * The optional target ID that this message is addressed to.
+     */
     private String target;
+
+    /**
+     * An optional request ID linking this message to a request-response interaction.
+     */
     private Integer requestId;
+
+    /**
+     * The timestamp when this message was created, in epoch milliseconds.
+     */
     private Long timestamp;
+
+    /**
+     * The unique identifier of the message.
+     */
     private String messageId;
 
+    /**
+     * If set, contains the original revision of the message prior to upcasting.
+     */
     private transient Integer originalRevision;
 
     public SerializedMessage(Data<byte[]> data, Metadata metadata, String messageId, Long timestamp) {

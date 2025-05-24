@@ -23,7 +23,6 @@ import io.fluxcapacitor.common.api.keyvalue.GetValueResult;
 import io.fluxcapacitor.common.api.keyvalue.KeyValuePair;
 import io.fluxcapacitor.common.api.keyvalue.StoreValueIfAbsent;
 import io.fluxcapacitor.common.api.keyvalue.StoreValues;
-import io.fluxcapacitor.common.api.keyvalue.StoreValuesAndWait;
 import io.fluxcapacitor.javaclient.common.websocket.AbstractWebsocketClient;
 import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient;
 import jakarta.websocket.ClientEndpoint;
@@ -49,10 +48,7 @@ public class WebsocketKeyValueClient extends AbstractWebsocketClient implements 
 
     @Override
     public CompletableFuture<Void> putValue(String key, Data<byte[]> value, Guarantee guarantee) {
-        return switch (guarantee) {
-            case NONE, SENT -> sendCommand(new StoreValues(List.of(new KeyValuePair(key, value)), guarantee));
-            default -> sendCommand(new StoreValuesAndWait(List.of(new KeyValuePair(key, value))));
-        };
+        return sendCommand(new StoreValues(List.of(new KeyValuePair(key, value)), guarantee));
     }
 
     @Override

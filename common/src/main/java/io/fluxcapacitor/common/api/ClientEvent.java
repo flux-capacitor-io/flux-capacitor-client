@@ -14,8 +14,32 @@
 
 package io.fluxcapacitor.common.api;
 
+/**
+ * Base interface for client lifecycle events such as {@link ConnectEvent} and {@link DisconnectEvent}.
+ * <p>
+ * These events are published by the Flux platform to notify connected systems about client activity,
+ * such as when a client connects to or disconnects from the platform.
+ * <p>
+ * These messages are typically published to the {@code metrics} log and can be used for auditing,
+ * monitoring, or debugging distributed application behavior.
+ *
+ * @see ConnectEvent
+ * @see DisconnectEvent
+ */
 public interface ClientEvent extends JsonType {
+
+    /**
+     * @return the client name (application-level identifier, e.g. "frontend-service")
+     */
     String getClient();
+
+    /**
+     * @return the unique instance ID of the connecting client (e.g. "frontend-service@abcd1234")
+     */
     String getClientId();
+
+    /**
+     * @return the timestamp at which this event occurred (in epoch milliseconds)
+     */
     long getTimestamp();
 }

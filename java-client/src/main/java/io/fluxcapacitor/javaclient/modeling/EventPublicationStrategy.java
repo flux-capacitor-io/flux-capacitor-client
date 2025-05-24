@@ -14,26 +14,47 @@
 
 package io.fluxcapacitor.javaclient.modeling;
 
+import io.fluxcapacitor.javaclient.persisting.eventsourcing.Apply;
+
+/**
+ * Strategy for controlling how applied updates (typically from {@link Apply @Apply} methods)
+ * are handled in terms of storage and publication.
+ * <p>
+ * This strategy determines whether an update is published, stored in the event store, or both.
+ * It can be configured at the aggregate level, or overridden per update.
+ *
+ * @see Apply
+ * @see Aggregate
+ * @see EventPublication
+ */
 public enum EventPublicationStrategy {
+
     /**
-     * Use the default strategy to publish events. This will be whatever is configured at the aggregate level, or
-     * else application level. If the strategy is set to DEFAULT at all of these levels, STORE_AND_PUBLISH will be used.
+     * Inherit the strategy from the enclosing aggregate or global default.
+     * <p>
+     * If not configured anywhere, the fallback is {@link #STORE_AND_PUBLISH}.
      */
     DEFAULT,
 
     /**
-     * Store applied events in the event store and also publish events to event handlers. This is the default strategy.
+     * Store the applied update in the event store and also publish it to event handlers.
+     * <p>
+     * This is the default behavior used for event-sourced aggregates.
      */
     STORE_AND_PUBLISH,
 
     /**
-     * Only store applied events in the event store. Don't publish to event handlers.
+     * Store the applied update in the event store but do not publish it to event handlers.
+     * <p>
+     * Useful when updates must be persisted but should not trigger side effects or listeners.
      */
     STORE_ONLY,
 
     /**
-     * Don't store applied events in the event store. Only publish to event handlers. Note that this will prevent the
-     * aggregate from (ever) being event sourced.
+     * Publish the update to event handlers but do not store it in the event store.
+     * <p>
+     * This disables event sourcing for the update and is typically used for transient projections or
+     * side-effect-only operations.
      */
     PUBLISH_ONLY
 }

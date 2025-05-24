@@ -22,6 +22,15 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.util.concurrent.atomic.AtomicReference;
 
+/**
+ * A concrete implementation of a {@link Clock} that delegates its method calls to another {@link Clock}
+ * instance, allowing runtime manipulation of the delegated clock.
+ *
+ * <p>This class is useful when you need to dynamically switch the clock's implementation during runtime,
+ * for example, testing scenarios requiring adjustable or controlled time flows.
+ *
+ * <p>The delegated clock instance is stored atomically to ensure thread-safe updates.
+ */
 @AllArgsConstructor
 public class DelegatingClock extends Clock {
     private final AtomicReference<Clock> delegate = new AtomicReference<>(Clock.systemUTC());

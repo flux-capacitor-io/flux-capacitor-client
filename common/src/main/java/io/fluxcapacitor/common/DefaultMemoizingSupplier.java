@@ -18,6 +18,16 @@ import java.time.Clock;
 import java.time.Duration;
 import java.util.function.Supplier;
 
+/**
+ * A default implementation of the {@link MemoizingSupplier} interface that memoizes (caches)
+ * the result of a computation performed by a supplied {@link Supplier}.
+ *
+ * <p>The result is computed the first time {@link #get()} is called and then cached for subsequent calls
+ * until explicitly cleared with {@link #clear()}. This implementation also supports an optional expiration
+ * duration for the cached value.
+ *
+ * @param <T> the type of the value supplied and memoized
+ */
 public class DefaultMemoizingSupplier<T> implements MemoizingSupplier<T> {
     private static final Object singleton = new Object();
     private final MemoizingFunction<Object, T> delegate;

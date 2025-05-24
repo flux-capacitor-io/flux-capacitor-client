@@ -21,11 +21,22 @@ import lombok.Value;
 
 import static io.fluxcapacitor.common.api.search.BulkUpdate.Type.delete;
 
+/**
+ * A bulk update operation that deletes a document from a given collection using its ID.
+ */
 @Value
 @AllArgsConstructor
 @Builder(toBuilder = true)
 public class DeleteDocument implements BulkUpdate {
+
+    /**
+     * The ID of the document to delete.
+     */
     String id;
+
+    /**
+     * The name of the collection from which to delete the document.
+     */
     Object collection;
 
     @Override

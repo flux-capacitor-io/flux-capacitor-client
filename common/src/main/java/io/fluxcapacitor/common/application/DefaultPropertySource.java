@@ -17,6 +17,22 @@ package io.fluxcapacitor.common.application;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
+/**
+ * A layered {@link PropertySource} implementation used as the default source for resolving application properties in a
+ * Flux application.
+ *
+ * <p>This source provides a prioritized resolution order by chaining multiple individual sources:
+ * <ol>
+ *   <li>{@link EnvironmentVariablesSource} – highest precedence</li>
+ *   <li>{@link SystemPropertiesSource}</li>
+ *   <li>{@link ApplicationEnvironmentPropertiesSource} – e.g. application-dev.properties</li>
+ *   <li>{@link ApplicationPropertiesSource} – fallback base configuration</li>
+ * </ol>
+ *
+ * <p>Property values are resolved from the first source that defines them in this sequence.
+ *
+ * <p>This is used as the default property source in the {@code FluxCapacitor} client if no custom source is provided.
+ */
 @Slf4j
 public class DefaultPropertySource implements PropertySource {
     @Getter(lazy = true)
@@ -24,9 +40,9 @@ public class DefaultPropertySource implements PropertySource {
 
     public DefaultPropertySource() {
         this.delegate = PropertySource.join(
-                        EnvironmentVariablesSource.INSTANCE, new SystemPropertiesSource(),
-                        new ApplicationEnvironmentPropertiesSource(),
-                        new ApplicationPropertiesSource());
+                EnvironmentVariablesSource.INSTANCE, new SystemPropertiesSource(),
+                new ApplicationEnvironmentPropertiesSource(),
+                new ApplicationPropertiesSource());
     }
 
     private final PropertySource delegate;

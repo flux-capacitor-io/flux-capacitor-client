@@ -18,8 +18,35 @@ import io.fluxcapacitor.common.api.Request;
 import lombok.EqualsAndHashCode;
 import lombok.Value;
 
+/**
+ * Request to retrieve a value from the legacy key-value store.
+ * <p>
+ * This request returns the serialized value associated with the specified {@code key}, if present. It is part of the
+ * legacy key-value subsystem, which has largely been superseded by the document store.
+ * </p>
+ *
+ * <h2>Behavior</h2>
+ * <ul>
+ *   <li>If the key is not found, the returned {@link io.fluxcapacitor.common.api.Data} will be {@code null} or empty depending on usage context.</li>
+ *   <li>The value is returned as raw serialized data in {@link io.fluxcapacitor.common.api.Data} format.</li>
+ * </ul>
+ *
+ * <h2>Usage Notes</h2>
+ * <ul>
+ *   <li>This API is mostly retained for backwards compatibility. Prefer using the {@code SearchClient} for modern data queries and lookups.</li>
+ *   <li>The result is returned in a {@link GetValueResult} response.</li>
+ * </ul>
+ *
+ * @see GetValueResult
+ * @see StoreValues
+ * @see DeleteValue
+ */
 @Value
 @EqualsAndHashCode(callSuper = true)
 public class GetValue extends Request {
+
+    /**
+     * The key to retrieve from the store.
+     */
     String key;
 }

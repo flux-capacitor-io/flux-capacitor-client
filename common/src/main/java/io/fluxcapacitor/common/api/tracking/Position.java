@@ -37,6 +37,15 @@ import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.stream.IntStream;
 
+/**
+ * Represents the tracking state of a consumer, i.e. the last known indexes of consumed messages per segment.
+ * <p>
+ * Flux Capacitor segments the message log to support parallel consumption. A {@code Position} stores
+ * the most recent message index processed for each segment. This allows precise resumption of message
+ * consumption on restarts or rebalances.
+ *
+ * <p>A {@code Position} is an immutable structure and may be merged or queried to support multi-segment tracking.
+ */
 @Value
 @AllArgsConstructor
 @JsonSerialize(using = Position.PositionSerializer.class)
@@ -48,14 +57,20 @@ public class Position {
     public static int MAX_SEGMENT = 128;
     public static int[] FULL_SEGMENT = new int[]{0, MAX_SEGMENT};
 
+    /**
+     * Creates an empty position.
+     */
     public static Position newPosition() {
         return newPosition;
     }
 
+    /**
+     * Holds the last seen index per segment.
+     */
     SortedMap<Integer, Long> indexBySegment;
 
     public Position(long index) {
-        this(new int[]{0, MAX_SEGMENT}, index);
+        this(FULL_SEGMENT, index);
     }
 
     public Position(int[] segment, long index) {
@@ -82,12 +97,18 @@ public class Position {
                 .sorted().findFirst();
     }
 
+    /**
+     * Merges two {@code Position} objects by taking the highest known index per segment.
+     */
     public Position merge(Position newPosition) {
         SortedMap<Integer, Long> indexBySegment = new TreeMap<>(this.indexBySegment);
         newPosition.indexBySegment.forEach((s, i) -> indexBySegment.merge(s, i, (v, v2) -> v2.compareTo(v) > 0 ? v2 : v));
         return new Position(indexBySegment);
     }
 
+    /**
+     * Splits the position map into contiguous segment ranges that share the same index.
+     */
     public Map<int[], Long> splitInSegments() {
         Map<int[], Long> result = new LinkedHashMap<>();
         indexBySegment.entrySet().stream()

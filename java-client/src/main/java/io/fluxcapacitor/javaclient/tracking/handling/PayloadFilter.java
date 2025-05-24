@@ -27,6 +27,32 @@ import java.util.function.Function;
 
 import static io.fluxcapacitor.javaclient.common.ClientUtils.memoize;
 
+/**
+ * A {@link MessageFilter} used to restrict message handling based on the payload type.
+ *
+ * <p>This filter determines whether a handler method should be invoked based on whether the incoming message's payload
+ * class is compatible with the types explicitly allowed in the method's handler annotation (e.g.,
+ * {@code @HandleCommand}, {@code @HandleQuery}, etc.) via the {@code allowedClasses} method.
+ *
+ * <p>The filtering logic checks if the method has a supported handler annotation and whether the annotation defines
+ * a non-empty set of allowed payload types. If so, the message's payload class must be assignable to at least one of
+ * those allowed classes for the handler to be eligible.
+ *
+ * <p>If no types are specified in the annotation, the handler is assumed to be permissive and accepts all types. In
+ * those cases a method is typically filtered by the {@link PayloadParameterResolver} instead.
+ *
+ * <h2>Example Usage</h2>
+ * Given a handler:
+ * <pre>{@code
+ * @HandleCommand(allowedClasses = {CommandA.class, CommandB.class})
+ * public void handle(DeserializingMessage message) { ... }
+ * }</pre>
+ * This filter ensures that only messages with a `CommandA` or `CommandB` payload (or their subtypes) are dispatched to
+ * the method.
+ *
+ * @see HasMessage#getPayloadClass()
+ * @see ReflectionUtils#getClassSpecificityComparator()
+ */
 public class PayloadFilter implements MessageFilter<HasMessage> {
 
     private final Function<Class<? extends Annotation>, Function<Executable, HandleAnnotation>> allowedClassProvider

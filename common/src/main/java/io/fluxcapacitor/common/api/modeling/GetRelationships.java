@@ -17,7 +17,18 @@ package io.fluxcapacitor.common.api.modeling;
 import io.fluxcapacitor.common.api.Request;
 import lombok.Value;
 
+/**
+ * Request to retrieve all aggregate relationships for a given entity ID.
+ * <p>
+ * This is typically used to determine which aggregates reference or contain a particular entity.
+ *
+ * @see GetRelationshipsResult
+ * @see Relationship
+ */
 @Value
 public class GetRelationships extends Request {
+    /**
+     * The unique identifier of the entity whose relationships should be retrieved.
+     */
     String entityId;
 }

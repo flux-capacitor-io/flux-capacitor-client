@@ -18,8 +18,21 @@ import io.fluxcapacitor.common.api.Request;
 import lombok.EqualsAndHashCode;
 import lombok.Value;
 
+/**
+ * Request to retrieve a scheduled message by its {@link #scheduleId}.
+ * <p>
+ * Returns the associated {@link SerializedSchedule}, if one exists, via a {@link GetScheduleResult}.
+ * This is typically used for inspection or debugging purposes to verify whether a particular
+ * schedule is currently active in the system.
+ *
+ * @see CancelSchedule
+ * @see SerializedSchedule
+ */
 @EqualsAndHashCode(callSuper = true)
 @Value
 public class GetSchedule extends Request {
+    /**
+     * The unique identifier of the schedule to fetch.
+     */
     String scheduleId;
 }

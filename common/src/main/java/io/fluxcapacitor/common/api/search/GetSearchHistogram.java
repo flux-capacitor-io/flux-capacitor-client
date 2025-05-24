@@ -18,10 +18,28 @@ import io.fluxcapacitor.common.api.Request;
 import lombok.EqualsAndHashCode;
 import lombok.Value;
 
+/**
+ * Request to compute a time-based histogram over documents that match a given query.
+ * <p>
+ * This is typically used to visualize activity or value distributions over time. The histogram
+ * aggregates document timestamps into evenly spaced buckets, determined by {@code resolution}.
+ */
 @EqualsAndHashCode(callSuper = true)
 @Value
 public class GetSearchHistogram extends Request {
+
+    /**
+     * The query that determines which documents are included in the histogram.
+     */
     SearchQuery query;
+
+    /**
+     * The number of buckets (time intervals) to divide the histogram into.
+     */
     int resolution;
+
+    /**
+     * The maximum number of documents to consider for performance reasons.
+     */
     int maxSize;
 }

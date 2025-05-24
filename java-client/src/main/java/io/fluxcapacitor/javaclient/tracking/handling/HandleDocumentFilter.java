@@ -27,6 +27,23 @@ import java.util.function.Function;
 
 import static io.fluxcapacitor.javaclient.common.ClientUtils.memoize;
 
+/**
+ * A {@link MessageFilter} that routes {@link DeserializingMessage} instances to methods annotated with
+ * {@link HandleDocument}, based on the message's topic.
+ *
+ * <p>This filter checks if the target handler method is annotated with {@code @HandleDocument}, and if so,
+ * whether the resolved topic from the annotation matches the topic of the incoming message. If both conditions are met,
+ * the message will be considered eligible for handling by the method.
+ *
+ * <p>The resolved topic is derived using {@link ClientUtils#getTopic(HandleDocument, Executable)},
+ * which supports dynamic resolution based on annotation configuration and handler context.
+ *
+ * <p>Annotation lookups are memoized for performance.
+ *
+ * @see HandleDocument
+ * @see DeserializingMessage
+ * @see ClientUtils#getTopic(HandleDocument, Executable)
+ */
 public class HandleDocumentFilter implements MessageFilter<DeserializingMessage> {
 
     Function<Executable, Optional<HandleDocument>> handleCustomFunction =

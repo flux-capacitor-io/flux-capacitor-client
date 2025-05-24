@@ -27,6 +27,16 @@ import java.util.function.Function;
 
 import static java.util.Optional.ofNullable;
 
+/**
+ * A default implementation of the {@link MemoizingFunction} interface that provides caching functionality for computed
+ * function results. The results are cached by key, and can be optionally configured with a time-based expiration
+ * policy.
+ * <p>
+ * This class uses a {@link ConcurrentHashMap} internally for thread-safe storage of cached entries.
+ *
+ * @param <K> the type of input keys
+ * @param <V> the type of values produced by applying the delegate function
+ */
 @AllArgsConstructor
 public class DefaultMemoizingFunction<K, V> implements MemoizingFunction<K, V> {
     private static final Entry nullValue = new Entry(null);

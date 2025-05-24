@@ -18,18 +18,50 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import lombok.Value;
 
+/**
+ * Represents a scheduled message to be delivered at a specific {@link #timestamp}.
+ * <p>
+ * If a schedule with the same {@link #scheduleId} already exists:
+ * <ul>
+ *   <li>It will be replaced by this schedule if {@link #ifAbsent} is {@code false} (default behavior).</li>
+ *   <li>It will be preserved (this one ignored) if {@link #ifAbsent} is {@code true}.</li>
+ * </ul>
+ *
+ * @see io.fluxcapacitor.common.api.scheduling.Schedule
+ */
 @Value
 public class SerializedSchedule {
+    /**
+     * A unique identifier for this scheduled message. Used for deduplication or replacement.
+     */
     String scheduleId;
+
+    /**
+     * The absolute timestamp (epoch millis) at which this message should be delivered.
+     */
     long timestamp;
+
+    /**
+     * The message to be dispatched once the schedule triggers.
+     */
     SerializedMessage message;
+
+    /**
+     * If {@code true}, the message is only scheduled if no schedule with the same {@link #scheduleId} exists.
+     */
     boolean ifAbsent;
 
+    /**
+     * Returns a lightweight metric representation of this schedule for monitoring purposes.
+     */
     @JsonIgnore
     public Metric toMetric() {
         return new Metric(scheduleId, timestamp, ifAbsent);
     }
 
+    /**
+     * Metric representation of the {@link SerializedSchedule} for tracking/monitoring.
+     */
     @Value
     public static class Metric {
         String scheduleId;

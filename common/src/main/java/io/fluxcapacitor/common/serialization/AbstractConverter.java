@@ -17,6 +17,15 @@ package io.fluxcapacitor.common.serialization;
 import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
 
+/**
+ * An abstract base class for converting data of type {@code I} to type {@code O}. This class implements the
+ * {@link Converter} interface and provides a default behavior for the {@link #convert(Data)} method, while requiring
+ * subclasses to define their own implementation for converting input values of type {@code I} to output values of type
+ * {@code O}.
+ *
+ * @param <I> the type of the input data to be converted
+ * @param <O> the type of the output data after the conversion
+ */
 public abstract class AbstractConverter<I, O> implements Converter<I, O> {
 
     @Override

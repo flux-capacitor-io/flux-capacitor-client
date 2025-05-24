@@ -21,18 +21,41 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Annotation to be placed on payload classes or on classes that you validate manually using {@link ValidationUtils}.
- * If this annotation is present, the validation will be carried out using the specified groups.
+ * Specifies validation groups to apply when validating the annotated class.
  * <p>
- * If no groups are specified or this annotation is missing validation will be carried out using the
- * default validation group.
+ * This annotation can be placed on payload classes (such as updates or commands) or on any class
+ * that is validated manually using {@link io.fluxcapacitor.javaclient.tracking.handling.validation.ValidationUtils}.
+ * <p>
+ * When present, only the specified validation groups will be used. If no groups are defined
+ * or if the annotation is missing altogether, validation is performed using the default group
+ * ({@link jakarta.validation.groups.Default}).
+ *
+ * <p><strong>Example:</strong></p>
+ * <pre>{@code
+ * @ValidateWith(AdminChecks.class)
+ * public class ApproveApplication {
+ *
+ *     @NotNull(groups = AdminChecks.class)
+ *     private String approvalNote;
+ * }
+ * }</pre>
+ *
+ * <p>
+ * This allows you to tailor validation rules depending on context, such as admin-specific checks,
+ * creation vs. update flows, or conditional enforcement.
+ *
+ * @see jakarta.validation.GroupSequence
+ * @see jakarta.validation.groups.Default
+ * @see io.fluxcapacitor.javaclient.tracking.handling.validation.ValidationUtils
  */
 @Target({ElementType.TYPE})
 @Retention(RetentionPolicy.RUNTIME)
 @Inherited
 public @interface ValidateWith {
     /**
-     * Validation groups to include when this class is validated.
+     * One or more validation groups to include when validating this class.
+     *
+     * @return the groups to use during validation
      */
     Class<?>[] value();
 }

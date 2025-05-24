@@ -14,7 +14,9 @@
 
 package io.fluxcapacitor.common.tracking;
 
+import io.fluxcapacitor.common.InMemoryTaskScheduler;
 import io.fluxcapacitor.common.Registration;
+import io.fluxcapacitor.common.TaskScheduler;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.tracking.MessageBatch;
 import io.fluxcapacitor.common.api.tracking.Position;

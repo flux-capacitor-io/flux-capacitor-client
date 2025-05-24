@@ -30,6 +30,38 @@ import java.time.Instant;
 import java.util.List;
 import java.util.stream.Collectors;
 
+/**
+ * A query for filtering documents in one or more search collections.
+ * <p>
+ * A {@code SearchQuery} is used to retrieve documents from the search index by applying a combination of time-based
+ * constraints, collection filters, and field-level constraints.
+ * </p>
+ * <p>
+ * Example usage:
+ * <pre>{@code
+ * SearchQuery query = SearchQuery.builder()
+ *     .collection("complaints")
+ *     .since(Instant.parse("2023-01-01T00:00:00Z"))
+ *     .before(Instant.now())
+ *     .constraint(BetweenConstraint.atLeast(2, "priority"))
+ *     .build();
+ * }</pre>
+ *
+ * <h2>Fields</h2>
+ * <ul>
+ *     <li>{@code collections}: List of collection names to search in (required).</li>
+ *     <li>{@code since, before}: Start and end timestamps to filter documents within a time window.</li>
+ *     <li>{@code sinceExclusive, beforeInclusive}: Control boundary inclusivity for time filtering.</li>
+ *     <li>{@code constraints}: A list of {@link Constraint} objects applied to fields within the document.</li>
+ * </ul>
+ *
+ * <h2>Validation</h2>
+ * The query must include at least one collection. An exception is thrown if none are specified.
+ *
+ * @see Constraint
+ * @see SerializedDocument
+ * @see io.fluxcapacitor.common.search.Document
+ */
 @Value
 @lombok.Builder(toBuilder = true, builderClassName = "Builder")
 public class SearchQuery {
@@ -69,6 +101,13 @@ public class SearchQuery {
         return before == null || since == null || before.isAfter(since) ? before : since;
     }
 
+    /**
+     * Checks if the given serialized document matches the query's constraints and collection filters.
+     *
+     * @param d the serialized document to be checked; may be null. If null or if the collection of the document is not
+     *          part of the query's collection filters, the method returns false.
+     * @return true if the document meets the constraints and collection filters of the query, false otherwise.
+     */
     public boolean matches(SerializedDocument d) {
         if (d == null || !collections.contains(d.getCollection())) {
             return false;

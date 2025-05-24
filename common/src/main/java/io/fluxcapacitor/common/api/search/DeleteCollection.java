@@ -19,12 +19,31 @@ import io.fluxcapacitor.common.api.Command;
 import lombok.EqualsAndHashCode;
 import lombok.Value;
 
+/**
+ * Command to delete an entire search collection, removing all documents within it.
+ * <p>
+ * This operation is irreversible and should be used with caution. It is useful in test environments
+ * or in cases where all data in a collection has become obsolete and needs to be cleared.
+ * <p>
+ * Deletion behavior is governed by the provided {@link Guarantee}.
+ */
 @EqualsAndHashCode(callSuper = true)
 @Value
 public class DeleteCollection extends Command {
+
+    /**
+     * The name of the collection to delete.
+     */
     String collection;
+
+    /**
+     * The delivery/storage guarantee applied to the deletion operation.
+     */
     Guarantee guarantee;
 
+    /**
+     * Uses the collection name as the routing key for consistency and traceability.
+     */
     @Override
     public String routingKey() {
         return collection;

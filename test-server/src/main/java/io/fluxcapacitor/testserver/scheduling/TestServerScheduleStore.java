@@ -15,12 +15,12 @@
 package io.fluxcapacitor.testserver.scheduling;
 
 import io.fluxcapacitor.common.Guarantee;
+import io.fluxcapacitor.common.InMemoryTaskScheduler;
 import io.fluxcapacitor.common.Registration;
+import io.fluxcapacitor.common.TaskScheduler;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.scheduling.SerializedSchedule;
-import io.fluxcapacitor.common.tracking.InMemoryTaskScheduler;
 import io.fluxcapacitor.common.tracking.MessageStore;
-import io.fluxcapacitor.common.tracking.TaskScheduler;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.scheduling.client.InMemoryScheduleStore;
 import io.fluxcapacitor.javaclient.scheduling.client.SchedulingClient;

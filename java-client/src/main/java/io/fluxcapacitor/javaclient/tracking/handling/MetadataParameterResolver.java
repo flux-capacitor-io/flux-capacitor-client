@@ -25,6 +25,23 @@ import java.util.function.Function;
 
 import static java.util.Optional.ofNullable;
 
+/**
+ * Resolves handler method parameters of type {@link Metadata}.
+ * <p>
+ * This resolver can inject metadata into handler methods in two ways:
+ * <ul>
+ *   <li>If the message being handled implements {@link HasMetadata}, its metadata is directly returned.</li>
+ *   <li>Otherwise, the metadata is extracted from the current {@link DeserializingMessage} (if available).</li>
+ * </ul>
+ *
+ * <p>Example handler:
+ * <pre>{@code
+ * @HandleCommand
+ * public void handle(MyCommand command, Metadata metadata) {
+ *     String user = metadata.get("userId");
+ * }
+ * }</pre>
+ */
 public class MetadataParameterResolver extends TypedParameterResolver<Object> {
 
     public MetadataParameterResolver() {

@@ -14,12 +14,26 @@
 
 package io.fluxcapacitor.common.api.scheduling;
 
-import io.fluxcapacitor.common.api.QueryResult;
+import io.fluxcapacitor.common.api.RequestResult;
 import lombok.Value;
 
+/**
+ * Response to a {@link GetSchedule} request, containing the matching {@link SerializedSchedule}, if found.
+ */
 @Value
-public class GetScheduleResult implements QueryResult {
+public class GetScheduleResult implements RequestResult {
+    /**
+     * The identifier of the request this result corresponds to.
+     */
     long requestId;
+
+    /**
+     * The retrieved schedule, or {@code null} if no schedule exists for the given ID.
+     */
     SerializedSchedule schedule;
+
+    /**
+     * The system time when this result was generated (milliseconds since epoch).
+     */
     long timestamp = System.currentTimeMillis();
 }

@@ -14,10 +14,38 @@
 
 package io.fluxcapacitor.common.application;
 
+import io.fluxcapacitor.common.FileUtils;
+
 import static io.fluxcapacitor.common.FileUtils.loadProperties;
 
+/**
+ * A {@link PropertySource} implementation that loads properties from an {@code application.properties} file located on
+ * the classpath.
+ * <p>
+ * This is a conventional source for static configuration values such as credentials, service endpoints, or application
+ * settings. The file is expected to be in the root of the classpath (e.g., inside {@code resources/}).
+ *
+ * <h2>Example {@code application.properties}:</h2>
+ * <pre>
+ * service.url=https://api.example.com
+ * retry.count=3
+ * </pre>
+ *
+ * <p>The loaded properties are backed by a {@link java.util.Properties} instance and exposed via the
+ * {@link #get(String)} method.
+ *
+ * <p>This class uses {@link FileUtils#loadProperties(String)} which supports merging multiple files with the
+ * same name from the classpath and logs duplicate key warnings.
+ *
+ * @see JavaPropertiesSource
+ * @see FileUtils#loadProperties(String)
+ */
 public class ApplicationPropertiesSource extends JavaPropertiesSource {
 
+    /**
+     * Constructs a new {@code ApplicationPropertiesSource} by loading the {@code application.properties} file from the
+     * classpath.
+     */
     public ApplicationPropertiesSource() {
         super(loadProperties("application.properties"));
     }

@@ -24,6 +24,24 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+/**
+ * Command used to index a collection of {@link SerializedDocument} instances in the search store.
+ * <p>
+ * This command is typically sent to the Flux platform, requesting that the specified documents be stored and made
+ * searchable.
+ * <p>
+ * Documents can belong to different collections and contain arbitrary facets, indexes, and metadata, allowing them to
+ * be used for filtering, searching, and analytics.
+ *
+ * <p><strong>Conditional indexing:</strong> If {@code ifNotExists} is {@code true}, the platform will only index a
+ * document if no document with the same ID and collection already exists.
+ *
+ * <p><strong>Delivery guarantees:</strong> The {@link Guarantee} determines the durability of the indexing operation
+ * (e.g. {@code STORED} waits for acknowledgment).
+ *
+ * @see io.fluxcapacitor.common.Guarantee
+ * @see SerializedDocument
+ */
 @EqualsAndHashCode(callSuper = true)
 @Value
 public class IndexDocuments extends Command {

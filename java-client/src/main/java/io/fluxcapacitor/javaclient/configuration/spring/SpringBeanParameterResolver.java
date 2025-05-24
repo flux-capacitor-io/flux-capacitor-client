@@ -32,6 +32,23 @@ import java.util.function.UnaryOperator;
 import static io.fluxcapacitor.common.ObjectUtils.memoize;
 import static org.springframework.beans.factory.annotation.BeanFactoryAnnotationUtils.isQualifierMatch;
 
+/**
+ * Resolves handler method parameters annotated with {@link Autowired} from the Spring application context.
+ * <p>
+ * This resolver allows dependency injection of Spring-managed beans directly into handler methods. It supports both
+ * type-based and {@link Qualifier}-based resolution, and will prioritize beans marked as {@code @Primary}.
+ * <p>
+ * If no bean can be resolved unambiguously (e.g., multiple candidates and no qualifier or primary), the parameter is
+ * not injected and a warning is logged.
+ *
+ * <p>Example:
+ * <pre>{@code
+ * @HandleCommand
+ * public void handle(MyCommand command, @Autowired MyService myService) {
+ *     myService.performAction();
+ * }
+ * }</pre>
+ */
 @RequiredArgsConstructor
 @Slf4j
 public class SpringBeanParameterResolver implements ParameterResolver<Object> {

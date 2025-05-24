@@ -12,11 +12,8 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.common.tracking;
+package io.fluxcapacitor.common;
 
-import io.fluxcapacitor.common.DirectExecutorService;
-import io.fluxcapacitor.common.Registration;
-import io.fluxcapacitor.common.ThrowingRunnable;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
@@ -32,6 +29,17 @@ import static io.fluxcapacitor.common.ObjectUtils.asRunnable;
 import static io.fluxcapacitor.common.ObjectUtils.newThreadFactory;
 import static io.fluxcapacitor.common.TimingUtils.isMissedDeadline;
 
+/**
+ * An in-memory implementation of the {@link TaskScheduler} interface, enabling scheduling and execution of tasks in a
+ * virtualized time environment. This class is suitable for deterministic testing and scenarios where precise control
+ * over task execution is required.
+ * <p>
+ * This scheduler uses a {@link ScheduledExecutorService} to periodically check for and execute tasks that have passed
+ * their deadlines. Tasks can be submitted for immediate execution or scheduled for execution at a specified time.
+ * <p>
+ * The scheduler also allows for asynchronous task execution using a provided {@link ExecutorService} or a default
+ * direct executor if one is not provided.
+ */
 @Slf4j
 public class InMemoryTaskScheduler implements TaskScheduler {
     public static int defaultDelay = 100;

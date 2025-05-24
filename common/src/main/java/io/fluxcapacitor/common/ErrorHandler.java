@@ -14,9 +14,21 @@
 
 package io.fluxcapacitor.common;
 
+/**
+ * Functional interface for handling errors during tasks.
+ * <p>
+ * The error handler can log the error or escalate the failure depending on the context.
+ *
+ * @param <T> the type of context associated with the error (e.g., the failed task or message)
+ */
 @FunctionalInterface
 public interface ErrorHandler<T> {
 
+    /**
+     * Handles the given {@code Throwable} in the context of the provided value.
+     *
+     * @param e       the exception that occurred
+     * @param context the context or input that caused the exception
+     */
     void handleError(Throwable e, T context);
-
 }

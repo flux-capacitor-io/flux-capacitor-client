@@ -39,22 +39,65 @@ import java.util.stream.IntStream;
 import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.toMap;
 
+/**
+ * Utility class for search-related functionality such as term normalization, path transformation, glob pattern
+ * matching, and primitive value extraction.
+ * <p>
+ * This class is used extensively during document indexing, querying, and filtering.
+ * It also includes utilities for path conversion between dot and slash notation, JSON normalization,
+ * and field escaping/unescaping.
+ */
 public class SearchUtils {
 
+    /**
+     * Regex pattern for splitting dot-separated paths (ignoring escaped dots).
+     */
     private static final Pattern dotPattern = Pattern.compile("(?<!\\\\)\\.");
+
+    /**
+     * Preloaded numeric strings mapped to their integer values, used for efficient parsing.
+     */
     private static final Map<String, Integer> arrayIndices =
             IntStream.range(0, 1000).boxed().collect(toMap(Object::toString, identity()));
+
+    /**
+     * A character class used in regex patterns that includes letters and digits.
+     */
     public static final String letterOrNumber = "\\p{L}0-9";
+
+    /**
+     * Pattern for extracting search terms and quoted phrases from a string.
+     */
     public static final Pattern termPattern =
             Pattern.compile(String.format("\"[^\"]*\"|[%1$s][^\\s]*[%1$s]|[%1$s]", letterOrNumber), Pattern.MULTILINE);
+
+    /**
+     * Cache for compiled glob patterns.
+     */
     private static final Map<String, Predicate<String>> globPatternCache = new ConcurrentHashMap<>();
+
+    /**
+     * Date-time formatter used to serialize or deserialize full ISO-8601 instant values with millisecond precision.
+     */
     public static final DateTimeFormatter ISO_FULL
             = new DateTimeFormatterBuilder().parseCaseInsensitive().appendInstant(3).toFormatter();
 
+
+    /**
+     * Normalizes a string to lowercase and removes diacritics and leading/trailing whitespace.
+     */
     public static String normalize(@NonNull String text) {
         return StringUtils.stripAccents(text).trim().toLowerCase();
     }
 
+    /**
+     * Normalizes all string values in a JSON byte array by stripping accents and lowercasing.
+     * <p>
+     * This is typically used during document indexing to enable consistent full-text search.
+     *
+     * @param data a raw JSON-encoded byte array
+     * @return a normalized version of the input data
+     */
     @SneakyThrows
     public static byte[] normalizeJson(byte[] data) {
         ByteArrayOutputStream stream = new ByteArrayOutputStream();
@@ -195,6 +238,9 @@ public class SearchUtils {
                 prefix ? Optional.of(s -> s.endsWith(finalPattern)) : Optional.of(s -> s.equals(finalPattern));
     }
 
+    /**
+     * Checks whether the input string is a parseable integer.
+     */
     public static boolean isInteger(String fieldName) {
         if (StringUtils.isNumeric(fieldName)) {
             try {
@@ -206,6 +252,9 @@ public class SearchUtils {
         return false;
     }
 
+    /**
+     * Attempts to convert a numeric string to an Integer, falling back to the original string otherwise.
+     */
     public static Object asIntegerOrString(String fieldName) {
         if (StringUtils.isNumeric(fieldName)) {
             Object result = arrayIndices.get(fieldName);
@@ -220,6 +269,12 @@ public class SearchUtils {
         return fieldName;
     }
 
+    /**
+     * Extracts quoted phrases and standalone terms from a free-form query string.
+     *
+     * @param query the raw search string
+     * @return a list of normalized search terms
+     */
     public static List<String> splitInTerms(String query) {
         List<String> parts = new ArrayList<>();
 
@@ -236,6 +291,9 @@ public class SearchUtils {
         return parts;
     }
 
+    /**
+     * Converts any non-primitive value to its string form.
+     */
     public static Object asPrimitive(Object value) {
         if (value instanceof String || value instanceof Number || value instanceof Boolean || value == null) {
             return value;
@@ -243,10 +301,18 @@ public class SearchUtils {
         return value.toString();
     }
 
+    /**
+     * Replaces unescaped dots in field paths with slashes.
+     * <p>
+     * This standardizes paths used in documents (e.g. {@code a.b.c} → {@code a/b/c}).
+     */
     public static String normalizePath(String queryPath) {
         return queryPath == null ? null : dotPattern.matcher(queryPath).replaceAll("/");
     }
 
+    /**
+     * Escapes slashes and quotes in field names for safe indexing.
+     */
     public static String escapeFieldName(String fieldName) {
         fieldName = fieldName.replace("/", "\\/");
         fieldName = fieldName.replace("\"", "\\\"");
@@ -260,6 +326,9 @@ public class SearchUtils {
         return fieldName;
     }
 
+    /**
+     * Unescapes slashes and quotes in field names.
+     */
     public static String unescapeFieldName(String fieldName) {
         if (fieldName.startsWith("\"") && fieldName.endsWith("\"")) {
             fieldName = fieldName.substring(1, fieldName.length() - 1);

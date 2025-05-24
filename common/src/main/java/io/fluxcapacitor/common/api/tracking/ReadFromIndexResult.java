@@ -14,26 +14,57 @@
 
 package io.fluxcapacitor.common.api.tracking;
 
-import io.fluxcapacitor.common.api.QueryResult;
+import io.fluxcapacitor.common.api.RequestResult;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import lombok.Value;
 
 import java.util.List;
 
+/**
+ * Result for a {@link io.fluxcapacitor.common.api.tracking.ReadFromIndex} request.
+ * <p>
+ * Contains the messages read from the specified index and accompanying metadata for auditing and metrics logging.
+ */
 @Value
-public class ReadFromIndexResult implements QueryResult {
+public class ReadFromIndexResult implements RequestResult {
+
+    /**
+     * The request ID associated with the original {@code ReadFromIndex} request.
+     */
     long requestId;
+
+    /**
+     * The list of serialized messages returned from the log starting at the requested index.
+     */
     List<SerializedMessage> messages;
+
+    /**
+     * The system timestamp (epoch millis) at which this result was produced.
+     */
     long timestamp = System.currentTimeMillis();
 
+    /**
+     * Converts this result into a metric representation, which includes the number of messages and timestamp.
+     */
     @Override
     public Metric toMetric() {
         return new Metric(messages.size(), timestamp);
     }
 
+    /**
+     * Metric representation of a {@code ReadFromIndexResult}, used for internal monitoring and analytics.
+     */
     @Value
     public static class Metric {
+
+        /**
+         * The number of messages included in the result.
+         */
         int size;
+
+        /**
+         * The timestamp at which the result was generated.
+         */
         long timestamp;
     }
 }

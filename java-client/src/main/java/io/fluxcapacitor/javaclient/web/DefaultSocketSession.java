@@ -16,11 +16,11 @@ package io.fluxcapacitor.javaclient.web;
 
 import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.ObjectUtils;
+import io.fluxcapacitor.common.TaskScheduler;
 import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.handling.Handler;
 import io.fluxcapacitor.common.handling.HandlerInvoker;
 import io.fluxcapacitor.common.serialization.JsonUtils;
-import io.fluxcapacitor.common.tracking.TaskScheduler;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.publishing.ResultGateway;

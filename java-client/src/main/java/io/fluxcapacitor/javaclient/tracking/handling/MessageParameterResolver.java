@@ -25,6 +25,23 @@ import java.util.function.Function;
 
 import static java.util.Optional.ofNullable;
 
+/**
+ * Resolves handler method parameters of type {@link Message}.
+ * <p>
+ * This resolver is useful when a handler method needs access to the raw {@link Message} object
+ * associated with the invocation context.
+ * <p>
+ * Resolution is attempted via the message context itself (if it implements {@link HasMessage}),
+ * or from the current thread-local {@link DeserializingMessage} as a fallback.
+ *
+ * <p>Example:
+ * <pre>{@code
+ * @HandleCommand
+ * public void handle(MyCommand command, Message message) {
+ *     Instant timestamp = message.getTimestamp();
+ * }
+ * }</pre>
+ */
 public class MessageParameterResolver extends TypedParameterResolver<Object> {
 
     public MessageParameterResolver() {

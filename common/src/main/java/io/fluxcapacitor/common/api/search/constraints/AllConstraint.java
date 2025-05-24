@@ -31,23 +31,58 @@ import java.util.List;
 
 import static java.util.stream.Collectors.toList;
 
+/**
+ * A composite constraint that requires all inner constraints to match.
+ * <p>
+ * This is equivalent to a logical <strong>AND</strong> operation over the contained constraints. The document must
+ * satisfy every inner constraint in the list for the {@code AllConstraint} to match.
+ *
+ * <p>
+ * If the constraint list is empty, this becomes a no-op constraint that matches all documents. If only one constraint
+ * is provided, it is returned directly to avoid unnecessary nesting.
+ *
+ * @see AnyConstraint for logical OR
+ * @see NotConstraint for logical negation
+ * @see Constraint
+ */
 @Value
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class AllConstraint implements Constraint {
 
+    /**
+     * Creates an {@code AllConstraint} from the given array of constraints.
+     * <p>
+     * If the array is empty, a {@link NoOpConstraint} is returned. If only one constraint is provided, that constraint
+     * is returned directly.
+     *
+     * @param constraints one or more constraints to combine
+     * @return a constraint that requires all inputs to match
+     */
     public static Constraint all(Constraint... constraints) {
         return all(Arrays.asList(constraints));
     }
 
+    /**
+     * Creates an {@code AllConstraint} from the given collection of constraints.
+     * <p>
+     * If the collection is empty, a {@link NoOpConstraint} is returned. If it contains only one constraint, that
+     * constraint is returned directly.
+     *
+     * @param constraints a collection of constraints to combine
+     * @return a constraint that requires all inputs to match
+     */
     public static Constraint all(Collection<Constraint> constraints) {
         var list = constraints.stream().distinct().collect(toList());
         return switch (list.size()) {
             case 0 -> NoOpConstraint.instance;
-            case 1 -> list.get(0);
+            case 1 -> list.getFirst();
             default -> new AllConstraint(list);
         };
     }
 
+    /**
+     * The list of constraints being combined using a logical AND.
+     */
     List<Constraint> all;
 
     @ToString.Exclude

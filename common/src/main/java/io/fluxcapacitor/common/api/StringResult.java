@@ -16,9 +16,29 @@ package io.fluxcapacitor.common.api;
 
 import lombok.Value;
 
+/**
+ * A generic response containing a string value.
+ * <p>
+ * This is used when a request yields a simple string-based result (e.g. for diagnostics or simple identifiers).
+ * </p>
+ *
+ * @see RequestResult
+ */
 @Value
-public class StringResult implements QueryResult {
+public class StringResult implements RequestResult {
+
+    /**
+     * ID correlating this result with its originating request.
+     */
     long requestId;
+
+    /**
+     * Time at which the result was generated.
+     */
     long timestamp = System.currentTimeMillis();
+
+    /**
+     * The result string.
+     */
     String result;
 }

@@ -15,15 +15,39 @@
 package io.fluxcapacitor.common.api.keyvalue;
 
 import io.fluxcapacitor.common.api.Data;
-import io.fluxcapacitor.common.api.QueryResult;
+import io.fluxcapacitor.common.api.RequestResult;
 import lombok.Value;
 
+/**
+ * Response to a {@link GetValue} request, returning the value associated with the given key.
+ * <p>
+ * The result includes the serialized form of the value (if found) and a timestamp marking when the value was retrieved.
+ * </p>
+ *
+ * @see GetValue
+ * @see Data
+ */
 @Value
-public class GetValueResult implements QueryResult {
+public class GetValueResult implements RequestResult {
+
+    /**
+     * The ID correlating this response to its {@link GetValue} request.
+     */
     long requestId;
+
+    /**
+     * The serialized value associated with the requested key, or {@code null} if not found.
+     */
     Data<byte[]> value;
+
+    /**
+     * The timestamp at which the result was generated.
+     */
     long timestamp = System.currentTimeMillis();
 
+    /**
+     * Lightweight representation of this response for metrics logging.
+     */
     @Override
     public Metric toMetric() {
         return new Metric(timestamp);
@@ -31,6 +55,9 @@ public class GetValueResult implements QueryResult {
 
     @Value
     public static class Metric {
+        /**
+         * Time the result was returned.
+         */
         long timestamp;
     }
 }

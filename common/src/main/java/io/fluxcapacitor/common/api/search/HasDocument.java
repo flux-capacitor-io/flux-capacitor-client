@@ -15,12 +15,34 @@
 package io.fluxcapacitor.common.api.search;
 
 import io.fluxcapacitor.common.api.Request;
+import io.fluxcapacitor.common.api.search.bulkupdate.IndexDocumentIfNotExists;
 import lombok.EqualsAndHashCode;
 import lombok.Value;
 
+/**
+ * A request to check whether a document exists in a given collection.
+ * <p>
+ * This is a lightweight operation used to determine the presence of a document based on its identifier
+ * and the collection it belongs to without having to fetch the document.
+ *
+ * <p>Example usage:</p>
+ * <pre>{@code
+ * boolean exists = searchClient.documentExists(new HasDocument("invoice-1234", "invoices"));
+ * }</pre>
+ *
+ * @see GetDocument
+ * @see IndexDocumentIfNotExists
+ */
 @EqualsAndHashCode(callSuper = true)
 @Value
 public class HasDocument extends Request {
+    /**
+     * The unique identifier of the document within the collection.
+     */
     String id;
+
+    /**
+     * The name of the collection to check for document existence.
+     */
     String collection;
 }

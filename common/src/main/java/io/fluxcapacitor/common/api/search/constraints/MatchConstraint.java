@@ -36,13 +36,80 @@ import java.util.function.Predicate;
 
 import static java.util.stream.Collectors.toList;
 
+/**
+ * A constraint that matches indexed document values based on text equality or normalized phrase matching.
+ * <p>
+ * The {@code MatchConstraint} is commonly used to filter documents that contain a specific word, phrase, or exact value
+ * in one or more indexed fields.
+ * </p>
+ *
+ * <h2>Examples</h2>
+ * <pre>{@code
+ * // Match documents where the "status" field is "open"
+ * Constraint constraint = MatchConstraint.match("open", "status");
+ *
+ * // Match across all indexed fields
+ * Constraint constraint = MatchConstraint.match("open");
+ *
+ * // Match across multiple fields with strict equality
+ * Constraint constraint = MatchConstraint.match("PENDING", true, "status", "state");
+ * }</pre>
+ *
+ * <h2>Path Handling</h2>
+ * You can provide one or more paths to target specific fields in the document. If no paths are provided, the constraint
+ * will match anywhere in the document. Empty or null paths are filtered out automatically.
+ *
+ * <h2>Matching Modes</h2>
+ * The constraint supports two modes:
+ * <ul>
+ *     <li>{@code strict = true} – uses exact string equality against the raw value of the entry.</li>
+ *     <li>{@code strict = false} (default) – uses normalized matching via {@link SearchUtils#normalize(String)}
+ *         and compares to the {@code asPhrase()} form of the entry (used for full-text search).</li>
+ * </ul>
+ *
+ * @see PathConstraint
+ * @see AnyConstraint
+ * @see SearchUtils#normalize(String)
+ */
 @Value
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class MatchConstraint extends PathConstraint {
+
+    /**
+     * Creates a constraint that performs non-strict (normalized) matching of the provided value across the specified
+     * paths.
+     * <p>
+     * If no paths are given, the match will be applied across all indexed fields in the document.
+     * <p>
+     * If the value is {@code null}, returns a {@link NoOpConstraint}. If the value is a {@link Collection}, creates a
+     * disjunction ({@link AnyConstraint}) of match constraints for each non-null element. If the value implements
+     * {@link HasId}, the {@code getId()} value is used for matching. For all other types, the value is converted to a
+     * string.
+     *
+     * @param value the value to match
+     * @param paths the paths to search in (or empty for all fields)
+     * @return a {@link Constraint} instance or {@link NoOpConstraint}
+     */
     public static Constraint match(Object value, String... paths) {
         return match(value, false, paths);
     }
 
+    /**
+     * Creates a constraint that matches the given value across the specified paths, with an option to enforce strict
+     * string equality.
+     * <p>
+     * If no paths are given, the match will be applied across all indexed fields in the document.
+     * <p>
+     * If the value is {@code null}, returns a {@link NoOpConstraint}. If the value is a {@link Collection}, creates a
+     * disjunction ({@link AnyConstraint}) of match constraints for each non-null element. If the value implements
+     * {@link HasId}, the {@code getId()} value is used for matching. For all other types, the value is converted to a
+     * string.
+     *
+     * @param value  the value to match
+     * @param strict if {@code true}, use exact string matching; if {@code false}, use normalized phrase match
+     * @param paths  the paths to search in (or empty for all fields)
+     * @return a {@link Constraint} instance or {@link NoOpConstraint}
+     */
     public static Constraint match(Object value, boolean strict, String... paths) {
         var filteredPaths = Arrays.stream(paths).filter(p -> p != null && !p.isBlank()).toList();
         switch (value) {

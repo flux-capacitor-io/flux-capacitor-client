@@ -15,8 +15,6 @@
 package io.fluxcapacitor.javaclient.tracking.handling;
 
 import io.fluxcapacitor.common.MessageType;
-import io.fluxcapacitor.javaclient.common.Message;
-import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
@@ -25,45 +23,96 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Annotation to be placed on a message handler parameter or message handler method. The handler is only invoked if the
- * trigger for the message matches the requirements configured in the annotation.
+ * Injects the **triggering message** that caused the current message to be published or handled.
+ *
  * <p>
- * If present on a parameter, the message that triggered the handled message is injected into the parameter if the
- * parameter type is assignable from the trigger message type.
+ * This annotation is typically used in:
+ * <ul>
+ *   <li>{@link io.fluxcapacitor.javaclient.tracking.handling.HandleResult @HandleResult} handlers to access the original request</li>
+ *   <li>{@link io.fluxcapacitor.javaclient.tracking.handling.HandleError @HandleError} handlers to inspect the command or query that failed</li>
+ * </ul>
+ *
  * <p>
- * This is typically useful when handling results (using {@link HandleResult}) or errors (using {@link HandleError}). In
- * those handlers it is often useful to have access to the message that triggered the result or error.
+ * It can be placed on:
+ * <ul>
+ *   <li>A handler <strong>method parameter</strong>: to inject the message or payload that triggered the current one</li>
+ *   <li>A handler <strong>method itself</strong>: to restrict invocation to certain types of trigger messages</li>
+ * </ul>
+ *
+ * <h2>Injection Behavior</h2>
+ *
+ * <ul>
+ *   <li>The triggering message is injected if its structure matches the parameter type.</li>
+ *   <li>Supported parameter types include:
+ *     <ul>
+ *       <li>The triggering payload type (e.g. {@code MyCommand})</li>
+ *       <li>{@link io.fluxcapacitor.javaclient.common.Message Message}</li>
+ *       <li>{@link io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage DeserializingMessage}</li>
+ *     </ul>
+ *   </li>
+ *   <li>If no match is found, the handler is skipped.</li>
+ * </ul>
+ *
+ * <h2>Filtering Options</h2>
+ *
+ * You can restrict the handler’s applicability using:
+ *
+ * <ul>
+ *   <li>{@link #value()}: Only inject if the trigger’s payload type is assignable to one of the specified classes</li>
+ *   <li>{@link #messageType()}: Only allow triggers of the given {@link io.fluxcapacitor.common.MessageType}</li>
+ *   <li>{@link #consumer()}: Only match triggers from the specified publishing consumers</li>
+ * </ul>
+ *
+ * <h2>Example: Handling a result with access to the triggering command</h2>
+ *
+ * <pre>{@code
+ * @HandleResult
+ * void handleResult(SuccessResponse result, @Trigger MyCommand originalCommand) {
+ *     log.info("Command {} completed with result: {}", originalCommand.getId(), result);
+ * }
+ * }</pre>
+ *
+ * <h2>Example: Retrying failed commands using a consumer-specific trigger</h2>
+ *
+ * <pre>{@code
+ * @HandleError
+ * @Trigger(consumer = "my-app", messageType = MessageType.COMMAND)
+ * void retryFailedCommand(MyCommand failedCommand) {
+ *     FluxCapacitor.sendCommand(failedCommand);
+ * }
+ * }</pre>
+ *
+ * <h2>Advanced Use Case: Building a dynamic dead-letter queue</h2>
+ *
  * <p>
- * Valid parameter types are types that can be assigned from the trigger message payload type, or {@link Message} or
- * {@link DeserializingMessage}. Using {@link #value()} it is possible to filter what trigger messages to listen for. If
- * {@link #value()} is left empty any trigger that matches the parameter is injected. Using {@link #messageType()} it is
- * possible to filter the {@link MessageType} of the trigger message.
- * <p>
- * It is also possible to only listen for messages that were triggered by a given consumer using {@link #consumer()}.
+ * Because trigger metadata is preserved, you can replay past failures even if no handler existed when the message
+ * originally failed. For example, after discovering a bug days later, you can deploy a consumer that:
+ * <ul>
+ *   <li>Replays failed commands from the error log</li>
+ *   <li>Uses {@code @Trigger} to inject and reissue them</li>
+ *   <li>Recovers gracefully without needing manual inspection of logs</li>
+ * </ul>
+ *
+ * @see io.fluxcapacitor.javaclient.tracking.handling.HandleResult
+ * @see io.fluxcapacitor.javaclient.tracking.handling.HandleError
  */
-@Documented
 @Target({ElementType.PARAMETER, ElementType.METHOD})
 @Retention(RetentionPolicy.RUNTIME)
+@Documented
 public @interface Trigger {
     /**
-     * Filter what trigger messages may be injected. Parameters are only injected if the trigger message payload type
-     * can be assigned to any of the given classes.
-     * <p>
-     * If left empty, any trigger that matches the parameter is injected.
+     * Restricts the trigger message by payload type.
+     * If left empty, any compatible payload will be injected.
      */
     Class<?>[] value() default {};
 
     /**
-     * Filter what trigger messages may be injected. Parameters are only injected if the trigger message type is
-     * contained in the returned array, or if the array is left empty.
+     * Restricts the trigger by its {@link io.fluxcapacitor.common.MessageType}.
      */
     MessageType[] messageType() default {};
 
     /**
-     * Filter on the name of the consumer that produced the handled message. If multiple values are given, the match is
-     * made if any of the mentioned consumers produced the message.
-     * <p>
-     * This makes it easy to e.g. track results or errors produced by one or more consumers.
+     * Restricts the trigger to messages sent by specific consumer(s).
      */
     String[] consumer() default {};
 }

@@ -17,8 +17,21 @@ package io.fluxcapacitor.common.api.keyvalue;
 import io.fluxcapacitor.common.api.Data;
 import lombok.Value;
 
+/**
+ * Represents a single key-value entry in the legacy key-value store.
+ * <p>
+ * This structure is primarily used in {@link StoreValues} commands to persist arbitrary binary data.
+ * </p>
+ */
 @Value
 public class KeyValuePair {
+    /**
+     * The unique key under which the value will be stored.
+     */
     String key;
+
+    /**
+     * The binary data associated with the key, wrapped in {@link Data}.
+     */
     Data<byte[]> value;
 }

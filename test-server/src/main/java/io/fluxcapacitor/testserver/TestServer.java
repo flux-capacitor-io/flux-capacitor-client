@@ -16,7 +16,6 @@ package io.fluxcapacitor.testserver;
 
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.ObjectUtils;
-import io.fluxcapacitor.common.Pair;
 import io.fluxcapacitor.common.tracking.HasMessageStore;
 import io.fluxcapacitor.common.tracking.MessageStore;
 import io.fluxcapacitor.javaclient.configuration.client.Client;
@@ -44,6 +43,7 @@ import lombok.With;
 import lombok.experimental.Delegate;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.AbstractMap.SimpleEntry;
 import java.util.Arrays;
 import java.util.List;
 import java.util.function.Function;
@@ -107,7 +107,7 @@ public class TestServer {
                         ObjectUtils.<String, String, Endpoint>memoize((projectId, topic) -> new ConsumerEndpoint(
                                 getMessageStore(projectId, messageType, topic), messageType)
                                         .metricsLog(metricsLogSupplier.apply(projectId)))
-                                .compose(s -> new Pair<>(getProjectId(s), getTopic(s))),
+                                .compose(s -> new SimpleEntry<>(getProjectId(s), getTopic(s))),
                         format("/%s/", consumerPath(messageType)), pathHandler);
             }
         }

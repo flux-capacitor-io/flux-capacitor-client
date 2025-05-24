@@ -20,13 +20,35 @@ import lombok.EqualsAndHashCode;
 import lombok.NonNull;
 import lombok.Value;
 
+/**
+ * Command to configure to use a search collection as a searchable audit trail.
+ * <p>
+ * An audit trail ensures that changes to documents are retained for a minimum duration. This is
+ * particularly useful for compliance and debugging purposes, as it allows documents to be replayed
+ * or inspected after modification or deletion.
+ */
 @EqualsAndHashCode(callSuper = true)
 @Value
 public class CreateAuditTrail extends Command {
+
+    /**
+     * The collection to use as audit trail.
+     */
     @NonNull String collection;
+
+    /**
+     * The retention period for the audit trail, in seconds. If {@code null}, the default is used.
+     */
     Long retentionTimeInSeconds;
+
+    /**
+     * The guarantee to use when applying the audit trail configuration.
+     */
     Guarantee guarantee;
 
+    /**
+     * Uses the collection name as routing key to ensure consistent configuration.
+     */
     @Override
     public String routingKey() {
         return collection;

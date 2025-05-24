@@ -14,6 +14,22 @@
 
 package io.fluxcapacitor.common.application;
 
+/**
+ * A {@link PropertySource} implementation that reads configuration properties from the JVM system properties.
+ * <p>
+ * This source delegates to {@link System#getProperties()} to retrieve key-value pairs. It allows for application
+ * configuration using the {@code -Dkey=value} syntax when starting the JVM.
+ *
+ * <h2>Example:</h2>
+ * <pre>{@code
+ * java -Dmy.config.value=42 -jar my-app.jar
+ * }</pre>
+ *
+ * <p>This value could then be resolved via {@link PropertySource#get(String) PropertySource#get("my.config.value")}.
+ *
+ * @see JavaPropertiesSource
+ * @see System#getProperties()
+ */
 public class SystemPropertiesSource extends JavaPropertiesSource {
     public SystemPropertiesSource() {
         super(System.getProperties());

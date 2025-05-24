@@ -14,6 +14,15 @@
 
 package io.fluxcapacitor.common.encryption;
 
+/**
+ * A no-op implementation of the {@link Encryption} interface that performs no actual encryption or decryption.
+ * <p>
+ * This implementation simply returns the input value as-is, making it useful for testing, debugging, or
+ * development environments where encryption is unnecessary or intentionally disabled.
+ *
+ * <h2>Usage Note:</h2>
+ * This class should never be used in production systems where encryption or data confidentiality is required.
+ */
 public enum NoOpEncryption implements Encryption {
     INSTANCE;
 

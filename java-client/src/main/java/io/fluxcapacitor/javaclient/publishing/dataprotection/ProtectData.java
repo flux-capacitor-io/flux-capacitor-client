@@ -19,6 +19,32 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
+/**
+ * Marks a field within a message payload as containing sensitive information that should be protected.
+ * <p>
+ * When a field is annotated with {@code @ProtectData}, the value of the field is automatically offloaded and stored
+ * separately from the main payload during serialization. This ensures that sensitive data (e.g. social security numbers,
+ * access tokens, secret keys, etc.) is not persisted or exposed together with the rest of the message payload.
+ * <p>
+ * When a message is later deserialized and passed to a handler, Flux will automatically reinject the protected
+ * information into the payload prior to invoking the handler method.
+ * <p>
+ * To permanently remove protected data after it is no longer needed, consider using the {@link DropProtectedData}
+ * annotation on a handler method.
+ *
+ * <h2>Example</h2>
+ * <pre>{@code
+ * public class RegisterCitizen {
+ *
+ *     String name;
+ *
+ *     @ProtectData
+ *     String socialSecurityNumber;
+ * }
+ * }</pre>
+ *
+ * @see DropProtectedData
+ */
 @Target(ElementType.FIELD)
 @Retention(RetentionPolicy.RUNTIME)
 public @interface ProtectData {

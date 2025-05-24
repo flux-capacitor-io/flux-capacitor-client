@@ -18,8 +18,21 @@ import io.fluxcapacitor.common.api.Request;
 import lombok.EqualsAndHashCode;
 import lombok.Value;
 
+/**
+ * Request to retrieve aggregated counts for all {@link FacetEntry facet} fields across documents matching the given
+ * {@link SearchQuery}.
+ * <p>
+ * This is useful for generating filter menus, dashboards, or visualizations that break down the search results by key
+ * categorical dimensions (e.g., status, region, user role).
+ * <p>
+ * Only fields marked with {@code @Facet} in the domain model will be considered.
+ */
 @EqualsAndHashCode(callSuper = true)
 @Value
 public class GetFacetStats extends Request {
+
+    /**
+     * The search query used to filter the documents on which facet aggregation will be performed.
+     */
     SearchQuery query;
 }

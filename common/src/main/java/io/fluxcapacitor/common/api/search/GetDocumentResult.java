@@ -14,22 +14,60 @@
 
 package io.fluxcapacitor.common.api.search;
 
-import io.fluxcapacitor.common.api.QueryResult;
+import io.fluxcapacitor.common.api.RequestResult;
 import lombok.Value;
 
+/**
+ * Result returned in response to a {@link io.fluxcapacitor.common.api.search.GetDocument} request.
+ * <p>
+ * This result includes a single {@link SerializedDocument} identified by its ID and collection,
+ * or {@code null} if the document could not be found.
+ *
+ * @see io.fluxcapacitor.common.api.search.GetDocument
+ * @see SerializedDocument
+ */
 @Value
-public class GetDocumentResult implements QueryResult {
+public class GetDocumentResult implements RequestResult {
+
+    /**
+     * The ID of the request that triggered this result. Used to correlate the response with the original request.
+     */
     long requestId;
+
+    /**
+     * The document that was retrieved, or {@code null} if no matching document was found.
+     */
     SerializedDocument document;
+
+    /**
+     * The system time (in milliseconds since epoch) at which this result was generated.
+     */
     long timestamp = System.currentTimeMillis();
 
+    /**
+     * Converts this result to a compact representation for metrics logging.
+     *
+     * @return a {@link Metric} containing only the response timestamp.
+     */
     @Override
     public Metric toMetric() {
-        return new Metric(timestamp);
+        return new Metric(timestamp, document != null);
     }
 
+    /**
+     * Lightweight structure for representing {@link GetDocumentResult} in Flux metrics logs.
+     */
     @Value
     public static class Metric {
+
+        /**
+         * The time (in milliseconds since epoch) when the response was generated.
+         */
         long timestamp;
+
+        /**
+         * Whether a document was found in the search store.
+         */
+        boolean found;
     }
 }

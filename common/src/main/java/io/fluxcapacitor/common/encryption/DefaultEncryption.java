@@ -18,6 +18,37 @@ import lombok.AllArgsConstructor;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 
+/**
+ * Default implementation of the {@link Encryption} interface used in the Flux platform.
+ * <p>
+ * This implementation delegates encryption and decryption to an underlying algorithm-specific
+ * {@link Encryption} strategy (e.g. {@link ChaCha20Poly1305Encryption}), while wrapping the result
+ * in a recognizable format:
+ * <pre>{@code
+ * encrypted|<algorithm>|<ciphertext>
+ * }</pre>
+ *
+ * <p>This format allows the platform to:
+ * <ul>
+ *   <li>Identify encrypted values consistently</li>
+ *   <li>Support multiple algorithms in the future</li>
+ *   <li>Perform decryption only when the encryption algorithm matches the delegate</li>
+ * </ul>
+ *
+ * <p>The encryption key is expected to be prefixed with the algorithm, separated by a pipe character.
+ * For example:
+ * <pre>{@code
+ * ChaCha20|AbcdEfGhIjKlMnOpQrStUvWxYz123456
+ * }</pre>
+ *
+ * <p>Decryption is only attempted if the algorithm in the encrypted value matches the configured algorithm.
+ * If it does not match (e.g. due to a missing or incorrect key), {@code null} is returned to indicate
+ * that the value cannot be decrypted.
+ *
+ * @see ChaCha20Poly1305Encryption
+ * @see #fromEncryptionKey(String)
+ * @see #generateNewEncryptionKey()
+ */
 @Slf4j
 @AllArgsConstructor
 public class DefaultEncryption implements Encryption {

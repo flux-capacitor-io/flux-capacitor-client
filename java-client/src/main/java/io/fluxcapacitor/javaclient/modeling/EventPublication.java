@@ -14,17 +14,52 @@
 
 package io.fluxcapacitor.javaclient.modeling;
 
+import io.fluxcapacitor.javaclient.persisting.eventsourcing.Apply;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.InterceptApply;
 
 /**
- * Setting for aggregates to control event publication, used in {@link Aggregate}.
+ * Controls whether an applied update should result in event publication.
  * <p>
- * Use {@code @Aggregate(eventPublication = IF_MODIFIED)} to stop events from being published if the aggregate does not
- * change, removing the need for dedicated {@link InterceptApply} methods for this.
+ * This setting can be defined at the aggregate level (via {@link Aggregate}) and optionally overridden on specific
+ * {@link Apply @Apply} methods.
  * <p>
- * Use {@code @Aggregate(eventPublication = NEVER)} to prevent event publication altogether. This is useful because it
- * allows command application on aggregates with {@code eventSourcing = false} without giving rise to events.
+ * Event publication occurs when an update is applied to an entity. Depending on this setting and the configured
+ * {@link EventPublicationStrategy}, the update may be published and/or stored.
+ *
+ * @see Aggregate
+ * @see Apply
+ * @see InterceptApply
+ * @see EventPublicationStrategy
  */
 public enum EventPublication {
-    DEFAULT, ALWAYS, NEVER, IF_MODIFIED;
+
+    /**
+     * Inherit the publication behavior from the parent context.
+     * <p>
+     * This may be the enclosing aggregate or the application-level default. If not explicitly configured elsewhere,
+     * {@link #ALWAYS} is used as a fallback.
+     */
+    DEFAULT,
+
+    /**
+     * Always publish and/or store the applied update, even if it does not change the entity.
+     * <p>
+     * This is the default behavior if no other setting is specified.
+     */
+    ALWAYS,
+
+    /**
+     * Never publish or store applied updates.
+     * <p>
+     * Useful for aggregates where event sourcing is disabled or updates should remain private.
+     */
+    NEVER,
+
+    /**
+     * Only publish or store the update if the entity's state is actually modified by the application.
+     * <p>
+     * This avoids unnecessary event traffic and eliminates the need for {@link InterceptApply} methods that suppress
+     * no-op updates.
+     */
+    IF_MODIFIED
 }

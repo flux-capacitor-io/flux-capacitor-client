@@ -21,11 +21,20 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.Parameter;
 import java.util.function.Function;
 
+/**
+ * Resolves handler method parameters of type {@link DeserializingMessage}.
+ * <p>
+ * This allows handler methods to access the deserialization context, including message metadata, payload, and raw
+ * serialized content.
+ * <p>
+ * Useful when advanced information about the message is needed, such as the Flux-assigned message index.
+ */
 public class DeserializingMessageParameterResolver extends TypedParameterResolver<Object> {
 
     public DeserializingMessageParameterResolver() {
         super(DeserializingMessage.class);
     }
+
     @Override
     public Function<Object, Object> resolve(Parameter p, Annotation methodAnnotation) {
         return m -> m instanceof DeserializingMessage ? m : DeserializingMessage.getCurrent();

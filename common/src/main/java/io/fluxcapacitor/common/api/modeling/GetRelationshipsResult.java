@@ -14,14 +14,35 @@
 
 package io.fluxcapacitor.common.api.modeling;
 
-import io.fluxcapacitor.common.api.QueryResult;
+import io.fluxcapacitor.common.api.RequestResult;
 import lombok.Value;
 
 import java.util.List;
 
+/**
+ * Response to a {@link GetRelationships} request, containing all known relationships for a given entity ID.
+ * <p>
+ * This includes all aggregates that reference or embed the specified entity, along with the entity ID used
+ * in the relationship.
+ *
+ * @see GetRelationships
+ * @see Relationship
+ */
 @Value
-public class GetRelationshipsResult implements QueryResult {
+public class GetRelationshipsResult implements RequestResult {
+
+    /**
+     * Unique identifier linking this result to the originating {@link GetRelationships} request.
+     */
     long requestId;
+
+    /**
+     * List of {@link Relationship} instances that reference the given entity ID across one or more aggregates.
+     */
     List<Relationship> relationships;
+
+    /**
+     * Timestamp indicating when this result was created.
+     */
     long timestamp = System.currentTimeMillis();
 }

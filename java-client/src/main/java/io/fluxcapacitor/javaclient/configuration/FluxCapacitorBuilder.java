@@ -15,9 +15,9 @@
 package io.fluxcapacitor.javaclient.configuration;
 
 import io.fluxcapacitor.common.MessageType;
+import io.fluxcapacitor.common.TaskScheduler;
 import io.fluxcapacitor.common.application.PropertySource;
 import io.fluxcapacitor.common.handling.ParameterResolver;
-import io.fluxcapacitor.common.tracking.TaskScheduler;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.IdentityProvider;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;

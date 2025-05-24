@@ -18,7 +18,25 @@ import lombok.Value;
 
 import java.util.List;
 
+/**
+ * Represents a batch of requests to be sent to the Flux platform in a single network round-trip.
+ * <p>
+ * Used internally by the Flux client to optimize performance by batching multiple {@link Request} instances into a
+ * single payload. This reduces round-trips and improves throughput when many requests are sent in quick succession.
+ * </p>
+ *
+ * <h2>Usage</h2>
+ * While most users won't construct {@code RequestBatch} manually, it's useful to know that multiple requests (e.g.
+ * queries or commands) may be transparently wrapped and sent together.
+ *
+ * @param <T> the type of individual request, typically a subtype of {@link JsonType} (e.g., {@link Request})
+ * @see ResultBatch
+ */
 @Value
 public class RequestBatch<T extends JsonType> implements JsonType {
+
+    /**
+     * The list of requests to be sent together in this batch.
+     */
     List<T> requests;
 }

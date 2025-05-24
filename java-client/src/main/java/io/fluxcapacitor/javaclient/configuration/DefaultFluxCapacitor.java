@@ -15,16 +15,16 @@
 package io.fluxcapacitor.javaclient.configuration;
 
 import io.fluxcapacitor.common.DelegatingClock;
+import io.fluxcapacitor.common.InMemoryTaskScheduler;
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.ObjectUtils;
 import io.fluxcapacitor.common.Registration;
+import io.fluxcapacitor.common.TaskScheduler;
 import io.fluxcapacitor.common.ThrowingRunnable;
 import io.fluxcapacitor.common.application.DecryptingPropertySource;
 import io.fluxcapacitor.common.application.DefaultPropertySource;
 import io.fluxcapacitor.common.application.PropertySource;
 import io.fluxcapacitor.common.handling.ParameterResolver;
-import io.fluxcapacitor.common.tracking.InMemoryTaskScheduler;
-import io.fluxcapacitor.common.tracking.TaskScheduler;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.IdentityProvider;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;

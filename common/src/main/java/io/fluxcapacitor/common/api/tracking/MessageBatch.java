@@ -22,19 +22,58 @@ import lombok.With;
 import java.util.Arrays;
 import java.util.List;
 
+/**
+ * Represents a batch of messages retrieved from the message store for a specific segment range.
+ * <p>
+ * A message batch contains a list of {@link SerializedMessage} instances and metadata such as the last known index and
+ * the {@link Position} of the consumer when this batch was read.
+ * <p>
+ * The {@code segment} and {@code position} fields are especially relevant when the tracker operates with
+ * {@code ignoreSegment=true}, meaning segment filtering is handled on the client side. In such cases, the platform
+ * returns all potentially matching messages, and the client uses the {@link Position} and {@code segment} range to
+ * determine which messages are truly relevant for processing.
+ */
 @Value
 public class MessageBatch {
+
+    /**
+     * The segment range this batch belongs to, expressed as a two-element array {@code [start, end]}.
+     * <p>
+     * This corresponds to the segment(s) currently claimed by the tracker.
+     */
     int[] segment;
+
+    /**
+     * The list of messages in this batch.
+     */
     @With
     List<SerializedMessage> messages;
+
+    /**
+     * The highest message index included in this batch. This may be {@code null} if the batch is empty.
+     */
     Long lastIndex;
+
+    /**
+     * The consumer's position at the time of reading this batch. Used to resume reading or checkpoint progress.
+     */
     Position position;
 
+    /**
+     * Indicates whether this message batch is empty.
+     *
+     * @return {@code true} if the batch contains no messages; {@code false} otherwise
+     */
     @JsonIgnore
     public boolean isEmpty() {
         return messages.isEmpty();
     }
 
+    /**
+     * Returns the number of messages contained in this batch.
+     *
+     * @return the message count
+     */
     @JsonIgnore
     public int getSize() {
         return messages.size();
@@ -43,22 +82,45 @@ public class MessageBatch {
     @Override
     public String toString() {
         return "MessageBatch{" +
-                "segment=" + Arrays.toString(segment) +
-                ", lastIndex=" + lastIndex +
-                ", message count=" + messages.size() +
-                '}';
+               "segment=" + Arrays.toString(segment) +
+               ", lastIndex=" + lastIndex +
+               ", message count=" + messages.size() +
+               '}';
     }
 
+    /**
+     * Converts this batch into a compact, serializable representation for monitoring purposes.
+     *
+     * @return a {@link Metric} representing key metadata about this batch
+     */
     @JsonIgnore
     public Metric toMetric() {
         return new Metric(segment, getSize(), lastIndex, position);
     }
 
+    /**
+     * Compact summary of a {@link MessageBatch}, used for logging and performance tracking.
+     */
     @Value
     public static class Metric {
+        /**
+         * The segment range from which the messages were retrieved.
+         */
         int[] segment;
+
+        /**
+         * The number of messages in the batch.
+         */
         int size;
+
+        /**
+         * The last index of the batch, used for progress tracking.
+         */
         Long lastIndex;
+
+        /**
+         * The consumer's position when this batch was read.
+         */
         Position position;
     }
 }

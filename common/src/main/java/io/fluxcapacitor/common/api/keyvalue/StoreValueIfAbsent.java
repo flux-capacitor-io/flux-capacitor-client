@@ -19,6 +19,22 @@ import io.fluxcapacitor.common.api.Command;
 import lombok.EqualsAndHashCode;
 import lombok.Value;
 
+/**
+ * Stores a key-value pair <strong>only if</strong> the specified key does not already exist in the key-value store.
+ * <p>
+ * This command ensures atomic "put-if-absent" semantics, making it useful for distributed locks, idempotency markers,
+ * or one-time setup flags in legacy Flux applications.
+ * </p>
+ *
+ * <h2>Notes</h2>
+ * <ul>
+ *   <li>Always uses {@link Guarantee#STORED} for persistence safety.</li>
+ *   <li>This command is part of the legacy key-value subsystem. For most modern use cases, consider migrating
+ *       to the {@code DocumentStore} or {@code Searchable} storage model.</li>
+ * </ul>
+ *
+ * @see KeyValuePair
+ */
 @Value
 @EqualsAndHashCode(callSuper = true)
 public class StoreValueIfAbsent extends Command {
@@ -44,6 +60,9 @@ public class StoreValueIfAbsent extends Command {
         return value.getKey();
     }
 
+    /**
+     * Lightweight metric representation for logging or monitoring.
+     */
     @Value
     public static class Metric {
         String key;

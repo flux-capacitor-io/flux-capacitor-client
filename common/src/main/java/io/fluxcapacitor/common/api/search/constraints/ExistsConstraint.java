@@ -27,13 +27,46 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+/**
+ * A {@link Constraint} that checks whether one or more paths exist in a document.
+ * <p>
+ * This constraint matches any document that contains a non-null value at the specified path(s).
+ * <p>
+ * If multiple paths are provided, the constraint will match if <em>any</em> of them are present (i.e. this behaves as
+ * an {@link AnyConstraint}).
+ * <p>
+ * Optionally, sub-paths can be included using a glob-style match with {@code /**}.
+ *
+ * <h2>Examples</h2>
+ * <pre>{@code
+ * // Matches documents where "person/firstName" exists (is non-null)
+ * Constraint c1 = ExistsConstraint.exists("person/firstName");
+ *
+ * // Matches if any of the specified paths or their children exist
+ * Constraint c2 = ExistsConstraint.exists(true, "address", "email");
+ * }</pre>
+ */
 @Value
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class ExistsConstraint extends PathConstraint {
+    /**
+     * Creates a constraint that checks for the presence of any of the given paths. Sub-paths will be included by
+     * default (i.e. {@code path/**} is added for each path).
+     *
+     * @param paths the paths to check for existence
+     * @return a constraint that matches if any of the given paths (or their sub-paths) exist
+     */
     public static Constraint exists(String... paths) {
         return exists(true, paths);
     }
 
+    /**
+     * Creates a constraint that checks for the presence of one or more paths.
+     *
+     * @param includeSubPaths whether to include sub-paths (i.e. {@code path/**})
+     * @param paths           the paths to check
+     * @return a constraint that matches if any of the given paths (or their sub-paths if enabled) exist
+     */
     public static Constraint exists(boolean includeSubPaths, String... paths) {
         if (paths.length == 0) {
             return NoOpConstraint.instance;
@@ -53,6 +86,9 @@ public class ExistsConstraint extends PathConstraint {
         return AnyConstraint.any(allPaths.stream().<Constraint>map(ExistsConstraint::new).toList());
     }
 
+    /**
+     * Represents a non-null path within a document that is checked for existence.
+     */
     @NonNull String exists;
 
     @Override

@@ -26,13 +26,45 @@ import lombok.experimental.Accessors;
 import java.util.List;
 import java.util.function.Predicate;
 
+/**
+ * Abstract base class for constraints that apply to specific paths in a
+ * {@link io.fluxcapacitor.common.search.Document}.
+ * <p>
+ * A {@code PathConstraint} allows filtering a document based on matching criteria applied to specific
+ * {@link io.fluxcapacitor.common.search.Document.Entry} values at one or more paths. It forms the foundation for
+ * constraints like {@link MatchConstraint}, {@link BetweenConstraint}, {@link ExistsConstraint}, etc.
+ *
+ * <h2>Path Filtering</h2>
+ * The constraint applies only to values located at the paths specified via {@link #getPaths()}. If no paths are
+ * specified, the constraint typically matches anywhere in the document.
+ *
+ * <h2>Performance consideration</h2>
+ * By default, path filtering is applied <em>after</em> a document entry has passed the main match criteria. This order
+ * can be changed by overriding {@link #checkPathBeforeEntry()}, which applies the path check first.
+ *
+ * @see Constraint
+ * @see io.fluxcapacitor.common.search.Document
+ * @see io.fluxcapacitor.common.search.Document.Entry
+ * @see io.fluxcapacitor.common.search.Document.Path
+ */
 public abstract class PathConstraint implements Constraint {
 
+    /**
+     * Retrieves a list of paths associated with this constraint.
+     *
+     * @return a list of strings representing the paths
+     */
     @JsonAlias("path")
     public abstract List<String> getPaths();
 
     public abstract Constraint withPaths(List<String> paths);
 
+    /**
+     * Evaluates whether the specified document entry satisfies the condition defined by this method's implementation.
+     *
+     * @param entry the document entry to evaluate
+     * @return {@code true} if the entry satisfies the condition; {@code false} otherwise
+     */
     protected abstract boolean matches(Document.Entry entry);
 
     @Override
@@ -45,6 +77,16 @@ public abstract class PathConstraint implements Constraint {
         return !getPaths().isEmpty();
     }
 
+    /**
+     * Determines whether path filtering should be performed before evaluating entry-level match criteria.
+     * <p>
+     * By default, path filtering is applied after a document entry satisfies the primary match criteria (`false`
+     * return). Subclasses can override this method to change the behavior so that path filtering is applied first
+     * (`true` return).
+     *
+     * @return {@code true} if path filtering should be performed before evaluating entry-level criteria; {@code false}
+     * if it should be applied after evaluating entry-level criteria.
+     */
     protected boolean checkPathBeforeEntry() {
         return false;
     }

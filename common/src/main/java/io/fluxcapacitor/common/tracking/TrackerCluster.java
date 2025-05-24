@@ -44,16 +44,45 @@ import static java.util.stream.Collectors.toMap;
 import static java.util.stream.Collectors.toSet;
 import static java.util.stream.Stream.concat;
 
+/**
+ * Represents the current set of {@link Tracker}s that are connected for a specific consumer group.
+ * <p>
+ * A {@code TrackerCluster} tracks which segments of the message log are assigned to which tracker, as well as
+ * which trackers are actively processing messages. It is used during tracking strategy evaluation to balance
+ * work across multiple clients or threads.
+ * <p>
+ * This class is immutable. Methods that alter the state (e.g., {@code withActiveTracker}, {@code withoutTracker})
+ * return a new updated instance.
+ */
 @Value
 public class TrackerCluster {
 
+    /**
+     * Shared constant representing an empty segment range.
+     */
     public static final int[] emptyRange = new int[]{0, 0};
 
+    /**
+     * The total number of segments available for this cluster.
+     */
     @Getter
     int segments;
+
+    /**
+     * Mapping of trackers to their assigned segment.
+     */
     Map<Tracker, Segment> trackers;
+
+    /**
+     * Tracks when a {@link Tracker} became active. Presence in this map indicates the tracker is currently active.
+     */
     Map<Tracker, Instant> activeTrackers;
 
+    /**
+     * Creates a new, empty cluster with the given number of segments.
+     *
+     * @param segments number of total segments to divide among trackers
+     */
     public TrackerCluster(int segments) {
         this(segments, Collections.emptyMap(), Collections.emptyMap());
     }
@@ -64,6 +93,13 @@ public class TrackerCluster {
         this.activeTrackers = activeTrackers;
     }
 
+    /**
+     * Marks the given tracker as actively processing messages.
+     * If the tracker is not currently in the cluster, it is first added.
+     *
+     * @param tracker tracker to mark as active
+     * @return new updated cluster instance
+     */
     public TrackerCluster withActiveTracker(Tracker tracker) {
         if (!contains(tracker) || isActive(tracker)) {
             return withWaitingTracker(tracker).withActiveTracker(tracker);
@@ -73,6 +109,12 @@ public class TrackerCluster {
         return new TrackerCluster(segments, trackers, activeTrackers);
     }
 
+    /**
+     * Adds or updates the tracker as waiting (not currently processing).
+     *
+     * @param tracker tracker to register
+     * @return new updated cluster instance
+     */
     public TrackerCluster withWaitingTracker(Tracker tracker) {
         SortedSet<Tracker> trackers = concat(this.trackers.keySet().stream().filter(
                 c -> !c.equals(tracker)), Stream.of(tracker)).collect(toCollection(TreeSet::new));
@@ -81,6 +123,12 @@ public class TrackerCluster {
         return recalculate(trackers, activeTrackers);
     }
 
+    /**
+     * Removes the tracker from the cluster.
+     *
+     * @param tracker tracker to remove
+     * @return new updated cluster instance
+     */
     public TrackerCluster withoutTracker(Tracker tracker) {
         if (!contains(tracker)) {
             return this;
@@ -92,6 +140,12 @@ public class TrackerCluster {
         return recalculate(trackers, activeTrackers);
     }
 
+    /**
+     * Removes all trackers that match the provided predicate.
+     *
+     * @param predicate filter to determine which trackers to remove
+     * @return new updated cluster instance
+     */
     public TrackerCluster purgeTrackers(Predicate<Tracker> predicate) {
         TrackerCluster result = this;
         for (Tracker tracker : trackers.keySet()) {
@@ -102,14 +156,32 @@ public class TrackerCluster {
         return result;
     }
 
+    /**
+     * Removes trackers that have not sent activity after the given timestamp.
+     *
+     * @param threshold timestamp threshold for inactivity
+     * @return new updated cluster instance
+     */
     public TrackerCluster purgeCeasedTrackers(Instant threshold) {
         return purgeTrackers(t -> ofNullable(activeTrackers.get(t)).filter(p -> p.isBefore(threshold)).isPresent());
     }
 
+    /**
+     * Returns how long the given tracker has been active.
+     *
+     * @param tracker tracker whose processing duration to retrieve
+     * @return duration since the tracker became active, if available
+     */
     public Optional<Duration> getProcessingDuration(Tracker tracker) {
         return ofNullable(activeTrackers.get(tracker)).map(t -> Duration.between(t, Instant.now()));
     }
 
+    /**
+     * Returns the segment range assigned to the tracker.
+     *
+     * @param tracker tracker to query
+     * @return assigned segment range or null if unassigned
+     */
     public int[] getSegment(Tracker tracker) {
         return ofNullable(trackers.get(tracker))
                 .map(segment -> {
@@ -120,18 +192,30 @@ public class TrackerCluster {
                 }).orElse(null);
     }
 
+    /**
+     * Checks if the tracker is part of this cluster.
+     */
     public boolean contains(Tracker tracker) {
         return trackers.containsKey(tracker);
     }
 
+    /**
+     * Checks if the tracker is currently marked as active. I.e., if it is currently processing a batch of messages.
+     */
     public boolean isActive(Tracker tracker) {
         return activeTrackers.containsKey(tracker);
     }
 
+    /**
+     * Returns an unmodifiable view of the current set of trackers.
+     */
     public Set<Tracker> getTrackers() {
         return Collections.unmodifiableSet(trackers.keySet());
     }
 
+    /**
+     * Returns true if no trackers are currently registered.
+     */
     public boolean isEmpty() {
         return trackers.isEmpty();
     }

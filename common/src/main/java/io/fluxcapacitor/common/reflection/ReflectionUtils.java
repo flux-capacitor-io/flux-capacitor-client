@@ -81,6 +81,37 @@ import static org.apache.commons.lang3.ClassUtils.getAllInterfaces;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.commons.lang3.reflect.MethodUtils.getMethodsListWithAnnotation;
 
+/**
+ * Utility class for high-performance reflection-based operations across the Flux platform.
+ *
+ * <p><strong>This class is intended for internal use only.</strong> It provides a wide range of methods for accessing
+ * and manipulating object members via reflection, including:
+ *
+ * <ul>
+ *   <li>Resolving annotated fields and methods (with support for meta-annotations)</li>
+ *   <li>Accessing nested property paths via getters and setters (e.g., {@code "user/address/street"})</li>
+ *   <li>Efficient member access using {@link DefaultMemberInvoker}, which leverages {@code LambdaMetafactory} for
+ *       near-native invocation performance</li>
+ *   <li>Generic type resolution, including collection element types and supertype inference</li>
+ *   <li>Annotation hierarchy traversal and support for Kotlin nullability reflection (if available)</li>
+ *   <li>Utilities for determining override relationships, class hierarchies, and bean property metadata</li>
+ *   <li>Robust handling of {@link Class} loading and safe access to field/method/property values</li>
+ * </ul>
+ *
+ * <h2>Performance Considerations</h2>
+ * This class uses extensive caching and memoization to avoid redundant reflective operations at runtime. All public
+ * methods are safe to use in high-performance contexts such as annotation scanning, handler dispatching, and JSON
+ * schema validation.
+ *
+ * <h2>Modular Use</h2>
+ * If Flux adopts JPMS (Project Jigsaw) in the future, this utility would likely be placed in an internal module
+ * and <strong>not exported</strong> to consumers, to preserve encapsulation and forward compatibility.
+ *
+ * @see MemberInvoker
+ * @see DefaultMemberInvoker
+ * @see JsonUtils
+ * @see TypeRegistry
+ */
 public class ReflectionUtils {
     private static final int ACCESS_MODIFIERS = Modifier.PUBLIC | Modifier.PROTECTED | Modifier.PRIVATE;
     private static final List<Integer> ACCESS_ORDER = List.of(Modifier.PRIVATE, 0, Modifier.PROTECTED, Modifier.PUBLIC);
@@ -331,7 +362,8 @@ public class ReflectionUtils {
     }
 
     @SuppressWarnings("unchecked")
-    public static <A extends Annotation> A getTypeAnnotation(Class<?> type, Class<? extends Annotation> annotationType) {
+    public static <A extends Annotation> A getTypeAnnotation(Class<?> type,
+                                                             Class<? extends Annotation> annotationType) {
         for (Annotation annotation : getTypeAnnotations(type)) {
             if (annotation.annotationType().equals(annotationType)) {
                 return (A) annotation;
@@ -370,7 +402,8 @@ public class ReflectionUtils {
         }
         Stream<Annotation> stream = stream(p.getAnnotations());
         if (recursive) {
-            stream = Stream.concat(stream, getPackageAnnotations(getFirstKnownAncestorPackage(p.getName()), true).stream());
+            stream = Stream.concat(stream,
+                                   getPackageAnnotations(getFirstKnownAncestorPackage(p.getName()), true).stream());
             return stream.collect(toMap(Annotation::annotationType, Function.identity(),
                                         (a, b) -> a, LinkedHashMap::new)).values();
         } else {
@@ -741,7 +774,8 @@ public class ReflectionUtils {
         return null;
     }
 
-    public static <A extends Annotation> Optional<A> getMemberAnnotation(Class<?> type, String memberName, Class<? extends Annotation> a) {
+    public static <A extends Annotation> Optional<A> getMemberAnnotation(Class<?> type, String memberName,
+                                                                         Class<? extends Annotation> a) {
         return getAnnotatedMethods(type, a).stream().filter(m -> m.getName().equals(memberName)).findFirst()
                 .flatMap(m -> ReflectionUtils.<A>getMethodAnnotation(m, a)).or(() -> {
                     String alias = memberName.startsWith("get") ? memberName.substring(3) :
@@ -772,8 +806,10 @@ public class ReflectionUtils {
 
     @Value
     private static class PropertyNotFoundException extends RuntimeException {
-        @NonNull String propertyName;
-        @NonNull Class<?> type;
+        @NonNull
+        String propertyName;
+        @NonNull
+        Class<?> type;
     }
 
     public static Optional<Class<?>> getCollectionElementType(AccessibleObject fieldOrMethod) {
@@ -840,7 +876,8 @@ public class ReflectionUtils {
     }
 
     public static <T> Optional<T> getAnnotationAs(AnnotatedElement member,
-                                                  Class<? extends Annotation> annotationType, Class<? extends T> returnType) {
+                                                  Class<? extends Annotation> annotationType,
+                                                  Class<? extends T> returnType) {
         Annotation annotation;
         if (member instanceof Executable e) {
             annotation = getMethodAnnotation(e, annotationType).orElse(null);
@@ -853,7 +890,8 @@ public class ReflectionUtils {
     @SneakyThrows
     @SuppressWarnings("unchecked")
     public static <T> Optional<T> getAnnotationAs(Annotation annotation,
-                                                  Class<? extends Annotation> targetAnnotation, Class<? extends T> returnType) {
+                                                  Class<? extends Annotation> targetAnnotation,
+                                                  Class<? extends T> returnType) {
         if (targetAnnotation == null) {
             return Optional.empty();
         }
@@ -903,7 +941,7 @@ public class ReflectionUtils {
     @SuppressWarnings("unchecked")
     public static <A extends Annotation> Optional<A> getFieldAnnotation(Field f, Class<? extends Annotation> a) {
         return Optional.ofNullable((A) f.getAnnotation(a)).or(() -> stream(f.getAnnotations())
-                        .filter(metaAnnotation -> metaAnnotation.annotationType().isAnnotationPresent(a))
+                .filter(metaAnnotation -> metaAnnotation.annotationType().isAnnotationPresent(a))
                 .findFirst().map(hit -> (A) hit));
     }
 
@@ -960,7 +998,8 @@ public class ReflectionUtils {
     }
 
     @SuppressWarnings("unchecked")
-    private static <A extends Annotation> List<A> getTopLevelAnnotations(AnnotatedElement m, Class<? extends Annotation> a) {
+    private static <A extends Annotation> List<A> getTopLevelAnnotations(AnnotatedElement m,
+                                                                         Class<? extends Annotation> a) {
         return Optional.ofNullable(m.getAnnotation(a)).map(v -> Stream.of((A) v))
                 .orElseGet(() -> stream(m.getAnnotations())
                         .filter(metaAnnotation -> metaAnnotation.annotationType().isAnnotationPresent(a))

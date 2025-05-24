@@ -25,6 +25,11 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Utility class for resolving generic type information in class hierarchies. This class provides methods to resolve and
+ * extract generic type details, including parameterized and array types, from a given class type in relation to a
+ * target type.
+ */
 public class GenericTypeResolver {
 
     public static Type getGenericType(Class<?> clazz, Class<?> target) {
@@ -32,17 +37,23 @@ public class GenericTypeResolver {
     }
 
     private static Type resolveType(Class<?> clazz, Class<?> target, Map<TypeVariable<?>, Type> typeVarMap) {
-        if (clazz == null || clazz == Object.class) return null;
+        if (clazz == null || clazz == Object.class) {
+            return null;
+        }
 
         // Direct superclass
         Type genericSuperclass = clazz.getGenericSuperclass();
         Type resolved = matchAndResolve(genericSuperclass, target, typeVarMap);
-        if (resolved != null) return resolved;
+        if (resolved != null) {
+            return resolved;
+        }
 
         // Interfaces
         for (Type genericInterface : clazz.getGenericInterfaces()) {
             resolved = matchAndResolve(genericInterface, target, typeVarMap);
-            if (resolved != null) return resolved;
+            if (resolved != null) {
+                return resolved;
+            }
         }
 
         // Recurse upward
@@ -120,7 +131,8 @@ public class GenericTypeResolver {
         } else if (type instanceof ParameterizedType) {
             return ((ParameterizedType) type).getRawType();
         } else if (type instanceof GenericArrayType) {
-            return Array.newInstance((Class<?>) erase(((GenericArrayType) type).getGenericComponentType()), 0).getClass();
+            return Array.newInstance((Class<?>) erase(((GenericArrayType) type).getGenericComponentType()), 0)
+                    .getClass();
         } else if (type instanceof TypeVariable<?>) {
             return Object.class;
         } else {

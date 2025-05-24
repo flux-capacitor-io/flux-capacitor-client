@@ -14,7 +14,18 @@
 
 package io.fluxcapacitor.common;
 
+/**
+ * Runnable-like interface whose {@link #run()} method is allowed to throw a checked {@link Exception}.
+ * <p>
+ * It can be used when a {@link Runnable} is required but the underlying operation may fail with a checked
+ * exception.
+ */
 @FunctionalInterface
 public interface ThrowingRunnable {
+    /**
+     * Executes this runnable.
+     *
+     * @throws Exception if an error occurs during execution
+     */
     void run() throws Exception;
 }

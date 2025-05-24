@@ -31,9 +31,38 @@ import java.util.Objects;
 import static io.fluxcapacitor.common.SearchUtils.normalizePath;
 import static java.util.stream.Collectors.toList;
 
+/**
+ * A constraint that matches documents containing a specific {@link FacetEntry}.
+ * <p>
+ * Facets are indexed fields marked using {@code @Facet} annotations. Using this constraint allows for efficient lookups
+ * because the facet matching is typically executed directly by the backing search store. This can make it significantly
+ * faster than using a general {@link MatchConstraint} for the same purpose.
+ *
+ * <p>
+ * Example usage to match a single facet:
+ * <pre>{@code
+ * Constraint facetMatch = FacetConstraint.matchFacet("country", "Netherlands");
+ * }</pre>
+ *
+ * @see Constraint
+ * @see io.fluxcapacitor.common.search.Facet
+ * @see FacetEntry
+ */
 @Value
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class FacetConstraint implements Constraint {
+
+    /**
+     * Factory method to create a constraint that matches documents with the given facet name and value.
+     * <p>
+     * If the value is a {@link Collection}, multiple facets are matched using an {@link AnyConstraint} over the
+     * individual values. If the value is a {@link HasId}, its identifier is used for matching.
+     *
+     * @param name  the facet field name (normalized internally)
+     * @param value the expected facet value
+     * @return a {@code FacetConstraint} or a composite constraint if {@code value} is a collection, or
+     * {@link NoOpConstraint} if the name is null or the value is null/empty.
+     */
     public static Constraint matchFacet(String name, Object value) {
         if (name == null) {
             return NoOpConstraint.instance;
@@ -47,7 +76,7 @@ public class FacetConstraint implements Constraint {
                                 .collect(toList());
                 return switch (constraints.size()) {
                     case 0 -> NoOpConstraint.instance;
-                case 1 -> constraints.getFirst();
+                    case 1 -> constraints.getFirst();
                     default -> AnyConstraint.any(constraints);
                 };
             }
@@ -63,10 +92,19 @@ public class FacetConstraint implements Constraint {
         }
     }
 
+    /**
+     * Factory method to create a constraint that matches a single {@link FacetEntry}.
+     *
+     * @param facet the facet to match
+     * @return a {@code FacetConstraint} for the provided facet or a {@link NoOpConstraint} if the facet is null
+     */
     public static Constraint matchFacet(FacetEntry facet) {
         return facet == null ? NoOpConstraint.instance : new FacetConstraint(facet);
     }
 
+    /**
+     * The facet that must be present in the document for this constraint to match.
+     */
     @NonNull FacetEntry facet;
 
     @Override
@@ -74,6 +112,9 @@ public class FacetConstraint implements Constraint {
         return document.getFacets().contains(facet);
     }
 
+    /**
+     * This constraint does not apply to specific document paths, so this always returns {@code false}.
+     */
     @Override
     public boolean hasPathConstraint() {
         return false;

@@ -14,9 +14,40 @@
 
 package io.fluxcapacitor.common.application;
 
+/**
+ * A {@link PropertySource} that resolves property values from system environment variables.
+ * <p>
+ * This source accesses environment variables via {@link System#getenv(String)} and can be used to inject configuration
+ * values directly from the host operating system or container runtime.
+ *
+ * <p>This is typically used to override configuration in deployment environments without modifying
+ * application-specific property files.
+ *
+ * <h2>Example usage</h2>
+ * <pre>
+ * export FLUX_API_TOKEN=secret-token
+ * </pre>
+ * In your application:
+ * <pre>
+ * flux.api.token = ApplicationProperties.get("FLUX_API_TOKEN")
+ * </pre>
+ *
+ * <p>This source is usually combined with others (like {@link ApplicationPropertiesSource}) in a layered
+ * configuration strategy where environment variables take precedence.
+ *
+ * @see System#getenv(String)
+ * @see ApplicationPropertiesSource
+ * @see JavaPropertiesSource
+ */
 public enum EnvironmentVariablesSource implements PropertySource {
     INSTANCE;
 
+    /**
+     * Retrieves the value of the given property name from the system environment.
+     *
+     * @param name the name of the environment variable
+     * @return the value, or {@code null} if the variable is not defined
+     */
     @Override
     public String get(String name) {
         return System.getenv(name);

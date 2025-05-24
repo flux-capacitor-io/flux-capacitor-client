@@ -17,18 +17,18 @@ package io.fluxcapacitor.javaclient.common.websocket;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import io.fluxcapacitor.common.Backlog;
+import io.fluxcapacitor.common.InMemoryTaskScheduler;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.RetryConfiguration;
+import io.fluxcapacitor.common.TaskScheduler;
 import io.fluxcapacitor.common.api.Command;
 import io.fluxcapacitor.common.api.ErrorResult;
 import io.fluxcapacitor.common.api.JsonType;
 import io.fluxcapacitor.common.api.Metadata;
-import io.fluxcapacitor.common.api.QueryResult;
 import io.fluxcapacitor.common.api.Request;
 import io.fluxcapacitor.common.api.RequestBatch;
+import io.fluxcapacitor.common.api.RequestResult;
 import io.fluxcapacitor.common.api.ResultBatch;
-import io.fluxcapacitor.common.tracking.InMemoryTaskScheduler;
-import io.fluxcapacitor.common.tracking.TaskScheduler;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.exception.ServiceException;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
@@ -150,7 +150,7 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
                         }).build()));
     }
 
-    protected <R extends QueryResult> CompletableFuture<R> send(Request request) {
+    protected <R extends RequestResult> CompletableFuture<R> send(Request request) {
         return new WebSocketRequest(request, currentCorrelationData(),
                                     getAdhocInterceptor(METRICS).orElse(null),
                                     FluxCapacitor.getOptionally().orElse(null)).send();
@@ -158,7 +158,7 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
 
     @SuppressWarnings("unchecked")
     @SneakyThrows
-    protected <R extends QueryResult> R sendAndWait(Request request) {
+    protected <R extends RequestResult> R sendAndWait(Request request) {
         return (R) send(request).get();
     }
 
@@ -222,18 +222,18 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
                 String batchId = FluxCapacitor.generateId();
                 ((ResultBatch) value).getResults().forEach(r -> resultExecutor.execute(() -> handleResult(r, batchId)));
             } else {
-                WebSocketRequest webSocketRequest = requests.get(((QueryResult) value).getRequestId());
+                WebSocketRequest webSocketRequest = requests.get(((RequestResult) value).getRequestId());
                 if (webSocketRequest == null) {
                     log().warn("Could not find outstanding read request for id {} (session {})",
-                             ((QueryResult) value).getRequestId(), session.getId());
+                               ((RequestResult) value).getRequestId(), session.getId());
                 }
-                handleResult((QueryResult) value, null);
+                handleResult((RequestResult) value, null);
             }
         });
 
     }
 
-    protected void handleResult(QueryResult result, String batchId) {
+    protected void handleResult(RequestResult result, String batchId) {
         try {
             WebSocketRequest webSocketRequest = requests.remove(result.getRequestId());
             if (webSocketRequest == null) {
@@ -409,7 +409,7 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
     @RequiredArgsConstructor
     protected class WebSocketRequest {
         private final Request request;
-        private final CompletableFuture<QueryResult> result = new CompletableFuture<>();
+        private final CompletableFuture<RequestResult> result = new CompletableFuture<>();
         private final Map<String, String> correlationData;
         private final DispatchInterceptor adhocMetricsInterceptor;
         private final FluxCapacitor fluxCapacitor;
@@ -417,7 +417,7 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
         private volatile long sendTimestamp;
 
         @SuppressWarnings("unchecked")
-        protected <T extends QueryResult> CompletableFuture<T> send() {
+        protected <T extends RequestResult> CompletableFuture<T> send() {
             Session session;
             try {
                 session = request instanceof Command c ? sessionPool.get(c.routingKey()) : sessionPool.get();

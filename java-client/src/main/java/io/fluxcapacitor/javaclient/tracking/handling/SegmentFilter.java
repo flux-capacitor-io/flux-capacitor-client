@@ -19,6 +19,8 @@ import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.javaclient.common.HasMessage;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.publishing.routing.RoutingKey;
+import io.fluxcapacitor.javaclient.tracking.Consumer;
+import io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration;
 import io.fluxcapacitor.javaclient.tracking.Tracker;
 
 import java.lang.annotation.Annotation;
@@ -28,6 +30,32 @@ import java.util.function.Function;
 
 import static io.fluxcapacitor.javaclient.common.ClientUtils.memoize;
 
+/**
+ * A {@link MessageFilter} that restricts handler invocation based on segment membership, using routing keys.
+ *
+ * <p>This filter applies **only** when client-side segment filtering is enabled via the {@code ignoreSegment = true}
+ * setting in the {@link ConsumerConfiguration} or {@link Consumer}. In such scenarios, handlers annotated with
+ * {@link RoutingKey} will be evaluated to ensure that only messages matching the local segment range are processed by
+ * the client.
+ *
+ * <p>When active, the filter performs the following logic:
+ * <ul>
+ *   <li>Extracts the routing key for the message using the {@link RoutingKey} annotation on the handler method.
+ *       If the annotation is missing or the routing key cannot be resolved, the message ID is used as a fallback.</li>
+ *   <li>Delegates to {@link Tracker#canHandle(DeserializingMessage, String)} to check whether the message falls
+ *       within the current client's segment range.</li>
+ *   <li>If the message is not an instance of {@link DeserializingMessage}, the filter always returns {@code true}.</li>
+ * </ul>
+ *
+ * <p>This ensures that trackers that use client-side message filtering do not redundantly handle messages
+ * that don't fall within the tracker's segment range, ensuring that each message is handled only once in a
+ * distributed system.
+ *
+ * @see RoutingKey
+ * @see Tracker
+ * @see Consumer#ignoreSegment()
+ * @see HasMessage#getRoutingKey(String)
+ */
 public class SegmentFilter implements MessageFilter<HasMessage> {
     private final Function<Executable, Optional<RoutingKey>> routingKeyCache =
             memoize(e -> ReflectionUtils.getMethodAnnotation(e, RoutingKey.class));

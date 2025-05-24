@@ -41,6 +41,30 @@ import java.util.function.IntFunction;
 import static java.lang.invoke.MethodHandles.privateLookupIn;
 import static java.lang.invoke.MethodType.methodType;
 
+
+/**
+ * Default implementation of {@link MemberInvoker} using high-performance method handle-based invocation.
+ * <p>
+ * This implementation attempts to convert reflective member access into a compiled lambda expression
+ * via {@link java.lang.invoke.LambdaMetafactory} and {@link java.lang.invoke.MethodHandle}, avoiding the overhead
+ * of standard Java reflection.
+ *
+ * <h2>Key Features</h2>
+ * <ul>
+ *   <li>Caches compiled lambda invokers for reuse</li>
+ *   <li>Falls back to reflection if lambda creation is not possible</li>
+ *   <li>Supports methods, constructors, and fields (read/write)</li>
+ *   <li>Supports up to 10 parameters per method (beyond which it falls back)</li>
+ * </ul>
+ *
+ * <p>
+ * Usage example:
+ * <pre>{@code
+ * Method m = MyClass.class.getDeclaredMethod("doSomething", String.class);
+ * MemberInvoker invoker = DefaultMemberInvoker.asInvoker(m);
+ * Object result = invoker.invoke(myInstance, "value");
+ * }</pre>
+ */
 @Slf4j
 public class DefaultMemberInvoker implements MemberInvoker {
 

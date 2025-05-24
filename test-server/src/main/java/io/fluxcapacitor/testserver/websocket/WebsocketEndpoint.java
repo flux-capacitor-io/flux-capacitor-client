@@ -24,9 +24,9 @@ import io.fluxcapacitor.common.api.Command;
 import io.fluxcapacitor.common.api.ConnectEvent;
 import io.fluxcapacitor.common.api.DisconnectEvent;
 import io.fluxcapacitor.common.api.JsonType;
-import io.fluxcapacitor.common.api.QueryResult;
 import io.fluxcapacitor.common.api.Request;
 import io.fluxcapacitor.common.api.RequestBatch;
+import io.fluxcapacitor.common.api.RequestResult;
 import io.fluxcapacitor.common.api.ResultBatch;
 import io.fluxcapacitor.common.api.StringResult;
 import io.fluxcapacitor.common.api.VoidResult;
@@ -190,7 +190,7 @@ public abstract class WebsocketEndpoint extends Endpoint {
     private void trySendResult(Session session, JsonType message, Object result) {
         if (message instanceof Request request && (!(request instanceof Command command)
                                                    || command.getGuarantee().compareTo(STORED) >= 0)) {
-            if (result instanceof QueryResult response) {
+            if (result instanceof RequestResult response) {
                 doSendResult(session, response);
             } else if (result == null) {
                 if (request instanceof Command) {
@@ -215,7 +215,7 @@ public abstract class WebsocketEndpoint extends Endpoint {
         }
     }
 
-    protected void doSendResult(Session session, QueryResult result) {
+    protected void doSendResult(Session session, RequestResult result) {
         Optional.ofNullable(sessionBacklogs.get(session.getId())).or(() -> findAlternativeBacklog(session))
                 .ifPresentOrElse(backlog -> backlog.add(result), () ->
                         log.info("Not sending result {}. Could not find any suitable sessions for client {}.",
@@ -226,7 +226,7 @@ public abstract class WebsocketEndpoint extends Endpoint {
         return batch.getRequests().stream().map(r -> () -> handleMessage(session, r));
     }
 
-    protected void sendResultBatch(Session session, List<QueryResult> results) {
+    protected void sendResultBatch(Session session, List<RequestResult> results) {
         try {
             var result = results.size() == 1 ? results.get(0) : new ResultBatch(results);
             if (session.isOpen()) {
@@ -336,7 +336,7 @@ public abstract class WebsocketEndpoint extends Endpoint {
     @Value
     protected static class SessionBacklog {
         @Delegate
-        Backlog<QueryResult> delegate;
+        Backlog<RequestResult> delegate;
         Session session;
     }
 }

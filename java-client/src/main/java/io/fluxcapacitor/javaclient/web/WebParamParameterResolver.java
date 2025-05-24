@@ -31,9 +31,45 @@ import java.util.function.Function;
 import static io.fluxcapacitor.javaclient.web.DefaultWebRequestContext.getWebRequestContext;
 import static io.micrometer.common.util.StringUtils.isBlank;
 
+/**
+ * Resolves method parameters in web handler methods based on meta-annotations derived from {@link WebParam}.
+ *
+ * <p>This resolver targets parameters in methods that handle {@link MessageType#WEBREQUEST} messages.
+ * It looks for parameters annotated with a concrete annotation that is itself meta-annotated with {@code @WebParam},
+ * such as {@code @PathParam}, {@code @QueryParam}, or other custom parameter annotations used in web APIs.
+ *
+ * <p>The resolver extracts the desired parameter value from the associated {@link WebRequestContext}
+ * using the rules and source defined by the meta-annotation (e.g. from the path, query string, or headers).
+ *
+ * <p>To determine the parameter name to resolve, the following resolution strategy is used:
+ * <ul>
+ *   <li>If {@code @WebParam.value()} is set, it is used directly.</li>
+ *   <li>Otherwise, if Java parameter names are available (compiled with {@code -parameters}) or if the method was compiled from Kotlin source, the parameter name is used.</li>
+ *   <li>If neither is available, the name is resolved from a generated {@link ParameterRegistry} class.</li>
+ * </ul>
+ *
+ * <p>If the parameter cannot be found in the request, {@code null} is returned.
+ *
+ * @see WebRequest
+ * @see io.fluxcapacitor.common.api.Metadata
+ * @see WebParam
+ * @see WebParameterSource
+ */
 @AllArgsConstructor
 public class WebParamParameterResolver implements ParameterResolver<HasMessage> {
 
+    /**
+     * Resolves the parameter value from a {@link WebRequestContext} using the metadata provided by a
+     * parameter annotation that is meta-annotated with {@link WebParam}.
+     *
+     * <p>The parameter name is determined based on the annotation value, Java reflection, or a generated
+     * {@link ParameterRegistry}, and the value is extracted from the request using the declared
+     * {@link WebParameterSource} (e.g. QUERY, PATH, HEADER).
+     *
+     * @param p the method parameter to resolve
+     * @param methodAnnotation the handler method annotation (not used here)
+     * @return a function that resolves the argument from the incoming {@link HasMessage}
+     */
     @Override
     public Function<HasMessage, Object> resolve(Parameter p, Annotation methodAnnotation) {
         return m -> {
@@ -57,6 +93,21 @@ public class WebParamParameterResolver implements ParameterResolver<HasMessage> 
         };
     }
 
+    /**
+     * Determines if this resolver is applicable to a given method parameter.
+     *
+     * <p>This returns {@code true} if:
+     * <ul>
+     *   <li>The incoming message is a {@link DeserializingMessage}</li>
+     *   <li>The message type is {@link MessageType#WEBREQUEST}</li>
+     *   <li>The parameter is annotated with an annotation that is meta-annotated with {@link WebParam}</li>
+     * </ul>
+     *
+     * @param parameter the method parameter
+     * @param methodAnnotation the enclosing method annotation (not used here)
+     * @param value the message passed to the handler
+     * @return {@code true} if the parameter is eligible for resolution
+     */
     @Override
     public boolean matches(Parameter parameter, Annotation methodAnnotation, HasMessage value) {
         return value instanceof DeserializingMessage m && m.getMessageType() == MessageType.WEBREQUEST

@@ -16,11 +16,45 @@ package io.fluxcapacitor.common.api;
 
 import lombok.Value;
 
+/**
+ * A platform-generated event that indicates a client has successfully connected to the Flux platform.
+ * <p>
+ * This event includes metadata such as the client's name, instance ID, session ID, and the service endpoint
+ * it connected to.
+ *
+ * <h2>Use Cases</h2>
+ * <ul>
+ *   <li>Track client connection activity for monitoring or alerting</li>
+ *   <li>Audit log of system uptime or usage</li>
+ * </ul>
+ *
+ * @see DisconnectEvent
+ */
 @Value
 public class ConnectEvent implements ClientEvent {
+
+    /**
+     * Logical client name, typically set via {@code ClientConfiguration#getClientName()}.
+     */
     String client;
+
+    /**
+     * Unique client instance ID (e.g., including machine identifier).
+     */
     String clientId;
+
+    /**
+     * Internal (websocket) session ID used by the Flux platform to track this connection.
+     */
     String sessionId;
+
+    /**
+     * Timestamp when the connection occurred.
+     */
     long timestamp = System.currentTimeMillis();
+
+    /**
+     * Name of the service the client connected to (e.g., {@code event-sourcing-endpoint}).
+     */
     String service;
 }

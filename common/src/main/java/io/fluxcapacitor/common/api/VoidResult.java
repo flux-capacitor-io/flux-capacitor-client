@@ -16,8 +16,24 @@ package io.fluxcapacitor.common.api;
 
 import lombok.Value;
 
+/**
+ * A generic response indicating successful completion of a request without returning any payload.
+ * <p>
+ * This is typically used for commands or operations where no result is needed but confirmation is required.
+ * </p>
+ *
+ * @see RequestResult
+ */
 @Value
-public class VoidResult implements QueryResult {
+public class VoidResult implements RequestResult {
+
+    /**
+     * ID correlating this result with its originating request.
+     */
     long requestId;
+
+    /**
+     * Time at which the result was generated.
+     */
     long timestamp = System.currentTimeMillis();
 }

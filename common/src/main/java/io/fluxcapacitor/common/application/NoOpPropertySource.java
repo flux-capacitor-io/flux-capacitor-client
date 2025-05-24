@@ -14,9 +14,25 @@
 
 package io.fluxcapacitor.common.application;
 
+/**
+ * A no-operation {@link PropertySource} implementation that never returns any property values.
+ *
+ * <p>This is a singleton enum used as a fallback or placeholder where a {@code PropertySource}
+ * is required but no actual configuration values are available or needed.
+ *
+ * <p>All calls to {@link #get(String)} will return {@code null}.
+ *
+ * @see PropertySource
+ */
 public enum NoOpPropertySource implements PropertySource {
     INSTANCE;
 
+    /**
+     * Always returns {@code null} for any requested property name.
+     *
+     * @param name the name of the property
+     * @return {@code null}
+     */
     @Override
     public String get(String name) {
         return null;

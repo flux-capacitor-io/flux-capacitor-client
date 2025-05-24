@@ -52,43 +52,80 @@ import java.util.stream.StreamSupport;
 import static java.util.Arrays.stream;
 import static java.util.function.UnaryOperator.identity;
 
+/**
+ * Utility class for common object handling, memoization, concurrency, stream processing, and error handling.
+ * <p>
+ * Offers reusable tools for:
+ * <ul>
+ *   <li>Memoizing functional interfaces</li>
+ *   <li>Retry-safe functional wrappers (callables, consumers, etc.)</li>
+ *   <li>Stream deduplication and flattening</li>
+ *   <li>Property file manipulation</li>
+ *   <li>Exception-safe task execution and error unwrapping</li>
+ *   <li>Custom thread factories and naming</li>
+ * </ul>
+ */
 @Slf4j
 public class ObjectUtils {
     private static final Predicate<Object> noOpPredicate = v -> true;
     private static final BiPredicate<Object, Object> noOpBiPredicate = (a, b) -> true;
 
+    /**
+     * Returns a predicate that always evaluates to true.
+     */
     @SuppressWarnings("unchecked")
     public static <T> Predicate<T> noOpPredicate() {
         return (Predicate<T>) noOpPredicate;
     }
 
+    /**
+     * Returns a bi-predicate that always evaluates to true.
+     */
     @SuppressWarnings("unchecked")
     public static <T, U> BiPredicate<T, U> noOpBiPredicate() {
         return (BiPredicate<T, U>) noOpBiPredicate;
     }
 
+    /**
+     * Returns a predicate that filters out duplicates based on a key extractor.
+     */
     public static <T> Predicate<T> distinctByKey(Function<? super T, ?> keyExtractor) {
         Set<Object> seen = ConcurrentHashMap.newKeySet();
         return t -> seen.add(keyExtractor.apply(t));
     }
 
+    /**
+     * Creates a stream that stops once the break condition evaluates true.
+     */
     public static <T> Stream<T> iterate(T seed, UnaryOperator<T> f, Predicate<T> breakCondition) {
         return StreamSupport.stream(new BreakingSpliterator<>(Stream.iterate(seed, f), breakCondition), false);
     }
 
+    /**
+     * Concatenates multiple streams into a single flat stream.
+     */
     @SafeVarargs
     public static <T> Stream<T> concat(Stream<? extends T>... streams) {
         return stream(streams).flatMap(Function.identity());
     }
 
+    /**
+     * Deduplicates elements in the list, preserving the last occurrence.
+     */
     public static <T> List<T> deduplicate(List<T> list) {
         return deduplicate(list, identity());
     }
 
+    /**
+     * Deduplicates elements using a key extractor, preserving the last occurrence.
+     */
     public static <T> List<T> deduplicate(List<T> list, Function<T, ?> idFunction) {
         return deduplicate(list, idFunction, false);
     }
 
+    /**
+     * Deduplicates elements using a key extractor, optionally keeping the first occurrence.
+     */
     public static <T> List<T> deduplicate(List<T> list, Function<T, ?> idFunction, boolean keepFirst) {
         list = new ArrayList<>(list);
         Set<Object> ids = new HashSet<>();
@@ -105,6 +142,9 @@ public class ObjectUtils {
         return list;
     }
 
+    /**
+     * Converts an object into a stream. Supports Collection, Stream, Optional, or single value.
+     */
     public static Stream<?> asStream(Object value) {
         return switch (value) {
             case null -> Stream.empty();
@@ -115,25 +155,40 @@ public class ObjectUtils {
         };
     }
 
+    /**
+     * Returns a consumer that runs the task only if {@code check} is true.
+     */
     public static Consumer<Runnable> ifTrue(boolean check) {
         return check ? Runnable::run : (r -> {});
     }
 
+    /**
+     * Forces the given throwable to be thrown.
+     */
     @SneakyThrows
     public static Object forceThrow(Throwable error) {
         throw error;
     }
 
+    /**
+     * Calls the given callable, forcibly rethrowing exceptions.
+     */
     @SneakyThrows
     public static <T> T call(Callable<T> callable) {
         return callable.call();
     }
 
+    /**
+     * Executes the runnable, forcibly rethrowing exceptions as unchecked.
+     */
     @SneakyThrows
     public static void run(ThrowingRunnable runnable) {
         runnable.run();
     }
 
+    /**
+     * Converts a ThrowingRunnable into a {@code Callable<Object>} that returns null.
+     */
     public static Callable<?> asCallable(ThrowingRunnable runnable) {
         return () -> {
             runnable.run();
@@ -141,6 +196,9 @@ public class ObjectUtils {
         };
     }
 
+    /**
+     * Converts a standard {@link Runnable} into a {@code Callable<Object>} that returns null.
+     */
     public static Callable<?> asCallable(Runnable runnable) {
         return () -> {
             runnable.run();
@@ -148,6 +206,9 @@ public class ObjectUtils {
         };
     }
 
+    /**
+     * Executes the runnable and logs any thrown exception.
+     */
     public static void tryRun(Runnable task) {
         try {
             task.run();
@@ -156,6 +217,9 @@ public class ObjectUtils {
         }
     }
 
+    /**
+     * Wraps a runnable in a try/catch block that logs any exception on execution.
+     */
     public static Runnable tryCatch(Runnable runnable) {
         return () -> tryRun(runnable);
     }
@@ -180,6 +244,9 @@ public class ObjectUtils {
         return () -> call(callable);
     }
 
+    /**
+     * Extracts the byte array from a {@link ByteBuffer}.
+     */
     public static byte[] getBytes(ByteBuffer buffer) {
         buffer = buffer.duplicate();
         byte[] result = new byte[buffer.remaining()];
@@ -187,6 +254,9 @@ public class ObjectUtils {
         return result;
     }
 
+    /**
+     * Recursively unwraps the cause of common wrapping exceptions.
+     */
     public static Throwable unwrapException(Throwable e) {
         if (e == null) {
             return null;
@@ -197,6 +267,9 @@ public class ObjectUtils {
         return e;
     }
 
+    /**
+     * Parses Java {@link Properties} from a string.
+     */
     @SneakyThrows
     public static Properties asProperties(String content) {
         Properties result = new Properties();
@@ -204,12 +277,18 @@ public class ObjectUtils {
         return result;
     }
 
+    /**
+     * Creates a deep copy of a Properties instance.
+     */
     public static Properties copyOf(Properties properties) {
         Properties result = new Properties();
         result.putAll(properties);
         return result;
     }
 
+    /**
+     * Merges two Properties instances into a new one.
+     */
     public static Properties merge(Properties a, Properties b) {
         Properties result = copyOf(a);
         result.putAll(b);
@@ -230,14 +309,23 @@ public class ObjectUtils {
 
     private static final AtomicInteger threadNumber = new AtomicInteger(1);
 
+    /**
+     * Generates a unique thread name with the given prefix.
+     */
     public static String newThreadName(String prefix) {
         return prefix + "-" + threadNumber.getAndIncrement();
     }
 
+    /**
+     * Creates a new {@link ThreadFactory} with a named prefix.
+     */
     public static ThreadFactory newThreadFactory(String prefix) {
         return new PrefixedThreadFactory(prefix);
     }
 
+    /**
+     * Creates a named {@link ForkJoinPool} with the given parallelism.
+     */
     public static ExecutorService newNamedWorkStealingPool(int parallelism, String prefix) {
         return new ForkJoinPool(parallelism, pool -> {
             final ForkJoinWorkerThread worker = ForkJoinPool.defaultForkJoinWorkerThreadFactory.newThread(pool);
@@ -246,6 +334,9 @@ public class ObjectUtils {
         }, null, true);
     }
 
+    /**
+     * Returns a consumer that logs errors instead of propagating them.
+     */
     public static <T> Consumer<? super T> tryAccept(Consumer<? super T> consumer) {
         return t -> tryRun(() -> consumer.accept(t));
     }

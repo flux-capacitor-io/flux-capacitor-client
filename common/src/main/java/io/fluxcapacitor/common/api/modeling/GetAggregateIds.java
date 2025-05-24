@@ -17,7 +17,21 @@ package io.fluxcapacitor.common.api.modeling;
 import io.fluxcapacitor.common.api.Request;
 import lombok.Value;
 
+/**
+ * Request to retrieve all aggregate identifiers associated with a given entity ID.
+ * <p>
+ * In Flux, entities may be referenced across multiple aggregates. This request returns
+ * a mapping from aggregate type to aggregate ID for each aggregate that is related to the given entity ID.
+ * <p>
+ * This is typically used in systems that maintain cross-aggregate relationships or need
+ * to route updates based on entity identity.
+ *
+ * @see GetAggregateIdsResult
+ */
 @Value
 public class GetAggregateIds extends Request {
+    /**
+     * The ID of the entity for which to fetch related aggregate IDs.
+     */
     String entityId;
 }

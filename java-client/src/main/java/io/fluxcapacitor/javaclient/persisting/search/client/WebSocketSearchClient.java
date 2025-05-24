@@ -31,6 +31,16 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 
+/**
+ * WebSocket-based implementation of the {@link SearchClient} that connects to the Flux platform.
+ * <p>
+ * All operations (indexing, searching, deletion, statistics, etc.) are executed via a WebSocket protocol
+ * using a standardized API. This is the default production implementation used in deployed applications.
+ * <p>
+ * Requires an active connection to the Flux platform's search module.
+ *
+ * @see WebSocketClient
+ */
 @ClientEndpoint
 public class WebSocketSearchClient extends AbstractWebsocketClient implements SearchClient {
 

@@ -14,22 +14,53 @@
 
 package io.fluxcapacitor.common.api.search;
 
-import io.fluxcapacitor.common.api.QueryResult;
+import io.fluxcapacitor.common.api.RequestResult;
 import lombok.Value;
 
 import java.util.List;
 
+/**
+ * Response to a {@link io.fluxcapacitor.common.api.search.GetDocumentStats} request.
+ * <p>
+ * Contains aggregated statistics for documents that matched a {@link SearchQuery}, grouped and computed
+ * in-memory. Statistics include common numeric metrics like count, min, max, sum, and average, organized
+ * per field and optional grouping.
+ * <p>
+ * For performance-sensitive use cases or large data sets, prefer {@link io.fluxcapacitor.common.api.search.GetFacetStats},
+ * which is computed by the backing store and generally faster.
+ *
+ * @see io.fluxcapacitor.common.api.search.GetDocumentStats
+ * @see DocumentStats
+ */
 @Value
-public class GetDocumentStatsResult implements QueryResult {
+public class GetDocumentStatsResult implements RequestResult {
+
+    /**
+     * The unique identifier of the originating request.
+     */
     long requestId;
+
+    /**
+     * Aggregated statistics for matched document groups.
+     */
     List<DocumentStats> documentStats;
+
+    /**
+     * Timestamp when the statistics were computed.
+     */
     long timestamp = System.currentTimeMillis();
 
+    /**
+     * Returns a lightweight summary of this result for logging or metric tracking.
+     */
     @Override
     public Metric toMetric() {
         return new Metric(documentStats.size(), timestamp);
     }
 
+    /**
+     * Compact summary of the result, used for internal monitoring purposes.
+     */
     @Value
     public static class Metric {
         int size;

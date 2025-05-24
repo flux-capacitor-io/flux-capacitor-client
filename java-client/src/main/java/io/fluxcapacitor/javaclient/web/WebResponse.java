@@ -79,7 +79,8 @@ import static java.util.stream.Collectors.toList;
 @ToString(callSuper = true)
 public class WebResponse extends Message {
     private static final List<String> gzipEncoding = List.of("gzip");
-    @NonNull Map<String, List<String>> headers;
+    @NonNull
+    Map<String, List<String>> headers;
     Integer status;
 
     @Getter(lazy = true, value = AccessLevel.PRIVATE)
@@ -100,10 +101,19 @@ public class WebResponse extends Message {
         this.status = Optional.ofNullable(metadata.get("status")).map(Integer::valueOf).orElse(null);
     }
 
+    /**
+     * Constructs a new WebResponse instance using the provided Message object.
+     *
+     * @param m the {@code Message} object from which the payload, metadata, message ID, and timestamp are extracted
+     *          to initialize the WebResponse.
+     */
     public WebResponse(Message m) {
         this(m.getPayload(), m.getMetadata(), m.getMessageId(), m.getTimestamp());
     }
 
+    /**
+     * Serializes the response using the content type if applicable.
+     */
     @Override
     public SerializedMessage serialize(Serializer serializer) {
         return headers.getOrDefault("Content-Type", List.of()).stream().findFirst().map(
@@ -112,6 +122,14 @@ public class WebResponse extends Message {
                 .orElseGet(() -> super.serialize(serializer));
     }
 
+    /**
+     * Constructs a Metadata object containing the provided status code and headers.
+     *
+     * @param statusCode the HTTP status code to be included in the metadata
+     * @param headers a map of HTTP headers where each key is a header name and the corresponding
+     *                value is a list of header values
+     * @return a Metadata object containing the status code and headers
+     */
     public static Metadata asMetadata(int statusCode, Map<String, List<String>> headers) {
         return Metadata.of("status", statusCode, "headers", headers);
     }
@@ -164,29 +182,65 @@ public class WebResponse extends Message {
         return new WebResponse(super.withTimestamp(timestamp));
     }
 
+    /**
+     * Converts this WebResponse instance into a builder, which can be used to create a modified copy of the instance.
+     *
+     * @return a new {@code WebResponse.Builder} initialized with the properties of the current WebResponse instance.
+     */
     public WebResponse.Builder toBuilder() {
         return new Builder(this);
     }
 
+    /**
+     * Creates a new {@link WebResponse.Builder} instance for constructing {@link WebResponse} objects.
+     *
+     * @return a new instance of the {@link WebResponse.Builder}.
+     */
     public static Builder builder() {
         return new Builder();
     }
 
+    /**
+     * Retrieves the headers from the provided metadata.
+     *
+     * @param metadata the metadata object from which headers should be retrieved
+     * @return a map containing header names as keys and a list of corresponding header values. If no headers are found,
+     * an empty map is returned.
+     */
     @SuppressWarnings("unchecked")
     public static Map<String, List<String>> getHeaders(Metadata metadata) {
         return Optional.ofNullable(metadata.get("headers", Map.class)).orElse(Collections.emptyMap());
     }
 
+    /**
+     * Retrieves the status code from the provided metadata.
+     *
+     * @param metadata the metadata containing information associated with the response
+     * @return the status code as an Integer if present; otherwise, null
+     */
     public static Integer getStatusCode(Metadata metadata) {
         return Optional.ofNullable(metadata.get("status")).map(Integer::valueOf).orElse(null);
     }
 
+    /**
+     * Retrieves the decoded payload from the response and casts it to the specified type.
+     *
+     * @param <R> The type to which the payload will be cast.
+     * @return The decoded payload of the response, cast to the specified type.
+     */
     @SuppressWarnings("unchecked")
     @Override
     public <R> R getPayload() {
         return (R) getDecodedPayload();
     }
 
+    /**
+     * Retrieves the payload and converts it to the specified type.
+     *
+     * @param <R>  the desired type of the returned payload
+     * @param type the target type to which the payload should be converted
+     * @return the payload converted to the specified type R
+     */
     @Override
     public <R> R getPayloadAs(Type type) {
         return JSON_FORMAT.equalsIgnoreCase(getContentType())
@@ -194,24 +248,57 @@ public class WebResponse extends Message {
                 : super.getPayloadAs(type);
     }
 
+    /**
+     * Retrieves the list of header values associated with the given header name. If no headers are found for the
+     * provided name, an empty list is returned.
+     *
+     * @param name the name of the header to retrieve
+     * @return a list of header values associated with the specified name, or an empty list if none are found
+     */
     public List<String> getHeaders(String name) {
         return headers.getOrDefault(name, Collections.emptyList());
     }
 
+    /**
+     * Retains only the specified headers from the current WebResponse. Any headers not listed in the provided header
+     * names will be removed.
+     *
+     * @param headerNames the names of headers to be retained in the WebResponse
+     * @return a new WebResponse instance containing only the specified headers
+     */
     public WebResponse retainHeaders(String... headerNames) {
         var filtered = WebUtils.asHeaderMap(headers);
         filtered.keySet().retainAll(Arrays.asList(headerNames));
         return toBuilder().clearHeaders().headers(filtered).build();
     }
 
+    /**
+     * Retrieves the value of the first occurrence of the specified header name.
+     *
+     * @param name the name of the HTTP header to retrieve
+     * @return the first value associated with the specified header name, or null if the header is not present
+     */
     public String getHeader(String name) {
         return getHeaders(name).stream().findFirst().orElse(null);
     }
 
+    /**
+     * Retrieves a list of cookies from the response's "Set-Cookie" headers. The cookies are parsed from the headers
+     * using the {@code WebUtils.parseResponseCookieHeader} method.
+     *
+     * @return a list of {@code HttpCookie} objects parsed from the "Set-Cookie" headers; an empty list if there are no
+     * cookies or the headers are absent
+     */
     public List<HttpCookie> getCookies() {
         return WebUtils.parseResponseCookieHeader(getHeaders("Set-Cookie"));
     }
 
+    /**
+     * Retrieves the value of the "Content-Type" header from the HTTP response. If the header is not present, returns
+     * null.
+     *
+     * @return the value of the "Content-Type" header, or null if the header is absent
+     */
     public String getContentType() {
         return getHeader("Content-Type");
     }
@@ -229,6 +316,9 @@ public class WebResponse extends Message {
         return result;
     }
 
+    /**
+     * Fluent builder for {@link WebResponse}. Use {@link #builder()} to start building.
+     */
     @Data
     @NoArgsConstructor
     @Accessors(fluent = true, chain = true)

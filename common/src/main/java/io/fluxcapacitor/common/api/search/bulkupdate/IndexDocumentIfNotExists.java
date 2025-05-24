@@ -25,15 +25,40 @@ import java.time.Instant;
 
 import static io.fluxcapacitor.common.api.search.BulkUpdate.Type.indexIfNotExists;
 
+/**
+ * A bulk update operation that indexes a document only if it does not already exist in the store.
+ * <p>
+ * Useful to ensure immutability or to avoid overwriting existing entries.
+ */
 @Value
 @AllArgsConstructor
 @Builder(toBuilder = true)
 public class IndexDocumentIfNotExists implements BulkUpdate {
+
+    /**
+     * The document to index, if not already present.
+     */
     @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS)
     @NonNull Object object;
+
+    /**
+     * The document's unique ID within the collection.
+     */
     String id;
+
+    /**
+     * The collection name to which this document belongs.
+     */
     Object collection;
+
+    /**
+     * The optional start timestamp of the document.
+     */
     Instant timestamp;
+
+    /**
+     * The optional end timestamp of the document.
+     */
     Instant end;
 
     @Override

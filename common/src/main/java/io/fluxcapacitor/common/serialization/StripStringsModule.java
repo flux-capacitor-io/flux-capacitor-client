@@ -21,6 +21,15 @@ import com.fasterxml.jackson.databind.deser.std.StdScalarDeserializer;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import lombok.SneakyThrows;
 
+/**
+ * A Jackson module that customizes the deserialization of strings.
+ * <p>
+ * The module sets up a custom deserializer for {@link String} values. This deserializer: 1. Converts blank strings
+ * (strings containing only whitespace) to {@code null}. 2. Trims non-blank strings to remove leading and trailing
+ * whitespace.
+ * <p>
+ * This module is enabled by default in {@link JsonUtils} and hence in {@code JacksonSerializer}.
+ */
 public class StripStringsModule extends SimpleModule {
 
     @Override

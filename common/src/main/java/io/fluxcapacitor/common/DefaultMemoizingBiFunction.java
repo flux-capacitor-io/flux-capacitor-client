@@ -18,29 +18,43 @@ import lombok.AllArgsConstructor;
 
 import java.time.Clock;
 import java.time.Duration;
+import java.util.AbstractMap.SimpleEntry;
+import java.util.Map;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 
+/**
+ * A default implementation of the {@link MemoizingBiFunction} interface that memoizes (caches) results of a
+ * {@link BiFunction} based on a pair of input arguments. Cached results can be reused for identical subsequent
+ * calls, and the cache can optionally be configured with a lifespan and a custom clock for time-based eviction.
+ *
+ * This class internally uses a {@link MemoizingFunction}, with the input arguments wrapped as
+ * {@link Map.Entry} for caching purposes.
+ *
+ * @param <T> the type of the first input argument
+ * @param <U> the type of the second input argument
+ * @param <R> the type of the computed result
+ */
 @AllArgsConstructor
 public class DefaultMemoizingBiFunction<T, U, R> implements MemoizingBiFunction<T, U, R> {
-    private final MemoizingFunction<Pair<T, U>, R> function;
+    private final MemoizingFunction<Map.Entry<T, U>, R> function;
 
     public DefaultMemoizingBiFunction(BiFunction<T, U, R> delegate) {
         this(delegate, null, null);
     }
 
     public DefaultMemoizingBiFunction(BiFunction<T, U, R> delegate, Duration lifespan, Clock clock) {
-        this.function = new DefaultMemoizingFunction<>(p -> delegate.apply(p.getFirst(), p.getSecond()), lifespan, clock);
+        this.function = new DefaultMemoizingFunction<>(p -> delegate.apply(p.getKey(), p.getValue()), lifespan, clock);
     }
 
     @Override
     public R apply(T t, U u) {
-        return function.apply(new Pair<>(t, u));
+        return function.apply(new SimpleEntry<>(t, u));
     }
 
     @Override
     public boolean isCached(T t, U u) {
-        return function.isCached(new Pair<>(t, u));
+        return function.isCached(new SimpleEntry<>(t, u));
     }
 
     @Override
@@ -50,7 +64,7 @@ public class DefaultMemoizingBiFunction<T, U, R> implements MemoizingBiFunction<
 
     @Override
     public R remove(T t, U u) {
-        return function.remove(new Pair<>(t, u));
+        return function.remove(new SimpleEntry<>(t, u));
     }
 
     @Override

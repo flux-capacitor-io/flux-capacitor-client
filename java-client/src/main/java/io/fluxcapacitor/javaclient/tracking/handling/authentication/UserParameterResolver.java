@@ -26,6 +26,14 @@ import java.util.function.Function;
 
 import static java.util.Optional.ofNullable;
 
+/**
+ * Resolves parameters of type {@link User}, typically representing the current user in a request context.
+ * <p>
+ * This resolver delegates the extraction of user information to a configured {@link UserProvider}, which defines how to
+ * extract a user from a {@link HasMessage} or {@link DeserializingMessage}.
+ * <p>
+ * If no user can be determined from the message context, the {@link User#getCurrent()} thread-local fallback is used.
+ */
 public class UserParameterResolver extends TypedParameterResolver<Object> {
     private final UserProvider userProvider;
 

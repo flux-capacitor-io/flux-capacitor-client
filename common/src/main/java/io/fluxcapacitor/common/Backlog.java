@@ -34,6 +34,35 @@ import java.util.function.Consumer;
 import static io.fluxcapacitor.common.ObjectUtils.newThreadFactory;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
+/**
+ * A thread-safe batching queue that asynchronously flushes its content to a consumer in configurable batch sizes.
+ * <p>
+ * This utility is useful for scenarios where multiple values are being added over time and you want to consume
+ * them in batches for efficiency—such as sending messages to a remote system, writing to a log, etc.
+ *
+ * <p>
+ * Flushes are executed on a single background thread, and results (e.g. completion or failure) are tracked
+ * via {@link CompletableFuture}s. Optional monitors may observe each flushed batch.
+ *
+ * <h2>Key Features</h2>
+ * <ul>
+ *   <li>Supports both synchronous and asynchronous consumers</li>
+ *   <li>Flushes automatically after new items are added</li>
+ *   <li>Tracks flush progress with {@link CompletableFuture} per add</li>
+ *   <li>Customizable error handling via {@link ErrorHandler}</li>
+ *   <li>Monitoring support via {@link Monitored}</li>
+ * </ul>
+ *
+ * <h2>Typical Use</h2>
+ * <pre>{@code
+ * Backlog<String> backlog = Backlog.forAsyncConsumer(batch -> {
+ *     return sendToServer(batch); // returns CompletableFuture
+ * });
+ * backlog.add("a", "b", "c");
+ * }</pre>
+ *
+ * @param <T> The type of item being buffered and processed.
+ */
 @Slf4j
 public class Backlog<T> implements Monitored<List<T>> {
 
@@ -51,14 +80,23 @@ public class Backlog<T> implements Monitored<List<T>> {
 
     private final Collection<Consumer<List<T>>> monitors = new CopyOnWriteArraySet<>();
 
+    /**
+     * Creates a new backlog for a synchronous consumer and default batch size and default logging error handler.
+     */
     public static <T> Backlog<T> forConsumer(ThrowingConsumer<List<T>> consumer) {
         return forConsumer(consumer, 1024);
     }
 
+    /**
+     * Creates a backlog with custom max batch size and default logging error handler.
+     */
     public static <T> Backlog<T> forConsumer(ThrowingConsumer<List<T>> consumer, int maxBatchSize) {
         return forConsumer(consumer, maxBatchSize, (e, batch) -> log.error("Consumer {} failed to handle batch of size {}. Continuing with next batch.", consumer, batch.size(), e));
     }
 
+    /**
+     * Creates a backlog with custom max batch size and error handler.
+     */
     public static <T> Backlog<T> forConsumer(ThrowingConsumer<List<T>> consumer, int maxBatchSize, ErrorHandler<List<T>> errorHandler) {
         return new Backlog<>(list -> {
             consumer.accept(list);
@@ -66,14 +104,23 @@ public class Backlog<T> implements Monitored<List<T>> {
         }, maxBatchSize, errorHandler);
     }
 
+    /**
+     * Creates a backlog for an asynchronous consumer with default max batch size and default logging error handler.
+     */
     public static <T> Backlog<T> forAsyncConsumer(ThrowingFunction<List<T>, CompletableFuture<?>> consumer) {
         return forAsyncConsumer(consumer, 1024);
     }
 
+    /**
+     * Creates a backlog for an asynchronous consumer with custom max batch size and default logging error handler.
+     */
     public static <T> Backlog<T> forAsyncConsumer(ThrowingFunction<List<T>, CompletableFuture<?>> consumer, int maxBatchSize) {
         return forAsyncConsumer(consumer, maxBatchSize, (e, batch) -> log.error("Consumer {} failed to handle batch of size {}. Continuing with next batch.", consumer, batch.size(), e));
     }
 
+    /**
+     * Creates a backlog for an asynchronous consumer with custom max batch size and error handler.
+     */
     public static <T> Backlog<T> forAsyncConsumer(ThrowingFunction<List<T>, CompletableFuture<?>> consumer, int maxBatchSize, ErrorHandler<List<T>> errorHandler) {
         return new Backlog<>(consumer, maxBatchSize, errorHandler);
     }
@@ -94,6 +141,12 @@ public class Backlog<T> implements Monitored<List<T>> {
         this.errorHandler = errorHandler;
     }
 
+    /**
+     * Adds values to the backlog.
+     *
+     * @param values one or more values to enqueue
+     * @return a future that completes when the values are processed by the consumer.
+     */
     @SafeVarargs
     public final CompletableFuture<Void> add(T... values) {
         Collections.addAll(queue, values);
@@ -101,6 +154,12 @@ public class Backlog<T> implements Monitored<List<T>> {
                 : awaitFlush(insertPosition.updateAndGet(p -> p + values.length));
     }
 
+    /**
+     * Adds a collection of values to the backlog.
+     *
+     * @param values collection of values to enqueue
+     * @return a future that completes when the values are processed by the consumer.
+     */
     public CompletableFuture<Void> add(Collection<? extends T> values) {
         queue.addAll(values);
         return values.isEmpty() ? CompletableFuture.completedFuture(null)
@@ -169,12 +228,21 @@ public class Backlog<T> implements Monitored<List<T>> {
         futures.clear();
     }
 
+    /**
+     * Adds a monitor to observe flushed batches.
+     *
+     * @param monitor the observer
+     * @return a {@link Registration} that can be used to remove the monitor
+     */
     @Override
     public Registration registerMonitor(Consumer<List<T>> monitor) {
         monitors.add(monitor);
         return () -> monitors.remove(monitor);
     }
 
+    /**
+     * Shuts down the internal executor service cleanly.
+     */
     public void shutDown() {
         try {
             executorService.shutdown();
@@ -189,6 +257,9 @@ public class Backlog<T> implements Monitored<List<T>> {
         }
     }
 
+    /**
+     * A function that consumes a batch of items and returns a future that completes when processing is done.
+     */
     @FunctionalInterface
     public interface BatchConsumer<T> {
         CompletableFuture<Void> accept(List<T> batch) throws Exception;

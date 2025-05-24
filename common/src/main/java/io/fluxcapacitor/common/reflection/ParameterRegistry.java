@@ -29,6 +29,18 @@ import java.util.stream.Collectors;
 
 import static io.fluxcapacitor.common.ObjectUtils.memoize;
 
+/**
+ * Provides access to method parameter names at runtime for classes processed by Flux's {@code WebParameterProcessor}.
+ * <p>
+ * This registry is primarily used for web handler method introspection, especially for resolving parameter names in
+ * {@code @HandleWeb}-annotated methods and similar cases where Java reflection does not expose names reliably.
+ * <p>
+ * At compile time, the annotation processor generates a companion class per source class, which stores method
+ * signatures and their parameter names. This registry loads those generated classes dynamically and offers lookup
+ * methods for retrieving parameter names by method or individual parameter.
+ * <p>
+ * This utility is internal to Flux and not intended for general use.
+ */
 @RequiredArgsConstructor
 public abstract class ParameterRegistry {
 
@@ -41,7 +53,8 @@ public abstract class ParameterRegistry {
 
     @Getter(AccessLevel.PRIVATE)
     private final Map<String, List<String>> methodParameters;
-    private final Function<Executable, List<String>> parameterExtractor = memoize(m -> getMethodParameters().get(signature(m)));
+    private final Function<Executable, List<String>> parameterExtractor =
+            memoize(m -> getMethodParameters().get(signature(m)));
 
     public List<String> getParameterNames(Executable method) {
         List<String> result = parameterExtractor.apply(method);
@@ -72,8 +85,9 @@ public abstract class ParameterRegistry {
     }
 
     public static String signature(Executable method) {
-        return "%s(%s)".formatted(method.getName(), Arrays.stream(method.getParameterTypes()).map(Class::getCanonicalName)
-                .collect(Collectors.joining(",")));
+        return "%s(%s)".formatted(method.getName(),
+                                  Arrays.stream(method.getParameterTypes()).map(Class::getCanonicalName)
+                                          .collect(Collectors.joining(",")));
     }
 
 }

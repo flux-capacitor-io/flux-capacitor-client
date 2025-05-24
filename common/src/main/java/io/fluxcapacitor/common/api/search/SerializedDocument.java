@@ -35,45 +35,91 @@ import java.util.function.Supplier;
 import static io.fluxcapacitor.common.ObjectUtils.memoize;
 
 /**
- * Represents a serialized form of a search document within a Flux Capacitor collection.
+ * Represents a serialized form of a search document stored in a Flux Capacitor collection.
  * <p>
- * A {@code SerializedDocument} can encapsulate either:
+ * A {@code SerializedDocument} contains all metadata and content necessary to index, search, or retrieve a document.
+ * It may encapsulate the document in two interchangeable forms:
  * <ul>
- *     <li>A serialized payload (via {@link Data}) for efficient transmission and storage</li>
- *     <li>A lazily deserialized {@link Document} instance for direct access</li>
+ *     <li>A lazily evaluated {@link Data} blob for serialized storage and transmission</li>
+ *     <li>A lazily evaluated deserialized {@link Document} instance for programmatic access</li>
  * </ul>
- * One of these two must always be present. If only one is provided, the other will be derived lazily.
- * <p>
- * Serialized documents are produced by a {@code DocumentSerializer} and consumed by the {@code DocumentStore}
- * for indexing, searching, and retrieval.
+ * Exactly one of {@code data} or {@code document} must be supplied during construction; the other will be lazily
+ * derived and memoized as needed.
  *
  * @see Document
  */
 @Value
 @Builder(toBuilder = true)
 public class SerializedDocument {
+
+    /**
+     * Unique identifier for this document within the collection.
+     */
     String id;
-    Long timestamp, end;
+
+    /**
+     * Start timestamp (in epoch millis) representing when the document becomes valid.
+     */
+    Long timestamp;
+
+    /**
+     * End timestamp (in epoch millis) representing when the document expires or ends.
+     */
+    Long end;
+
+    /**
+     * Name of the document collection to which this document belongs.
+     */
     String collection;
+
     @Getter(AccessLevel.NONE)
     @EqualsAndHashCode.Exclude
     @ToString.Exclude
     @With
     Supplier<Data<byte[]>> data;
+
     @Getter(AccessLevel.NONE)
     @EqualsAndHashCode.Exclude
     @ToString.Exclude
     Supplier<Document> document;
+
+    /**
+     * Optional short summary of the document, e.g., for display or search previews.
+     */
     String summary;
+
+    /**
+     * Structured facet entries associated with this document, used for filtering or grouping in queries.
+     */
     Set<FacetEntry> facets;
+
+    /**
+     * Structured index entries used for sorting or filtering.
+     */
     Set<IndexedEntry> indexes;
 
+    /**
+     * Constructs a new instance of the SerializedDocument class with the specified parameters.
+     *
+     * @param id          the unique identifier of the document
+     * @param timestamp   the creation timestamp of the document, in milliseconds since epoch
+     * @param end         the end timestamp of the document, in milliseconds since epoch, or null if not applicable
+     * @param collection  the name of the collection to which the document belongs
+     * @param document    the serialized data representing the document
+     * @param summary     a brief summary or description of the document
+     * @param facets      a set of {@link FacetEntry} objects, representing facet fields and values for searchability
+     * @param indexes     a set of {@link IndexedEntry} objects, representing indexed fields for advanced querying
+     */
     @ConstructorProperties({"id", "timestamp", "end", "collection", "document", "summary", "facets", "indexes"})
     public SerializedDocument(String id, Long timestamp, Long end, String collection, Data<byte[]> document,
                               String summary, Set<FacetEntry> facets, Set<IndexedEntry> indexes) {
         this(id, timestamp, end, collection, () -> document, null, summary, facets, indexes);
     }
 
+    /**
+     * Constructs a {@code SerializedDocument} from a deserialized {@link Document} representation.
+     * Automatically extracts and converts its metadata.
+     */
     public SerializedDocument(Document document) {
         this(document.getId(), Optional.ofNullable(document.getTimestamp()).map(Instant::toEpochMilli).orElse(null),
              Optional.ofNullable(document.getEnd()).map(Instant::toEpochMilli).orElse(null),
@@ -109,14 +155,24 @@ public class SerializedDocument {
         this.indexes = indexes;
     }
 
+    /**
+     * Returns the adjusted end timestamp. If the end is null or invalid (i.e., before the start), the timestamp
+     * is returned instead.
+     */
     public Long getEnd() {
         return end == null || timestamp == null || end > timestamp ? end : timestamp;
     }
 
+    /**
+     * Returns the serialized representation of the document.
+     */
     public Data<byte[]> getDocument() {
         return data.get();
     }
 
+    /**
+     * Returns the deserialized document view.
+     */
     public Document deserializeDocument() {
         return document.get();
     }

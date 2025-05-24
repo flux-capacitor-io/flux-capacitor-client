@@ -14,23 +14,56 @@
 
 package io.fluxcapacitor.common.api.tracking;
 
-import io.fluxcapacitor.common.api.QueryResult;
+import io.fluxcapacitor.common.api.RequestResult;
 import lombok.Value;
 
+/**
+ * Result returned in response to a {@link Read} request for a batch of messages.
+ * <p>
+ * Contains the retrieved {@link MessageBatch} and metadata such as request ID and timestamp.
+ */
 @Value
-public class ReadResult implements QueryResult {
+public class ReadResult implements RequestResult {
+
+    /**
+     * The unique request ID corresponding to the {@link Read} request.
+     */
     long requestId;
+
+    /**
+     * The batch of messages retrieved for the consumer/tracker.
+     */
     MessageBatch messageBatch;
+
+    /**
+     * The time (epoch millis) when this result was created.
+     */
     long timestamp = System.currentTimeMillis();
 
+    /**
+     * Produces a metric-friendly summary of the result for publishing to the Flux metrics log.
+     *
+     * @return a {@link Metric} with batch metadata and timestamp
+     */
     @Override
     public Metric toMetric() {
         return new Metric(messageBatch.toMetric(), timestamp);
     }
 
+    /**
+     * Compact representation of the {@link ReadResult} used for monitoring.
+     */
     @Value
     public static class Metric {
+
+        /**
+         * Metrics extracted from the contained {@link MessageBatch}.
+         */
         MessageBatch.Metric messageBatch;
+
+        /**
+         * The timestamp when the metric was created.
+         */
         long timestamp;
     }
 }

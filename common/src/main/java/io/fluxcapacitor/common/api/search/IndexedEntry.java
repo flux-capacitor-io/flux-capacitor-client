@@ -31,10 +31,44 @@ import java.util.Comparator;
 
 import static io.fluxcapacitor.common.SearchUtils.ISO_FULL;
 
+/**
+ * Represents an indexed and sortable entry in a {@link io.fluxcapacitor.common.search.Document} for use in search
+ * operations.
+ * <p>
+ * {@code IndexedEntry} values are primarily used to support efficient sorting and range filtering in the document store
+ * (e.g., numeric or timestamp-based queries). Each entry consists of a name (field path) and a pre-normalized,
+ * lexicographically sortable value as a {@code String}.
+ *
+ * <p>
+ * Values are formatted using a normalization strategy depending on their type:
+ * <ul>
+ *   <li><strong>Numbers</strong>: Encoded into padded, base-10 fixed-width strings for fast and correct range comparisons</li>
+ *   <li><strong>Timestamps</strong>: Formatted using {@link io.fluxcapacitor.common.SearchUtils#ISO_FULL}</li>
+ *   <li><strong>Other values</strong>: Normalized to lowercase using {@link io.fluxcapacitor.common.SearchUtils#normalize(String)}</li>
+ * </ul>
+ *
+ * <h2>Example Use Cases</h2>
+ * <ul>
+ *   <li>Sorting search results by timestamp or numeric score</li>
+ *   <li>Enabling fast {@link io.fluxcapacitor.common.api.search.constraints.BetweenConstraint} evaluation</li>
+ *   <li>Filtering or grouping based on normalized values</li>
+ * </ul>
+ *
+ * @see io.fluxcapacitor.common.search.Document
+ * @see io.fluxcapacitor.common.api.search.constraints.BetweenConstraint
+ */
 @Value
 @AllArgsConstructor
 public class IndexedEntry implements Comparable<IndexedEntry> {
+
+    /**
+     * Number of decimal places for encoding numeric values.
+     */
     private static final int DECIMALS = 6;
+
+    /**
+     * Scaling factor for preserving decimal precision.
+     */
     private static final BigDecimal SCALE = BigDecimal.TEN.pow(DECIMALS);
     private static final BigInteger MIN_ENCODED = BigInteger.ZERO;
     private static final BigInteger MAX_LONG = BigInteger.valueOf(Long.MAX_VALUE);
@@ -44,17 +78,41 @@ public class IndexedEntry implements Comparable<IndexedEntry> {
     private static final BigInteger SCALED_MIN = MIN_LONG.multiply(SCALE.toBigInteger());
     private static final int PAD_WIDTH = MAX_ENCODED.toString().length();
 
+    /**
+     * Comparator used to lexicographically compare entries based on {@link #name} and {@link #value}.
+     */
     public static final Comparator<IndexedEntry> comparator = Comparator.comparing(IndexedEntry::getName)
             .thenComparing(IndexedEntry::getValue, String::compareTo);
 
+    /**
+     * The name or path of the field (e.g., {@code "price"}, {@code "timestamp"}).
+     */
     @With
     String name;
+
+    /**
+     * The encoded and normalized value used for sorting or comparison.
+     */
     String value;
 
+    /**
+     * Constructs a new {@code IndexedEntry} by formatting the given object into a normalized, sortable string.
+     *
+     * @param name  the field name or path
+     * @param value the raw object value (e.g., {@link Number}, {@link Instant}, or {@code String})
+     */
     public IndexedEntry(String name, Object value) {
         this(name, formatSortable(value));
     }
 
+    /**
+     * Formats the given object into a sortable string depending on its type.
+     * <ul>
+     *   <li>For {@link Number}s: Encoded as zero-padded base-10</li>
+     *   <li>For {@link Instant}s: Formatted as ISO-8601 string</li>
+     *   <li>Other objects: Normalized string representation</li>
+     * </ul>
+     */
     public static String formatSortable(Object value) {
         return switch (value) {
             case null -> "";
@@ -64,6 +122,9 @@ public class IndexedEntry implements Comparable<IndexedEntry> {
         };
     }
 
+    /**
+     * Lazily computed {@link Path} corresponding to the entry name.
+     */
     @Getter(lazy = true)
     @JsonIgnore
     Path path = new Path(name);
@@ -73,12 +134,18 @@ public class IndexedEntry implements Comparable<IndexedEntry> {
         return comparator.compare(this, o);
     }
 
+    /**
+     * Converts a {@link Number} to a lexicographically sortable zero-padded string.
+     */
     public static String toSortableString(Number number) {
         BigInteger scaled = toBigDecimal(number).setScale(DECIMALS, RoundingMode.HALF_UP).multiply(SCALE)
                 .toBigInteger().max(MIN_LONG).min(MAX_LONG).subtract(SCALED_MIN);
         return String.format("%0" + PAD_WIDTH + "d", scaled);
     }
 
+    /**
+     * Converts a {@link Number} to {@link BigDecimal}, handling different numeric types explicitly.
+     */
     static BigDecimal toBigDecimal(Number number) {
         return switch (number) {
             case BigDecimal bd -> bd;

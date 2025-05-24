@@ -14,26 +14,94 @@
 
 package io.fluxcapacitor.javaclient.persisting.eventsourcing;
 
-import io.fluxcapacitor.javaclient.common.Message;
+import io.fluxcapacitor.javaclient.modeling.AssertLegal;
 
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import java.util.Collection;
 
 /**
- * Annotation on methods that intercept events before they are applied to an entity (and before any @AssertLegal methods
- * are invoked).
+ * Indicates that a method should intercept and potentially transform an update before it is applied to an entity.
  * <p>
- * Methods may return {@code null} or {@code void} to indicate that the event should not be applied. Alternatively,
- * a {@link java.util.stream.Stream}, {@link java.util.Collection} or {@link java.util.Optional} may be returned to map
- * the event into 0 or more (different) events. Any other value that's returned will be applied instead of the input
- * event.
+ * This annotation is typically used to:
+ * <ul>
+ *     <li>Suppress updates that should be ignored</li>
+ *     <li>Rewrite or correct invalid updates</li>
+ *     <li>Split a single update into multiple updates</li>
+ * </ul>
  * <p>
- * Annotated methods may consist of any number of parameters. If any parameter type is assignable to the loaded
- * aggregate type or any matching child entities it will be injected. Other parameters like event {@link Message} will
- * be automatically injected.
+ * Interceptors are invoked <strong>before</strong> any {@link Apply @Apply} or {@link AssertLegal @AssertLegal}
+ * methods. If multiple interceptors match, they are invoked recursively until the result stabilizes.
+ *
+ * <p>
+ * Interceptors can return:
+ * <ul>
+ *     <li>The original update (no change)</li>
+ *     <li>{@code null} or {@code void} to suppress the update</li>
+ *     <li>An {@link java.util.Optional}, {@link Collection}, or {@link java.util.stream.Stream} to emit zero or more updates</li>
+ *     <li>A different object to replace the update</li>
+ * </ul>
+ *
+ * <p>
+ * Method parameters are automatically injected and may include:
+ * <ul>
+ *     <li>The current entity (if it exists)</li>
+ *     <li>Any parent or ancestor entity in the aggregate</li>
+ *     <li>The update object (if defined on the entity side)</li>
+ *     <li>Context like {@link io.fluxcapacitor.common.api.Metadata}, {@link io.fluxcapacitor.javaclient.common.Message}, or
+ *         {@link io.fluxcapacitor.javaclient.tracking.handling.authentication.User}</li>
+ * </ul>
+ *
+ * <p>
+ * Note that empty entities (where the value is {@code null}) are not injected unless the parameter is annotated with
+ * {@code @Nullable}.
+ *
+ * <h2>Examples</h2>
+ *
+ * <h3>1. Rewrite a duplicate create into an update (inside the update class)</h3>
+ * <pre>{@code
+ * @InterceptApply
+ * UpdateProject resolveDuplicateCreate(Project project) {
+ *     // If this method is invoked, the Project already exists
+ *     return new UpdateProject(projectId, details);
+ * }
+ * }</pre>
+ *
+ * <h3>2. Suppress a no-op update</h3>
+ * <pre>{@code
+ * @InterceptApply
+ * Object ignoreNoChange(Product product) {
+ *     if (product.getDetails().equals(details)) {
+ *         return null; // suppress update
+ *     }
+ *     return this;
+ * }
+ * }</pre>
+ *
+ * <p><strong>Note:</strong> You typically do <em>not</em> need to implement this kind of check manually if the
+ * enclosing {@link io.fluxcapacitor.javaclient.modeling.Aggregate @Aggregate} or specific
+ * {@link Apply @Apply} method is configured with
+ * {@link io.fluxcapacitor.javaclient.modeling.EventPublication#IF_MODIFIED IF_MODIFIED}.
+ * That configuration ensures that no event is stored or published if the entity is not modified.
+ *
+ * <h3>3. Expand a bulk update into individual operations</h3>
+ * <pre>{@code
+ * @InterceptApply
+ * List<CreateTask> explodeBulkCreate() {
+ *     return tasks;
+ * }
+ * }</pre>
+ *
+ * <h3>4. Recursive interception</h3>
+ * <p>
+ * If the result of one {@code @InterceptApply} method is a new update object, Flux will look for matching
+ * interceptors for the new value as well — continuing recursively until no further changes occur.
+ *
+ * @see Apply
+ * @see AssertLegal
  */
 @Documented
 @Retention(RetentionPolicy.RUNTIME)

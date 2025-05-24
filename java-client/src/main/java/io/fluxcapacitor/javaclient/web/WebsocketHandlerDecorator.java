@@ -14,12 +14,12 @@
 
 package io.fluxcapacitor.javaclient.web;
 
+import io.fluxcapacitor.common.TaskScheduler;
 import io.fluxcapacitor.common.handling.Handler;
 import io.fluxcapacitor.common.handling.Handler.DelegatingHandler;
 import io.fluxcapacitor.common.handling.HandlerInvoker;
 import io.fluxcapacitor.common.handling.ParameterResolver;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
-import io.fluxcapacitor.common.tracking.TaskScheduler;
 import io.fluxcapacitor.javaclient.common.HasMessage;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
@@ -48,6 +48,35 @@ import static io.fluxcapacitor.javaclient.web.WebRequest.requireSocketSessionId;
 import static java.util.Optional.empty;
 import static java.util.Optional.ofNullable;
 
+/**
+ * Decorator that adds WebSocket session support to handler classes and enables parameter injection for {@link SocketSession}.
+ * <p>
+ * This decorator supports {@code @HandleWeb}-annotated methods that interact over WebSocket connections, and transparently
+ * manages the lifecycle of {@link SocketSession} instances. It implements both {@link HandlerDecorator} and
+ * {@link ParameterResolver} to provide the following capabilities:
+ *
+ * <ul>
+ *   <li>
+ *     Automatically upgrades incoming {@code WS_HANDSHAKE} requests to WebSocket sessions <b>if</b> the handler
+ *     includes methods annotated with {@link io.fluxcapacitor.javaclient.web.HandleSocketOpen} or similar,
+ *     but does not explicitly handle the handshake itself. This ensures that endpoints which declare websocket handlers
+ *     still result in a successful connection upgrade even without a dedicated handshake method.
+ *   </li>
+ *   <li>
+ *     Delegates {@code WS_MESSAGE} requests to the associated {@link SocketSession} for message dispatch and response.
+ *   </li>
+ *   <li>
+ *     Performs cleanup on {@code WS_CLOSE} requests, closing the session and invoking any associated
+ *     {@link io.fluxcapacitor.javaclient.web.HandleSocketClose} handlers.
+ *   </li>
+ *   <li>
+ *     Resolves {@link SocketSession} method parameters in applicable WebSocket handler methods.
+ *   </li>
+ * </ul>
+ *
+ * This decorator also tracks open WebSocket sessions and ensures that message dispatch is session-aware. It works
+ * transparently with the Flux client’s message routing and tracking infrastructure.
+ */
 @RequiredArgsConstructor
 @Slf4j
 public class WebsocketHandlerDecorator implements HandlerDecorator, ParameterResolver<HasMessage> {
@@ -59,6 +88,16 @@ public class WebsocketHandlerDecorator implements HandlerDecorator, ParameterRes
     private final Map<String, DefaultSocketSession> openSessions = new ConcurrentHashMap<>();
     private final Set<Handler<DeserializingMessage>> websocketHandlers = new CopyOnWriteArraySet<>();
 
+    /**
+     * Resolves a {@link SocketSession} parameter from the current {@link HasMessage} context.
+     * <p>
+     * The session is tracked per session ID and reused for subsequent requests over the same connection.
+     * If no session exists for the current message's session ID, a new one is created.
+     *
+     * @param p the method parameter being resolved
+     * @param methodAnnotation the handler method's annotation (e.g. {@code @HandleWeb})
+     * @return a function that resolves the {@link SocketSession} from the message
+     */
     @Override
     public Function<HasMessage, Object> resolve(Parameter p, Annotation methodAnnotation) {
         return m -> openSessions.computeIfAbsent(requireSocketSessionId(m.getMetadata()), sId -> {
@@ -70,6 +109,17 @@ public class WebsocketHandlerDecorator implements HandlerDecorator, ParameterRes
         });
     }
 
+    /**
+     * Determines whether this resolver supports injecting a {@link SocketSession} for the given method parameter.
+     * <p>
+     * The parameter must be assignable from {@link SocketSession}, and the method must be annotated
+     * with {@link HandleWeb} (or a compatible meta-annotation).
+     *
+     * @param parameter the parameter being resolved
+     * @param methodAnnotation the annotation present on the handler method
+     * @param value the current message
+     * @return {@code true} if the parameter should be resolved by this resolver
+     */
     @Override
     public boolean matches(Parameter parameter, Annotation methodAnnotation, HasMessage value) {
         return SocketSession.class.isAssignableFrom(parameter.getType())
@@ -94,6 +144,16 @@ public class WebsocketHandlerDecorator implements HandlerDecorator, ParameterRes
         });
     }
 
+    /**
+     * Wraps a websocket-compatible handler with websocket-specific functionality.
+     * <p>
+     * If the target handler supports websocket patterns (e.g., {@code WS_HANDSHAKE} or {@code WS_MESSAGE}),
+     * it is wrapped with logic to support automatic handshake negotiation, websocket message dispatch,
+     * and session cleanup on close.
+     *
+     * @param handler the original handler
+     * @return the wrapped handler with websocket support if applicable
+     */
     @Override
     public Handler<DeserializingMessage> wrap(Handler<DeserializingMessage> handler) {
         var socketPatterns = ReflectionUtils.getAllMethods(handler.getTargetClass()).stream()

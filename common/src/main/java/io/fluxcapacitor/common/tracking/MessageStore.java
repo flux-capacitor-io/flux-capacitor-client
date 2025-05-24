@@ -23,22 +23,80 @@ import java.util.concurrent.CompletableFuture;
 
 import static java.util.Arrays.asList;
 
+/**
+ * A low-level store for serialized messages.
+ * <p>
+ * This interface defines an append-only log used to store {@link SerializedMessage} instances, typically representing
+ * commands, events, queries, or other domain messages. It supports batched retrieval and allows integration with
+ * in-memory or persistent message tracking implementations.
+ * <p>
+ * The {@code MessageStore} plays a central role in Flux Capacitor's tracking and message handling infrastructure.
+ * In testing, in-memory implementations of {@code MessageStore} are used to simulate Flux platform behavior.
+ * <p>
+ * This interface is also {@link Monitored}, allowing hooks to observe message publication, and extends
+ * {@link HasMessageStore} so it can expose itself as a reusable component.
+ *
+ * @see SerializedMessage
+ * @see Monitored
+ * @see HasMessageStore
+ */
 public interface MessageStore extends AutoCloseable, Monitored<List<SerializedMessage>>, HasMessageStore {
 
+    /**
+     * Appends the given messages to the store.
+     *
+     * @param messages messages to append
+     * @return a {@link CompletableFuture} that completes when the messages have been successfully appended
+     */
     default CompletableFuture<Void> append(SerializedMessage... messages) {
         return append(asList(messages));
     }
 
+    /**
+     * Appends a list of messages to the store.
+     *
+     * @param messages messages to append
+     * @return a {@link CompletableFuture} that completes when the messages have been successfully appended
+     */
     CompletableFuture<Void> append(List<SerializedMessage> messages);
 
-    default List<SerializedMessage> getBatch(Long minIndex, int maxSize) {
-        return getBatch(minIndex, maxSize, false);
+    /**
+     * Retrieves a batch of messages starting from the given {@code lastIndex} (exclusive).
+     *
+     * @param lastIndex minimum message index to start from (exclusive)
+     * @param maxSize  maximum number of messages to retrieve
+     * @return a list of {@link SerializedMessage} instances
+     */
+    default List<SerializedMessage> getBatch(Long lastIndex, int maxSize) {
+        return getBatch(lastIndex, maxSize, false);
     }
 
+    /**
+     * Retrieves a batch of messages starting from the given {@code minIndex}.
+     *
+     * @param minIndex  minimum message index to start from
+     * @param maxSize   maximum number of messages to retrieve
+     * @param inclusive whether to include the message at {@code minIndex}
+     * @return a list of {@link SerializedMessage} instances
+     */
     List<SerializedMessage> getBatch(Long minIndex, int maxSize, boolean inclusive);
 
+    /**
+     * Sets the retention period for messages. Messages older than this duration may be removed depending on
+     * the implementation.
+     *
+     * @param retentionPeriod duration to retain messages
+     */
     void setRetentionTime(Duration retentionPeriod);
 
+    /**
+     * Attempts to unwrap the current instance to a concrete implementation or extension of {@code MessageStore}.
+     *
+     * @param type the desired type to unwrap to
+     * @param <T>  the target type
+     * @return the unwrapped instance
+     * @throws UnsupportedOperationException if the current instance cannot be unwrapped to the given type
+     */
     @SuppressWarnings("unchecked")
     default <T extends MessageStore> T unwrap(Class<T> type) {
         if (type.isAssignableFrom(this.getClass())) {
@@ -47,11 +105,17 @@ public interface MessageStore extends AutoCloseable, Monitored<List<SerializedMe
         throw new UnsupportedOperationException();
     }
 
+    /**
+     * Default no-op close method. Override if resources need cleanup.
+     */
     @Override
     default void close() {
-        //no op
+        // no-op
     }
 
+    /**
+     * Returns the current instance as the {@link MessageStore}.
+     */
     @Override
     default MessageStore getMessageStore() {
         return this;

@@ -39,7 +39,7 @@ import java.lang.annotation.Target;
  * by {@link #value()} of the payload (metadata or payload property) will be used to compute the routing key before
  * handling. This effectively overrides any routing key computed upon publication of the message. <b>Important note:</b>
  * if the annotation is on a handler method, make sure the consumer configuration has <code>ignoreSegment =
- * true</code>; otherwise this annotation will be ignored.
+ * true</code>; otherwise messages may be missed by the consumer.
  */
 @Target({ElementType.METHOD, ElementType.FIELD, ElementType.TYPE})
 @Retention(RetentionPolicy.RUNTIME)

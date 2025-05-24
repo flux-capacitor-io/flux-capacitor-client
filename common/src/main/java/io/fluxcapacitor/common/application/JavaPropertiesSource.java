@@ -18,15 +18,37 @@ import lombok.SneakyThrows;
 
 import java.util.Properties;
 
+/**
+ * Base class for {@link PropertySource} implementations backed by a {@link java.util.Properties} object.
+ * <p>
+ * This class provides a thin wrapper over a {@code Properties} instance and offers a consistent
+ * way to retrieve configuration values using the {@link #get(String)} method.
+ *
+ * <p>It can be extended by concrete sources such as {@link SystemPropertiesSource} or custom property file loaders.
+ *
+ * @see java.util.Properties
+ * @see PropertySource
+ */
 public abstract class JavaPropertiesSource implements PropertySource {
 
     private final Properties properties;
 
+    /**
+     * Creates a new property source backed by the given {@link Properties} instance.
+     *
+     * @param properties the {@code Properties} instance to use for lookups
+     */
     @SneakyThrows
     public JavaPropertiesSource(Properties properties) {
         this.properties = properties;
     }
 
+    /**
+     * Retrieves the value for the given property name.
+     *
+     * @param name the property key
+     * @return the property value, or {@code null} if not present
+     */
     @Override
     public String get(String name) {
         return properties.getProperty(name);

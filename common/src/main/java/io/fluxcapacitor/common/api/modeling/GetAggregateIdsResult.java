@@ -14,14 +14,32 @@
 
 package io.fluxcapacitor.common.api.modeling;
 
-import io.fluxcapacitor.common.api.QueryResult;
+import io.fluxcapacitor.common.api.RequestResult;
 import lombok.Value;
 
 import java.util.Map;
 
+/**
+ * Response to a {@link GetAggregateIds} request, returning a mapping of aggregate IDs to types.
+ * <p>
+ * The result indicates all aggregates that are associated with the provided entity ID.
+ * This is particularly useful for routing messages or updates when only an entity reference is known.
+ */
 @Value
-public class GetAggregateIdsResult implements QueryResult {
+public class GetAggregateIdsResult implements RequestResult {
+    /**
+     * Unique identifier linking this result to its originating request.
+     */
     long requestId;
+
+    /**
+     * A map where the key is the aggregate ID and the value is the corresponding aggregate type
+     * that contains or is associated with the given entity ID.
+     */
     Map<String, String> aggregateIds;
+
+    /**
+     * The timestamp at which this result was generated.
+     */
     long timestamp = System.currentTimeMillis();
 }

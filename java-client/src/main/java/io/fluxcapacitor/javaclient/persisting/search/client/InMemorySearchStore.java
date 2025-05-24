@@ -66,6 +66,12 @@ import static java.util.stream.Collectors.mapping;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
 
+/**
+ * In-memory implementation of the {@link SearchClient}, intended for local testing and development.
+ * <p>
+ * Stores all indexed documents in memory, with support for basic search, statistics, and deletion logic.
+ * Ideal for use in test scenarios where a real Flux platform connection is not available or needed.
+ */
 @AllArgsConstructor
 public class InMemorySearchStore implements SearchClient {
     protected static final Function<SerializedDocument, String> identifier =

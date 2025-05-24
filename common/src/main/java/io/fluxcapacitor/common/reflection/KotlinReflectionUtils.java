@@ -25,6 +25,17 @@ import java.lang.reflect.Executable;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 
+/**
+ * Provides utilities for bridging Java reflection with Kotlin reflection.
+ * <p>
+ * This class enables Flux internals to interact with Kotlin symbols at runtime, such as retrieving
+ * {@link kotlin.reflect.KFunction} or {@link kotlin.reflect.KParameter} instances from Java {@link Method}s,
+ * {@link Constructor}s, and {@link Parameter}s.
+ * <p>
+ * It is used primarily to support nullability introspection and Kotlin-specific constructs in reflection-based logic.
+ *
+ * <p><b>Note:</b> This utility is internal and should not be considered part of the public API.
+ */
 public class KotlinReflectionUtils {
 
     public static KParameter asKotlinParameter(Parameter parameter) {

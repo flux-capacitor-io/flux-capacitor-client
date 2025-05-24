@@ -21,9 +21,31 @@ import lombok.Value;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+/**
+ * Represents a group key for aggregating documents in {@link DocumentStats}.
+ * <p>
+ * A {@code Group} consists of one or more path-value pairs used to categorize documents
+ * during aggregation. Each group corresponds to a unique combination of values across
+ * the specified {@code groupBy} paths.
+ * <p>
+ * Groups are typically created during the in-memory computation of statistics in a
+ * {@link io.fluxcapacitor.common.api.search.GetDocumentStatsResult}, and identify which
+ * subset of documents a given {@link DocumentStats} applies to.
+ *
+ * <p><strong>Example:</strong><br>
+ * If grouping on {@code "status"} and {@code "region"}, one {@code Group} might contain:<br>
+ * {@code {"status": "active", "region": "EU"}}
+ */
 @Value
 public class Group {
 
+    /**
+     * Creates a {@code Group} from an even-length list of alternating keys and values.
+     *
+     * @param pathsAndValues An array of alternating path names and their corresponding values
+     * @return A new {@code Group} instance
+     * @throws IllegalArgumentException if the number of elements is odd
+     */
     public static Group of(String... pathsAndValues) {
         if (pathsAndValues.length % 2 != 0) {
             throw new IllegalArgumentException("Number of values should be even");
@@ -35,6 +57,9 @@ public class Group {
         return new Group(map);
     }
 
+    /**
+     * The mapping of path names to their grouped values.
+     */
     @JsonValue
     Map<String, String> values;
 
@@ -43,6 +68,12 @@ public class Group {
         this.values = values;
     }
 
+    /**
+     * Returns the value associated with the given path in this group.
+     *
+     * @param path the path name
+     * @return the grouped value, or {@code null} if not present
+     */
     public String get(String path) {
         return values.get(path);
     }

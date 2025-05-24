@@ -14,8 +14,6 @@
 
 package io.fluxcapacitor.javaclient.modeling;
 
-import io.fluxcapacitor.javaclient.tracking.handling.Stateful;
-
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Inherited;
@@ -24,10 +22,18 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Marks a property (field or getter) as the holder of the identifier of an entity.
+ * Marks a property (field or getter) as the unique identifier of an entity within an aggregate structure.
+ * <p>
+ * The presence of this annotation enables automatic routing of updates to the correct entity instance inside an
+ * aggregate, based on identifier matching.
+ * <p>
+ * This is particularly important in aggregates that consist of nested entities, e.g.: a {@code Project}
+ * containing a list of {@code Task} entities. The framework uses the {@code @EntityId}-annotated property to match
+ * update messages with their corresponding entity.
+ * <p>
+ * You can annotate either a field or its getter method.
  *
- * @see Aggregate
- * @see Stateful
+ * @see Aggregate for how to define aggregates and their structure.
  */
 @Documented
 @Target({ElementType.FIELD, ElementType.METHOD})

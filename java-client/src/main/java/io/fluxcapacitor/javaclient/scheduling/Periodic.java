@@ -27,13 +27,68 @@ import java.util.concurrent.TimeUnit;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 /**
- * Annotation placed on methods annotated with {@link HandleSchedule} or on the payload class of a Schedule. If this
- * annotation is present the same payload will be rescheduled using the configured delay each time after handling.
+ * Declares a message (typically a {@link Schedule}) or its handler method as part of a periodic schedule.
  * <p>
- * By default, the periodic schedule will also be automatically started if it isn't running yet.
+ * Periodic schedules are automatically rescheduled after each invocation using either a fixed delay or a cron
+ * expression. This enables use cases like polling APIs, triggering maintenance routines, or recurring status checks.
  * <p>
- * Note, that if exception {@link CancelPeriodic} is thrown by the handler for a schedule, the periodic schedule will be
- * cancelled.
+ * This annotation can be placed on either:
+ * <ul>
+ *     <li>The payload class of a {@link Schedule}, marking it as inherently periodic</li>
+ *     <li>A handler method annotated with {@link HandleSchedule}, overriding periodic behavior</li>
+ * </ul>
+ *
+ * <h2>Rescheduling Behavior</h2>
+ * <ul>
+ *     <li>If {@link #cron()} is specified, it defines when the schedule should run (overrides {@link #delay()})</li>
+ *     <li>If {@link #delay()} is used and {@code cron} is blank, the schedule runs with fixed delays</li>
+ *     <li>The {@link #initialDelay()} (if ≥ 0) applies once when the schedule is first started (only if {@link #autoStart()} is {@code true})</li>
+ * </ul>
+ *
+ * <h2>Automatic Start</h2>
+ * By default, the schedule is automatically started when the message is handled or the system starts. Set {@link #autoStart()} to {@code false} to disable this behavior.
+ *
+ * <h2>Error Handling</h2>
+ * If the schedule handler throws an exception:
+ * <ul>
+ *     <li>If {@link #continueOnError()} is {@code true} (default), the schedule continues</li>
+ *     <li>If {@link #delayAfterError()} is set (≥ 0), it overrides the normal delay after an error</li>
+ *     <li>If {@code continueOnError} is {@code false}, the schedule is stopped after an error</li>
+ * </ul>
+ *
+ * <h2>Stopping a Periodic Schedule</h2>
+ * To stop a periodic schedule explicitly from a handler, throw {@link io.fluxcapacitor.javaclient.scheduling.CancelPeriodic}.
+ * Returning {@code null} from the handler method does <strong>not</strong> stop the schedule — it simply continues with the default rescheduling.
+ *
+ * <h2>Interaction with {@link HandleSchedule}</h2>
+ * When used with a {@code @HandleSchedule} method, the return value influences scheduling:
+ * <ul>
+ *     <li><b>{@code null} or {@code void}</b>: continue scheduling using the {@link Periodic} settings.</li>
+ *     <li><b>{@link java.time.Duration} or {@link java.time.Instant}</b>: overrides the next schedule delay or time.</li>
+ *     <li><b>A new payload</b>: schedules the returned object as the next scheduled message. If this new payload is annotated
+ *         with {@link Periodic}, the periodic settings on that payload take precedence.</li>
+ *     <li>Returning a new {@link io.fluxcapacitor.javaclient.scheduling.Schedule} reschedules that message using the specified payload and deadline.</li>
+ * </ul>
+ *
+ * <h3>Example: Schedule Every 5 Minutes</h3>
+ * <pre>{@code
+ * @Value
+ * @Periodic(delay = 5, timeUnit = TimeUnit.MINUTES)
+ * public class RefreshData { ... }
+ * }</pre>
+ *
+ * <h3>Example: Weekly Schedule via Cron</h3>
+ * <pre>{@code
+ * @Periodic(cron = "0 0 * * MON", timeZone = "Europe/Amsterdam")
+ * @HandleSchedule
+ * void weeklySync(Schedule schedule) {
+ *     ...
+ * }
+ * }</pre>
+ *
+ * @see HandleSchedule
+ * @see Schedule
+ * @see io.fluxcapacitor.javaclient.scheduling.CancelPeriodic
  */
 @Documented
 @Target({ElementType.TYPE, ElementType.METHOD})

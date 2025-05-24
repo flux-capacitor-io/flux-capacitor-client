@@ -19,13 +19,33 @@ import io.fluxcapacitor.common.api.Command;
 import lombok.EqualsAndHashCode;
 import lombok.Value;
 
+/**
+ * Command to delete a single document from the search store by its collection and ID.
+ * <p>
+ * This provides a lightweight alternative to a query-based deletion when the document ID is known.
+ */
 @EqualsAndHashCode(callSuper = true)
 @Value
 public class DeleteDocumentById extends Command {
+
+    /**
+     * The collection that contains the document.
+     */
     String collection;
+
+    /**
+     * The unique ID of the document to delete.
+     */
     String id;
+
+    /**
+     * The guarantee that determines whether the deletion must be sent, acknowledged, or stored.
+     */
     Guarantee guarantee;
 
+    /**
+     * Uses the document ID as the routing key, ensuring consistency during deletion.
+     */
     @Override
     public String routingKey() {
         return id;

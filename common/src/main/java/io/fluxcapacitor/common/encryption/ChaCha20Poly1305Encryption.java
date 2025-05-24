@@ -29,8 +29,38 @@ import java.security.SecureRandom;
 import java.util.Base64;
 
 /**
- * Adopted from <a href="https://github.com/java-crypto/cross_platform_crypto">
- *     https://github.com/java-crypto/cross_platform_crypto</a>
+ * Implementation of {@link Encryption} using the ChaCha20-Poly1305 authenticated encryption algorithm.
+ * <p>
+ * This class provides secure, fast, and cross-platform compatible encryption and decryption for {@link String}
+ * values using the ChaCha20-Poly1305 AEAD cipher. The ChaCha20 stream cipher paired with the Poly1305 MAC
+ * ensures both confidentiality and integrity.
+ *
+ * <h2>Key Characteristics:</h2>
+ * <ul>
+ *   <li>Uses a 256-bit symmetric key.</li>
+ *   <li>Each encryption operation uses a unique 96-bit (12-byte) random nonce.</li>
+ *   <li>The output is Base64-encoded and formatted as: {@code nonce:ciphertext:tag}</li>
+ *   <li>Compatible with other ChaCha20-Poly1305 implementations across platforms.</li>
+ *   <li>Tag length is fixed at 16 bytes.</li>
+ * </ul>
+ *
+ * <h2>Usage:</h2>
+ * Instances can be constructed directly or via {@link DefaultEncryption}, which wraps this implementation
+ * and adds encryption metadata (e.g., algorithm prefix).
+ *
+ * <h2>Notes:</h2>
+ * <ul>
+ *   <li>This implementation is stateless; thread-safe for concurrent use.</li>
+ *   <li>{@link #isEncrypted(String)} is unsupported and always throws {@link UnsupportedOperationException}.
+ *       Use {@link DefaultEncryption} instead for format-aware encryption detection.</li>
+ * </ul>
+ *
+ * <p>
+ * This implementation is adapted from:
+ * <a href="https://github.com/java-crypto/cross_platform_crypto">https://github.com/java-crypto/cross_platform_crypto</a>.
+ *
+ * @see DefaultEncryption
+ * @see Encryption
  */
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class ChaCha20Poly1305Encryption implements Encryption {

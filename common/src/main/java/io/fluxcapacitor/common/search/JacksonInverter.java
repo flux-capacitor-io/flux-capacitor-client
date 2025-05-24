@@ -83,6 +83,10 @@ import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 
+/**
+ * Implementation of {@link Inverter} that uses Jackson to invert an Object into a {@link SerializedDocument} and back
+ * into a {@link JsonNode}.
+ */
 @Slf4j
 @Getter(AccessLevel.PROTECTED)
 @AllArgsConstructor
@@ -162,7 +166,8 @@ public class JacksonInverter implements Inverter<JsonNode> {
     }
 
     protected Stream<FacetEntry> asFacets(Metadata metadata) {
-        return metadata.entrySet().stream().map(e -> new FacetEntry("$metadata/" + e.getKey(), e.getValue()));
+        return metadata == null ? Stream.empty()
+                : metadata.entrySet().stream().map(e -> new FacetEntry("$metadata/" + e.getKey(), e.getValue()));
     }
 
     protected Stream<FacetEntry> getFacets(Object value) {

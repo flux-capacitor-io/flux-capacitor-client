@@ -21,7 +21,6 @@ import io.fluxcapacitor.common.api.keyvalue.GetValueResult;
 import io.fluxcapacitor.common.api.keyvalue.KeyValuePair;
 import io.fluxcapacitor.common.api.keyvalue.StoreValueIfAbsent;
 import io.fluxcapacitor.common.api.keyvalue.StoreValues;
-import io.fluxcapacitor.common.api.keyvalue.StoreValuesAndWait;
 import io.fluxcapacitor.javaclient.persisting.keyvalue.client.KeyValueClient;
 import lombok.AllArgsConstructor;
 
@@ -37,12 +36,6 @@ public class KeyValueEndPoint extends WebsocketEndpoint {
         for (KeyValuePair value : storeValues.getValues()) {
             keyValueStore.putValue(value.getKey(), value.getValue(), Guarantee.NONE);
         }
-    }
-
-    @Handle
-    CompletableFuture<Void> handle(StoreValuesAndWait storeValues) {
-        return CompletableFuture.allOf(storeValues.getValues().stream().map(v -> keyValueStore.putValue(
-                v.getKey(), v.getValue(), storeValues.getGuarantee())).toArray(CompletableFuture[]::new));
     }
 
     @Handle

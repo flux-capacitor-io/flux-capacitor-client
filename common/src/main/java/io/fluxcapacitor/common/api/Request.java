@@ -14,15 +14,36 @@
 
 package io.fluxcapacitor.common.api;
 
+import io.fluxcapacitor.common.api.search.GetDocument;
+import io.fluxcapacitor.common.api.search.GetFacetStats;
+import io.fluxcapacitor.common.api.search.SearchDocuments;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 
 import java.util.concurrent.atomic.AtomicLong;
 
+/**
+ * Base class for requests sent to the Flux platform.
+ * <p>
+ * Each {@code Request} is automatically assigned a unique {@link #requestId} to correlate it with its corresponding
+ * {@link RequestResult}. This identifier is useful for tracing, debugging, and performance monitoring.
+ * <p>
+ * All requests implement {@link JsonType}, allowing them to optionally define a custom {@link JsonType#toMetric()}
+ * representation for metrics logging.
+ * <p>
+ * Subclasses of this abstract class typically include payloads such as {@link SearchDocuments},
+ * {@link GetDocument}, {@link GetFacetStats}, etc.
+ *
+ * @see JsonType
+ * @see RequestResult
+ */
 @Getter
 @EqualsAndHashCode
 public abstract class Request implements JsonType {
     private static final AtomicLong nextRequestId = new AtomicLong();
 
+    /**
+     * A unique identifier automatically assigned to this request. Used to correlate with the response.
+     */
     private final long requestId = nextRequestId.getAndIncrement();
 }

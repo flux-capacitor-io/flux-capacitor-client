@@ -59,15 +59,24 @@ import static io.fluxcapacitor.javaclient.web.WebUtils.asHeaderMap;
  * {@code WebRequest} extends {@link Message} and includes additional metadata such as:
  * </p>
  * <ul>
- *   <li>{@code path} – the requested URI</li>
+ *   <li>{@code path} – the requested URI path</li>
  *   <li>{@code method} – HTTP or WebSocket method (e.g. GET, WS_OPEN)</li>
- *   <li>{@code headers} – request headers</li>
+ *   <li>{@code headers} – structured request headers</li>
  *   <li>{@code cookies} – parsed from the Cookie header</li>
  * </ul>
  *
  * <p>
- * It also provides a fluent {@code Builder} API to construct requests programmatically.
+ * It also provides a fluent {@link Builder} API to construct requests programmatically.
  * </p>
+ *
+ * <h2>Example Usage</h2>
+ * <pre>{@code
+ * WebRequest request = WebRequest.builder()
+ *     .method("GET")
+ *     .url("/projects")
+ *     .payload(new ListProjectsQuery())
+ *     .build();
+ * }</pre>
  *
  * @see WebResponse
  * @see HandleWeb
@@ -76,21 +85,46 @@ import static io.fluxcapacitor.javaclient.web.WebUtils.asHeaderMap;
 @EqualsAndHashCode(callSuper = true)
 @ToString(exclude = {"headers", "cookies"})
 public class WebRequest extends Message {
+    /**
+     * Creates and returns a new {@link Builder} instance for constructing a {@link WebRequest}.
+     *
+     * @return a new {@link Builder} instance
+     */
     public static Builder builder() {
         return new Builder();
     }
 
+    /**
+     * Creates a new {@link Builder} instance initialized with the provided metadata.
+     *
+     * @param metadata the metadata to initialize the builder with
+     * @return a new {@link Builder} instance pre-populated with data derived from the provided metadata
+     */
     public static Builder builderFromMetadata(Metadata metadata) {
         return new Builder(metadata);
     }
 
+    /**
+     * The request path (e.g. {@code "/api/users"}).
+     */
     @NonNull
     String path;
+
+    /**
+     * The HTTP or WebSocket method (e.g. {@code "GET"}, {@code "POST"}, {@code "WS_OPEN"}).
+     */
     @NonNull
     String method;
+
+    /**
+     * The HTTP headers as a case-sensitive map. Header values are lists to support repeated headers.
+     */
     @NonNull
     Map<String, List<String>> headers;
 
+    /**
+     * Lazily parsed list of HTTP cookies, derived from the "Cookie" header.
+     */
     @Getter(lazy = true)
     @JsonIgnore
     List<HttpCookie> cookies = Optional.ofNullable(getHeader("Cookie"))
@@ -112,10 +146,18 @@ public class WebRequest extends Message {
         this.headers = getHeaders(metadata);
     }
 
+    /**
+     * Constructs a new WebRequest instance using the provided Message.
+     *
+     * @param m the Message instance containing the payload, metadata, message ID, and timestamp
+     */
     public WebRequest(Message m) {
         this(m.getPayload(), m.getMetadata(), m.getMessageId(), m.getTimestamp());
     }
 
+    /**
+     * Serializes the request using the content type if applicable.
+     */
     @Override
     public SerializedMessage serialize(Serializer serializer) {
         return Optional.ofNullable(getContentType()).map(
@@ -172,18 +214,39 @@ public class WebRequest extends Message {
         return new WebRequest(super.withTimestamp(timestamp));
     }
 
+    /**
+     * Returns a single header value, or {@code null} if not present.
+     *
+     * @param name the header name
+     * @return the first value or {@code null}
+     */
     public String getHeader(String name) {
         return getHeaders(name).stream().findFirst().orElse(null);
     }
 
+    /**
+     * Returns all values for the specified header.
+     *
+     * @param name the header name
+     * @return list of values, possibly empty
+     */
     public List<String> getHeaders(String name) {
         return headers.getOrDefault(name, Collections.emptyList());
     }
 
+    /**
+     * Returns the content type of the request (based on {@code Content-Type} header).
+     */
     public String getContentType() {
         return getHeader("Content-Type");
     }
 
+    /**
+     * Deserializes the payload into a given type, using JSON if content type is {@code application/json}.
+     *
+     * @param type the target type
+     * @return deserialized payload
+     */
     @Override
     public <R> R getPayloadAs(Type type) {
         return JSON_FORMAT.equalsIgnoreCase(getContentType())
@@ -191,10 +254,19 @@ public class WebRequest extends Message {
                 : super.getPayloadAs(type);
     }
 
+    /**
+     * Finds a cookie by name.
+     *
+     * @param name the cookie name
+     * @return optional cookie
+     */
     public Optional<HttpCookie> getCookie(String name) {
         return getCookies().stream().filter(c -> Objects.equals(name, c.getName())).findFirst();
     }
 
+    /**
+     * Creates a mutable builder for this request.
+     */
     public WebRequest.Builder toBuilder() {
         return new Builder(this);
     }
@@ -235,6 +307,9 @@ public class WebRequest extends Message {
                 "`sessionId` is missing in the metadata of the WebRequest"));
     }
 
+    /**
+     * Fluent builder for {@link WebRequest}. Use {@link #builder()} to start building.
+     */
     @Data
     @NoArgsConstructor
     @Accessors(fluent = true, chain = true)

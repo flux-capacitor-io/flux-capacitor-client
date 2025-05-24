@@ -14,7 +14,25 @@
 
 package io.fluxcapacitor.javaclient.common.exception;
 
+import io.fluxcapacitor.common.api.ErrorResult;
+
+import java.util.concurrent.CompletableFuture;
+
+/**
+ * Exception thrown when a {@link io.fluxcapacitor.common.api.Request} fails and an {@link ErrorResult} is returned by
+ * the Flux platform.
+ * <p>
+ * This exception is used to complete the {@link CompletableFuture} of a failed request with the message from the
+ * associated {@code ErrorResult}.
+ * </p>
+ */
 public class ServiceException extends RuntimeException {
+
+    /**
+     * Constructs a new exception with the specified error message.
+     *
+     * @param message the message describing the failure
+     */
     public ServiceException(String message) {
         super(message);
     }

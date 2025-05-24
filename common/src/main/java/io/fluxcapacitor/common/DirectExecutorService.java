@@ -27,6 +27,26 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+/**
+ * A simple implementation of {@link AbstractExecutorService} that executes tasks directly in the calling thread without
+ * using any worker threads.
+ * <p>
+ * This class facilitates immediate execution of tasks provided to it. It does not queue tasks or execute them
+ * asynchronously. Instead, tasks are executed sequentially on the calling thread. This behavior makes it particularly
+ * useful in certain testing scenarios or for lightweight use cases where threading control is not necessary.
+ * <p>
+ * This class maintains an internal state to track whether the executor has been shut down, whether it is terminated,
+ * and which tasks are currently running. Once shut down, no new tasks can be executed.
+ * <p>
+ * Features: - Tasks are executed directly in the calling thread, without any delay or queueing. - Keeps track of
+ * running tasks and prevents task execution after the executor has been shut down. - Supports shutting down and forced
+ * shutdown via {@link #shutdown()} and {@link #shutdownNow()}. - Provides termination and shutdown status via
+ * {@link #isShutdown()} and {@link #isTerminated()}. - Allows the caller to wait for termination using
+ * {@link #awaitTermination(long, TimeUnit)}.
+ * <p>
+ * Thread Safety: Internally uses thread-safe mechanisms such as {@link AtomicBoolean} and {@link CopyOnWriteArrayList}
+ * to handle state tracking and concurrent invocations.
+ */
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class DirectExecutorService extends AbstractExecutorService {
     public static ExecutorService newInstance() {

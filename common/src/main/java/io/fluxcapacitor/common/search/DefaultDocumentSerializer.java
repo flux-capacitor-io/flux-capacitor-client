@@ -17,6 +17,7 @@ package io.fluxcapacitor.common.search;
 import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.search.Document.Entry;
 import io.fluxcapacitor.common.search.Document.Path;
+import io.fluxcapacitor.common.serialization.compression.CompressionUtils;
 import lombok.SneakyThrows;
 import org.msgpack.core.MessageBufferPacker;
 import org.msgpack.core.MessagePack;
@@ -33,11 +34,42 @@ import java.util.Map;
 import static io.fluxcapacitor.common.serialization.compression.CompressionUtils.compress;
 import static io.fluxcapacitor.common.serialization.compression.CompressionUtils.decompress;
 
+/**
+ * Default serializer for {@link Document} instances in the Flux platform.
+ * <p>
+ * This serializer uses the <a href="https://msgpack.org/">MessagePack</a> binary format to efficiently encode and decode documents
+ * for storage or transport. It supports compression and is version-aware, allowing for future extension of the format.
+ *
+ * <h2>Serialization Format</h2>
+ * The current (version 0) serialization includes:
+ * <ul>
+ *   <li>{@code int} format version (currently {@code 0})</li>
+ *   <li>{@code String} document ID</li>
+ *   <li>{@code Instant} timestamp (as epoch millis)</li>
+ *   <li>{@code Instant} end timestamp (as epoch millis)</li>
+ *   <li>{@code String} collection name</li>
+ *   <li>{@code List<Entry>} entries and their associated {@code List<Path>}</li>
+ * </ul>
+ *
+ * <p>
+ * Compression is applied to the final byte output using {@link CompressionUtils} and marked with the format {@code document}
+ * via {@link Data#DOCUMENT_FORMAT}.
+ *
+ * @see Document
+ * @see Data
+ */
 public enum DefaultDocumentSerializer {
     INSTANCE;
 
     private static final int currentVersion = 0;
 
+    /**
+     * Serializes the given {@link Document} into a compressed binary {@link Data} container.
+     *
+     * @param document the document to serialize
+     * @return the serialized form of the document
+     * @throws IllegalArgumentException if the document cannot be serialized
+     */
     public Data<byte[]> serialize(Document document) {
         try (MessageBufferPacker packer = MessagePack.newDefaultBufferPacker()) {
             Map<Entry, List<Path>> map = document.getEntries();
@@ -60,6 +92,14 @@ public enum DefaultDocumentSerializer {
         }
     }
 
+    /**
+     * Deserializes a {@link Data} blob containing a compressed, binary {@link Document}.
+     * The data must be in the correct format and contain a supported version.
+     *
+     * @param document the data to deserialize
+     * @return the reconstructed {@link Document}
+     * @throws IllegalArgumentException if the data cannot be parsed or is invalid
+     */
     public Document deserialize(Data<byte[]> document) {
         if (!canDeserialize(document)) {
             throw new IllegalArgumentException("Unsupported data format: " + document.getFormat());
@@ -91,10 +131,19 @@ public enum DefaultDocumentSerializer {
         }
     }
 
+    /**
+     * Checks whether the given {@link Data} object is in a format that this serializer can deserialize.
+     *
+     * @param data the data blob
+     * @return {@code true} if the format is {@code document}, {@code false} otherwise
+     */
     public boolean canDeserialize(Data<byte[]> data) {
         return Data.DOCUMENT_FORMAT.equals(data.getFormat());
     }
 
+    /**
+     * Writes a timestamp into the MessagePack stream, using {@code packLong(epochMillis)} or {@code packNil()} if null.
+     */
     @SneakyThrows
     private static void packTimestamp(Instant value, MessagePacker packer) {
         if (value == null) {
@@ -104,6 +153,12 @@ public enum DefaultDocumentSerializer {
         }
     }
 
+    /**
+     * Reads an optional timestamp from the MessagePack stream.
+     *
+     * @param unpacker the unpacker instance
+     * @return the unpacked {@link Instant}, or {@code null} if the field is missing
+     */
     @SneakyThrows
     private static Instant unpackTimestamp(MessageUnpacker unpacker) {
         if (unpacker.getNextFormat().getValueType().isNilType()) {
@@ -114,6 +169,12 @@ public enum DefaultDocumentSerializer {
         }
     }
 
+    /**
+     * Reads an optional long value from the MessagePack stream.
+     *
+     * @param unpacker the unpacker instance
+     * @return the unpacked long value, or {@code null} if the field is missing
+     */
     @SneakyThrows
     private static Long unpackLong(MessageUnpacker unpacker) {
         if (unpacker.getNextFormat().getValueType().isNilType()) {
@@ -123,5 +184,4 @@ public enum DefaultDocumentSerializer {
             return unpacker.unpackLong();
         }
     }
-
 }

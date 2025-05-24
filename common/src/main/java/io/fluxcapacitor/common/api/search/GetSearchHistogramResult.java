@@ -14,12 +14,33 @@
 
 package io.fluxcapacitor.common.api.search;
 
-import io.fluxcapacitor.common.api.QueryResult;
+import io.fluxcapacitor.common.api.RequestResult;
 import lombok.Value;
 
+/**
+ * Result of a {@link io.fluxcapacitor.common.api.search.GetSearchHistogram} request.
+ * <p>
+ * This result contains a {@link SearchHistogram} that provides time-distribution statistics
+ * over matching documents, typically for visualization purposes like timeline charts or activity heatmaps.
+ *
+ * @see io.fluxcapacitor.common.api.search.GetSearchHistogram
+ * @see SearchHistogram
+ */
 @Value
-public class GetSearchHistogramResult implements QueryResult {
+public class GetSearchHistogramResult implements RequestResult {
+
+    /**
+     * The unique identifier of the original histogram request.
+     */
     long requestId;
+
+    /**
+     * The computed histogram based on the matched document timestamps.
+     */
     SearchHistogram histogram;
+
+    /**
+     * The timestamp (epoch millis) when this result was created, used for logging and metrics.
+     */
     long timestamp = System.currentTimeMillis();
 }

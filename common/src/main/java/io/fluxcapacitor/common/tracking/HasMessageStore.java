@@ -14,6 +14,18 @@
 
 package io.fluxcapacitor.common.tracking;
 
+/**
+ * Interface for components that expose a {@link MessageStore}.
+ * <p>
+ * This is used to retrieve the underlying message store from wrapping or higher-level abstractions.
+ * Useful for test utilities or diagnostics that need direct access to message persistence.
+ *
+ * @see MessageStore
+ */
 public interface HasMessageStore {
+
+    /**
+     * Returns the associated {@link MessageStore} instance.
+     */
     MessageStore getMessageStore();
 }

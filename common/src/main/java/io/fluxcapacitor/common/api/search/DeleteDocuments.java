@@ -19,14 +19,23 @@ import io.fluxcapacitor.common.api.Command;
 import lombok.EqualsAndHashCode;
 import lombok.Value;
 
+/**
+ * Command to delete documents from the search store based on a search query.
+ * <p>
+ * This command allows for bulk deletion of documents that match a specified {@link SearchQuery},
+ * across one or more collections. The deletion respects the provided {@link Guarantee}.
+ */
 @EqualsAndHashCode(callSuper = true)
 @Value
 public class DeleteDocuments extends Command {
-    SearchQuery query;
-    Guarantee guarantee;
 
-    @Override
-    public String routingKey() {
-        return super.routingKey();
-    }
+    /**
+     * The query describing which documents should be deleted.
+     */
+    SearchQuery query;
+
+    /**
+     * The delivery/storage guarantee to apply for this deletion operation.
+     */
+    Guarantee guarantee;
 }

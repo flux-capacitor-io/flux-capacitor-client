@@ -21,15 +21,45 @@ import lombok.Value;
 
 import java.util.Comparator;
 
+/**
+ * Represents a single facet field-value pair within a document.
+ * <p>
+ * Facet entries are typically included in {@link io.fluxcapacitor.common.api.search.SerializedDocument} instances
+ * to make the document searchable and filterable by discrete values. These entries are also used when computing
+ * facet statistics and filtering using {@link io.fluxcapacitor.common.api.search.constraints.FacetConstraint}.
+ * <p>
+ * The {@link #compareTo(FacetEntry)} implementation ensures consistent ordering of facet entries first by name,
+ * then by value.
+ *
+ * @see io.fluxcapacitor.common.api.search.SerializedDocument
+ * @see io.fluxcapacitor.common.api.search.FacetStats
+ * @see io.fluxcapacitor.common.api.search.constraints.FacetConstraint
+ * @see io.fluxcapacitor.common.search.Facet
+ */
 @Value
 @Builder(toBuilder = true)
 @AllArgsConstructor
 public class FacetEntry implements Comparable<FacetEntry> {
-    private static final Comparator<FacetEntry> comparator
-            = Comparator.comparing(FacetEntry::getName).thenComparing(FacetEntry::getValue);
 
-    @NonNull String name, value;
+    private static final Comparator<FacetEntry> comparator =
+            Comparator.comparing(FacetEntry::getName).thenComparing(FacetEntry::getValue);
 
+    /**
+     * The name of the facet field (i.e., the document path it represents).
+     */
+    @NonNull String name;
+
+    /**
+     * The value associated with the facet field for this document.
+     */
+    @NonNull String value;
+
+    /**
+     * Sorts facet entries by name, then by value.
+     *
+     * @param o the other facet entry to compare against
+     * @return the result of comparing name first, then value
+     */
     @Override
     public int compareTo(@NonNull FacetEntry o) {
         return comparator.compare(this, o);

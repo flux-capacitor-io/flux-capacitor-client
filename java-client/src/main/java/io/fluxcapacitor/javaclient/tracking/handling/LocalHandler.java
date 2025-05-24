@@ -14,8 +14,6 @@
 
 package io.fluxcapacitor.javaclient.tracking.handling;
 
-import io.fluxcapacitor.common.MessageType;
-
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Inherited;
@@ -24,46 +22,90 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Annotation placed on types or methods of message handlers. If the annotation is present, messages are handled by the
- * handler immediately after publication (i.e. in the publishing thread).
+ * Marks a message handler method, class, or package as a **local handler**—one that is invoked immediately in the
+ * publishing thread rather than asynchronously through tracking.
+ *
  * <p>
- * This is akin to invoking a method on an injected service in traditional applications, but comes with all the benefits
- * of location transparency.
+ * Local handling is useful for:
+ * <ul>
+ *   <li>Requests that require <strong>ultra-low latency</strong> (e.g., frequent queries, projections, or quick lookups)</li>
+ *   <li><strong>Lightweight processing</strong> that doesn’t need to be logged or retried</li>
+ *   <li>Messages that should be handled <strong>exclusively in the current application</strong> instance</li>
+ * </ul>
+ *
  * <p>
- * Local handlers are often desirable for frequent queries or requests that require a response after the shortest
- * possible latency.
+ * When a handler is marked with {@code @LocalHandler}, messages it can handle will be processed **immediately after
+ * publication** if a matching local handler exists. In most cases, this also means:
+ * <ul>
+ *   <li>The message is <strong>not persisted</strong> by default</li>
+ *   <li><strong>Other non-local handlers will not see it</strong></li>
+ * </ul>
+ *
+ * <h2>Example: Fast local query handling</h2>
+ *
+ * <pre>{@code
+ * @LocalHandler
+ * @HandleQuery
+ * Product handle(GetProduct query) {
+ *     return FluxCapacitor.search(Product.class).match(query.getProductId()).fetchFirst().orElse(null);
+ * }
+ * }</pre>
+ *
  * <p>
- * Typically, though depending on {@link MessageType} and settings of {@link LocalHandler}, a locally handled message
- * will not be logged for consumption by non-local handlers.
+ * Note: If you annotate a class or package with {@code @LocalHandler}, all handler methods within it are local by
+ * default. To opt out for a specific method, use {@code @LocalHandler(false)} on that method.
+ *
+ * @see io.fluxcapacitor.common.MessageType
  */
 @Documented
 @Target({ElementType.METHOD, ElementType.TYPE, ElementType.PACKAGE})
 @Retention(RetentionPolicy.RUNTIME)
 @Inherited
 public @interface LocalHandler {
+
     /**
-     * Enables overriding the default behavior. If a type is marked as local handler, a method can still be marked as
-     * non-local using annotation {@code @LocalHandler(false)}.
+     * Whether the handler is local. This allows overriding the behavior declared at a higher level (e.g. disabling
+     * local behavior for a specific method while the enclosing class is marked local).
+     *
+     * <p>
+     * Defaults to {@code true}.
      */
     boolean value() default true;
 
     /**
-     * Enables publication of locally handled messages. If {@code true}, messages and their payloads are logged as if
-     * they were not handled locally. This is often desirable for locally handled queries and commands issued by e.g.
-     * admins.
+     * Whether messages handled locally should also be **logged and published** to the event bus or event store.
+     *
+     * <p>
+     * This is useful when:
+     * <ul>
+     *   <li>You want local processing for speed, but still need visibility or downstream processing</li>
+     *   <li>Auditability is important (e.g. admin interfaces)</li>
+     * </ul>
+     *
+     * <p>
+     * Defaults to {@code false}.
      */
     boolean logMessage() default false;
 
     /**
-     * Enables publication of handler metrics, like
-     * {@link io.fluxcapacitor.javaclient.tracking.metrics.HandleMessageEvent HandleMessageEvents} (if tracker
-     * monitoring is enabled).
+     * Whether handling metrics (such as {@code HandleMessageEvent}) should be logged for this handler if monitoring is
+     * enabled.
+     *
+     * <p>
+     * Defaults to {@code false}.
      */
     boolean logMetrics() default false;
 
     /**
-     * Flag that indicates whether this handler will handle external (non-local) messages as well as local messages. The
-     * value of this flag is ignored if {@link #value()} is false.
+     * If {@code true}, this handler may also receive **externally published messages** (i.e. from other application
+     * instances).
+     *
+     * <p>
+     * Normally, a {@code @LocalHandler} is used for messages published and handled within the same instance only. Set
+     * this to {@code true} if the handler should also participate in regular (remote) message tracking.
+     *
+     * <p>
+     * Ignored if {@link #value()} is {@code false}.
      */
     boolean allowExternalMessages() default false;
 }

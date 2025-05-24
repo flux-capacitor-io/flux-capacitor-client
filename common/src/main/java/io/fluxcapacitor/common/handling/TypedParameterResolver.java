@@ -19,10 +19,33 @@ import lombok.AllArgsConstructor;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Parameter;
 
+/**
+ * Abstract base class for {@link ParameterResolver}s that resolve parameters based on type matching.
+ * <p>
+ * This class provides a default {@link #matches} implementation that checks whether the expected type of the parameter
+ * is assignable from a configured base type.
+ *
+ * @param <M> the message or context type used for resolution (e.g. {@code HasMessage}, {@code Object}, etc.)
+ */
 @AllArgsConstructor
 public abstract class TypedParameterResolver<M> implements ParameterResolver<M> {
+
+    /**
+     * The base type this resolver applies to.
+     * Only parameters that are assignable from this type will be considered.
+     */
     private final Class<?> type;
 
+    /**
+     * Determines whether the given parameter is eligible to be resolved by this resolver.
+     * <p>
+     * This default implementation matches if {@code parameter.getType()} is assignable from the configured base type.
+     *
+     * @param parameter        the method parameter to resolve
+     * @param methodAnnotation the annotation on the method (if any)
+     * @param value            the current message or context object
+     * @return {@code true} if this resolver can resolve the parameter
+     */
     @Override
     public boolean matches(Parameter parameter, Annotation methodAnnotation, M value) {
         return type.isAssignableFrom(parameter.getType());

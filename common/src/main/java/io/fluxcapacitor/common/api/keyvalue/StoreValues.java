@@ -23,6 +23,27 @@ import java.util.List;
 
 import static java.util.stream.Collectors.toList;
 
+/**
+ * <strong>Legacy API:</strong> This command stores key-value pairs in the legacy key-value store mechanism.
+ * <p>
+ * While still supported, this approach is considered obsolete and retained primarily for backward compatibility.
+ * For most use cases, prefer using {@code DocumentStore} for flexible and queryable persistence.
+ * </p>
+ *
+ * <h2>Fields</h2>
+ * <ul>
+ *   <li>{@code values} – A list of key-value pairs to store</li>
+ *   <li>{@code guarantee} – Defines delivery/storage guarantees (e.g., {@code Guarantee.STORED})</li>
+ * </ul>
+ *
+ * <h2>Routing</h2>
+ * The first key in the value list is used as the routing key for load distribution.
+ *
+ * <h2>Metrics</h2>
+ * The command emits a lightweight {@link Metric} representation with the keys and count.
+ *
+ * @see KeyValuePair
+ */
 @Value
 @EqualsAndHashCode(callSuper = true)
 public class StoreValues extends Command {
@@ -31,8 +52,7 @@ public class StoreValues extends Command {
 
     @Override
     public Object toMetric() {
-        return new Metric(values.stream().map(KeyValuePair::getKey).collect(toList()),
-                values.size());
+        return new Metric(values.stream().map(KeyValuePair::getKey).collect(toList()), values.size());
     }
 
     @Override
@@ -42,9 +62,12 @@ public class StoreValues extends Command {
 
     @Override
     public String routingKey() {
-        return values.get(0).getKey();
+        return values.getFirst().getKey();
     }
 
+    /**
+     * Lightweight metric representation of this command.
+     */
     @Value
     public static class Metric {
         List<String> keys;

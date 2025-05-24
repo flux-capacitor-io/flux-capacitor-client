@@ -24,14 +24,61 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Annotation used to associate a message to a stored Handler (typically annotated with {@link Stateful}). If a message
- * is associated with one or several Handlers, the Handlers will be fetched and the message will be applied on all
- * Handlers.
+ * Declares how a message should be routed to a stateful handler instance (typically annotated with {@link Stateful}).
  * <p>
- * This annotation can be added to properties (fields and getters) of the Handler class, or on handler methods. If
- * placed on a property of the Handler, the name of the property will be used to associate the message, unless another
- * property name is specified using {@link #value()}. If the annotation is used on a handler method, {@link #value()} is
- * required to match on a property by that name in the message payload.
+ * {@code @Association} enables matching of incoming messages with persisted handler instances. Matching handlers are
+ * automatically loaded and the message is applied to them.
+ *
+ * <h2>Usage</h2>
+ * This annotation can be placed on:
+ * <ul>
+ *     <li>A <strong>field or getter</strong> in a stateful handler — this declares which part of the handler's state
+ *     is used for association.</li>
+ *     <li>A <strong>handler method</strong> — this declares which message field(s) should be matched against
+ *     handler state.</li>
+ * </ul>
+ *
+ * <h2>Matching Semantics</h2>
+ * A message is associated with a handler if:
+ * <ul>
+ *     <li>The value of the property in the message equals the value in the handler's state, and</li>
+ *     <li>The name of the message property matches the name (or explicitly declared {@link #value()}) of the handler field.</li>
+ * </ul>
+ * This dual condition prevents false positives when different fields share similar values.
+ *
+ * <h2>Multiple Handler Matches</h2>
+ * A single message may match multiple handlers. All matching handlers will be loaded and the message will be applied to each.
+ *
+ * <h3>Example: Associating by field</h3>
+ * <pre>{@code
+ * @Value
+ * @Stateful
+ * public class PaymentProcess {
+ *     @EntityId String id;
+ *
+ *     @Association
+ *     String pspReference;
+ * }
+ * }</pre>
+ * In this example, any message with a `pspReference` field matching the handler’s field will be routed to it.
+ *
+ * <h3>Example: Method-level association</h3>
+ * <pre>{@code
+ * @HandleEvent
+ * @Association("userId")
+ * void on(UserDeleted event) {
+ *     ...
+ * }
+ * }</pre>
+ * Associates based on the `userId` field in the message payload.
+ *
+ * <h2>Advanced Configuration</h2>
+ * <ul>
+ *     <li>{@link #path()} can be used to match nested or computed properties in the handler state.</li>
+ *     <li>{@link #includedClasses()} and {@link #excludedClasses()} can restrict association to specific message types.</li>
+ *     <li>{@link #excludeMetadata()} disables metadata-based matching.</li>
+ *     <li>{@link #always()} applies the message to <em>all</em> persisted handlers regardless of association (use with care).</li>
+ * </ul>
  *
  * @see Stateful
  */

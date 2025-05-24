@@ -18,9 +18,22 @@ import io.fluxcapacitor.common.api.Request;
 import lombok.EqualsAndHashCode;
 import lombok.Value;
 
+/**
+ * Request to fetch a single document from the search store by ID and collection.
+ * <p>
+ * This is typically used to retrieve the latest indexed version of a document for inspection or
+ * further processing. If no document is found, an empty result is returned.
+ */
 @EqualsAndHashCode(callSuper = true)
 @Value
 public class GetDocument extends Request {
+    /**
+     * The unique ID of the document to fetch.
+     */
     String id;
+
+    /**
+     * The collection in which the document is stored.
+     */
     String collection;
 }
