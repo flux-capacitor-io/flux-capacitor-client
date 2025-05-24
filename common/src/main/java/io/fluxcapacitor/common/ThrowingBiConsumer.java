@@ -16,11 +16,34 @@ package io.fluxcapacitor.common;
 
 import lombok.NonNull;
 
+/**
+ * {@link java.util.function.BiConsumer}-like interface whose {@link #accept(Object, Object)} method may throw a
+ * checked {@link Exception}.
+ * <p>
+ * Useful when lambda expressions need to propagate exceptions without wrapping them in runtime exceptions.
+ *
+ * @param <T> the type of the first argument to the operation
+ * @param <U> the type of the second argument to the operation
+ */
 @FunctionalInterface
 public interface ThrowingBiConsumer<T, U> {
 
+    /**
+     * Performs this operation on the given arguments.
+     *
+     * @param t the first input argument
+     * @param u the second input argument
+     * @throws Exception if unable to complete successfully
+     */
     void accept(T t, U u) throws Exception;
 
+    /**
+     * Returns a composed {@code ThrowingBiConsumer} that performs, in sequence, this
+     * operation followed by the {@code after} operation.
+     *
+     * @param after the operation to perform after this operation
+     * @return a composed {@code ThrowingBiConsumer}
+     */
     default ThrowingBiConsumer<T, U> andThen(@NonNull ThrowingBiConsumer<? super T, ? super U> after) {
         return (l, r) -> {
             accept(l, r);
