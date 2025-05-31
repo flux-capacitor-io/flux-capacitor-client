@@ -17,6 +17,15 @@ package io.fluxcapacitor.javaclient.publishing;
 import lombok.AllArgsConstructor;
 import lombok.experimental.Delegate;
 
+/**
+ * Default implementation of the {@link QueryGateway} interface.
+ * <p>
+ * This class delegates all operations defined in the {@link QueryGateway} interface to an underlying
+ * {@link GenericGateway} instance.
+ *
+ * @see QueryGateway
+ * @see GenericGateway
+ */
 @AllArgsConstructor
 public class DefaultQueryGateway implements QueryGateway {
     @Delegate

@@ -30,6 +30,46 @@ import java.util.Optional;
 
 import static java.util.Optional.ofNullable;
 
+/**
+ * Default implementation of the {@link CorrelationDataProvider} interface.
+ * <p>
+ * This provider automatically assembles standard correlation metadata that is attached to outgoing messages
+ * in a Flux Capacitor application. This correlation data enables tracing, auditing, monitoring, and debugging
+ * across asynchronous message flows.
+ *
+ * <p>It gathers correlation context from multiple sources, including:
+ * <ul>
+ *   <li>The current {@link Client}</li>
+ *   <li>The current {@link Tracker} if one is active</li>
+ *   <li>The current {@link DeserializingMessage} being handled</li>
+ *   <li>The current {@link Invocation} context</li>
+ * </ul>
+ *
+ * <h2>Standard Metadata Keys</h2>
+ * The correlation data map may include the following keys:
+ * <ul>
+ *   <li><b>{@code $applicationId}</b> – ID of the application this client belongs to (optional)</li>
+ *   <li><b>{@code $clientId}</b> – Unique identifier for this Flux client instance</li>
+ *   <li><b>{@code $clientName}</b> – Logical name of the client (e.g. "service-A")</li>
+ *   <li><b>{@code $consumer}</b> – Consumer name of the current {@link Tracker}, if active</li>
+ *   <li><b>{@code $tracker}</b> – Unique ID of the current {@link Tracker}, if active</li>
+ *   <li><b>{@code $correlationId}</b> – ID used to correlate this message with the currently handled message (message index or ID if index is unavailable)</li>
+ *   <li><b>{@code $traceId}</b> – ID representing the trace this message belongs to (usually inherited from the message root)</li>
+ *   <li><b>{@code $trigger}</b> – Fully qualified class name of the message that triggered this one</li>
+ *   <li><b>{@code $triggerType}</b> – Type of the triggering message (e.g. COMMAND, QUERY, etc.)</li>
+ *   <li><b>{@code $invocation}</b> – ID of the current handler {@link Invocation}, if any</li>
+ * </ul>
+ *
+ * <p>In addition to these fields, trace-level metadata from the current message
+ * (e.g. custom entries marked as traceable) is also included.
+ *
+ * <p>This correlation metadata is typically added to outgoing messages automatically via
+ * the {@link CorrelatingInterceptor}.
+ *
+ * @see CorrelationDataProvider
+ * @see CorrelatingInterceptor
+ * @see FluxCapacitor#currentCorrelationData()
+ */
 @Getter
 public enum DefaultCorrelationDataProvider implements CorrelationDataProvider {
     INSTANCE;

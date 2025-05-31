@@ -25,6 +25,25 @@ import java.util.Iterator;
 import java.util.Objects;
 import java.util.function.UnaryOperator;
 
+/**
+ * A lazily-loaded implementation of {@link AggregateRoot} that defers deserialization and event application until the
+ * entity value is explicitly accessed.
+ * <p>
+ * This implementation is typically used as a historical {@code previous} reference in {@link ImmutableAggregateRoot}
+ * when the aggregate's {@link io.fluxcapacitor.javaclient.modeling.Aggregate#cachingDepth()} has been exceeded. In
+ * such cases, only the checkpointed state is retained in memory, and the full entity state is reconstructed by
+ * replaying events from the most recent checkpoint.
+ * <p>
+ * {@code LazyAggregateRoot} is read-only and will throw {@link UnsupportedOperationException} for any attempt to
+ * apply updates or modify the state. It is solely intended for retrieving past states in an efficient and
+ * memory-conscious way.
+ * <p>
+ * Event replay occurs on demand via the {@link #get()} method, which reconstructs the aggregate state by re-applying
+ * all events from the last known checkpoint until the desired sequence number or event id is reached.
+ *
+ * @param <T> The type of the aggregate's value.
+ * @see ImmutableAggregateRoot#asPrevious(long)
+ */
 public class LazyAggregateRoot<T> implements AggregateRoot<T> {
     @With
     private final ImmutableAggregateRoot<T> delegate;

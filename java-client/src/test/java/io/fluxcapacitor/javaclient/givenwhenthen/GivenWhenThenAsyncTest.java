@@ -195,7 +195,7 @@ class GivenWhenThenAsyncTest {
 
         @HandleCommand
         public void handle(YieldsSchedule command) {
-            FluxCapacitor.get().scheduler().schedule(command.getSchedule(), Duration.ofSeconds(10));
+            FluxCapacitor.get().messageScheduler().schedule(command.getSchedule(), Duration.ofSeconds(10));
         }
 
         @HandleEvent

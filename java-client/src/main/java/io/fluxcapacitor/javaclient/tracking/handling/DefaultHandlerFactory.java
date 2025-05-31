@@ -48,6 +48,56 @@ import static io.fluxcapacitor.common.handling.HandlerInspector.hasHandlerMethod
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.ifClass;
 import static io.fluxcapacitor.javaclient.common.ClientUtils.memoize;
 
+/**
+ * Default implementation of the {@link HandlerFactory} for creating message handlers based on reflection.
+ * <p>
+ * This factory supports a wide range of handler types including:
+ * <ul>
+ *     <li>Simple class-based handlers (e.g., annotated with {@code @HandleCommand}, {@code @HandleQuery}, etc.)</li>
+ *     <li>{@link Stateful} handlers — persisted and associated via {@link Association}</li>
+ *     <li>{@link SocketEndpoint} handlers — WebSocket-based interaction handlers</li>
+ *     <li>{@link TrackSelf} annotated classes — handlers for self-tracking message types</li>
+ * </ul>
+ *
+ * <h2>Customization</h2>
+ * The factory is configured with the following pluggable components:
+ * <ul>
+ *     <li>A {@link MessageType} indicating the type of messages it supports (e.g., COMMAND, QUERY)</li>
+ *     <li>A {@link HandlerDecorator} used to wrap all created handlers with additional behavior</li>
+ *     <li>A list of {@link ParameterResolver}s to inject method parameters during handler invocation</li>
+ *     <li>A {@link MessageFilter} that determines whether a message is applicable to a handler method</li>
+ *     <li>A {@link HandlerRepository} supplier for managing persisted state in {@code @Stateful} handlers</li>
+ *     <li>A {@link RepositoryProvider} for shared caching of handler state (e.g., in {@code SocketEndpointHandler})</li>
+ * </ul>
+ *
+ * <h2>Handler Resolution Process</h2>
+ * The factory inspects the provided target object (or class) and applies the following logic:
+ * <ol>
+ *     <li>If the target is annotated with {@link Stateful}, a {@link StatefulHandler} is created</li>
+ *     <li>If the target is annotated with {@link SocketEndpoint}, a {@link SocketEndpointHandler} is created</li>
+ *     <li>If the target is annotated with {@link TrackSelf}, a handler is created with a filter ensuring messages are routed to matching payload types</li>
+ *     <li>Otherwise, a default handler is created using {@link DefaultHandler}</li>
+ * </ol>
+ *
+ * <h2>Decorator Chaining</h2>
+ * Any additional {@link HandlerInterceptor}s passed at creation are composed with the default decorator
+ * and applied to the resulting handler.
+ *
+ * <h2>Search-Specific Filtering</h2>
+ * For {@link MessageType#DOCUMENT} and {@link MessageType#CUSTOM}, additional filters like
+ * {@link HandleDocumentFilter} and {@link HandleCustomFilter} are applied automatically.
+ *
+ * <p>
+ * This class is the main entry point for reflective handler generation in Flux Capacitor. It is used by both local
+ * and tracking-based handler registries to resolve method targets dynamically.
+ *
+ * @see HandlerFactory
+ * @see HandlerConfiguration
+ * @see HandlerInspector
+ * @see StatefulHandler
+ * @see SocketEndpointHandler
+ * @see DefaultHandler
+ */
 @AllArgsConstructor
 public class DefaultHandlerFactory implements HandlerFactory {
 

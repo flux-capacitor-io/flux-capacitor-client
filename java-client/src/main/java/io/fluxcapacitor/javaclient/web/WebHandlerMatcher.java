@@ -40,6 +40,40 @@ import static io.fluxcapacitor.javaclient.web.DefaultWebRequestContext.getWebReq
 import static java.util.Arrays.stream;
 import static java.util.stream.Stream.concat;
 
+/**
+ * Specialized {@link HandlerMatcher} that routes {@link DeserializingMessage}s of type {@link MessageType#WEBREQUEST}
+ * to matching handler methods based on annotated URI patterns, HTTP methods, and optional origins.
+ * <p>
+ * This matcher is created internally by the {@link io.fluxcapacitor.javaclient.tracking.handling.HandlerFactory} when
+ * registering a handler class that contains methods annotated for web request handling (e.g., {@code @HandleWeb}).
+ *
+ * <h2>Routing Logic</h2>
+ * The matcher builds a {@link Router} that maps:
+ * <ul>
+ *   <li>HTTP method (e.g., GET, POST)</li>
+ *   <li>Normalized path (optionally prefixed by {@code @Path} at class or package level)</li>
+ *   <li>Optional request origin (e.g., scheme and host) when specified in the handler method</li>
+ * </ul>
+ * During matching, the {@link DefaultWebRequestContext} is used to extract the URI path, method, and origin
+ * from the incoming request metadata.
+ *
+ * <h2>WebPattern Matching</h2>
+ * Each handler method may be associated with one or more {@link WebPattern}s, derived from {@link WebParameters}
+ * annotations. These patterns define the matchable paths and methods.
+ *
+ * <h2>Support for @Path Annotations</h2>
+ * This matcher also respects {@code @Path} annotations on the method, declaring class, or package level,
+ * combining those with the {@code WebPattern#getPath()} when routing requests.
+ *
+ * <h2>Fallback to ANY Method</h2>
+ * If no handler matches the exact request method, but any handlers exist that declare {@code HttpRequestMethod.ANY},
+ * these are checked as a fallback.
+ *
+ * @see HandlerMatcher
+ * @see WebPattern
+ * @see io.fluxcapacitor.javaclient.web.WebRequest
+ * @see io.fluxcapacitor.javaclient.web.WebUtils#getWebPatterns
+ */
 public class WebHandlerMatcher implements HandlerMatcher<Object, DeserializingMessage> {
     private final Router router = new RouterImpl();
     private final boolean hasAnyHandlers;

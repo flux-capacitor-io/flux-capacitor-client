@@ -42,6 +42,7 @@ import java.time.Instant;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.Spliterator;
 import java.util.Spliterators;
@@ -55,8 +56,8 @@ import java.util.stream.StreamSupport;
 import static java.util.Optional.ofNullable;
 
 /**
- * Wrapper for a {@link Message} that supports lazy deserialization, context caching, type adaptation, and
- * batch-level execution utilities.
+ * Wrapper for a {@link Message} that supports lazy deserialization, context caching, type adaptation, and batch-level
+ * execution utilities.
  * <p>
  * {@code DeserializingMessage} combines a {@link SerializedMessage} with deserialization and routing logic while
  * maintaining the original message context (type, topic, metadata, and payload).
@@ -78,10 +79,33 @@ import static java.util.Optional.ofNullable;
 @AllArgsConstructor(access = AccessLevel.NONE)
 @NonFinal
 public class DeserializingMessage implements HasMessage {
+    /**
+     * The formatter used to produce a human-readable representation of this message, primarily for logging or
+     * debugging. By default, this uses {@link MessageFormatter#DEFAULT}.
+     *
+     * <p>
+     * In advanced scenarios, users may replace this field with a custom {@link MessageFormatter} implementation to
+     * modify how deserializing messages are rendered (e.g., to include metadata or correlation IDs).
+     */
     public static MessageFormatter messageFormatter = MessageFormatter.DEFAULT;
 
     private static final ThreadLocal<Set<Consumer<Throwable>>> batchCompletionHandlers = new ThreadLocal<>();
     private static final ThreadLocal<Map<Object, Object>> batchResources = new ThreadLocal<>();
+
+    /**
+     * Thread-local holder for the message currently being handled.
+     * <p>
+     * The {@code current} field is automatically set when a {@link DeserializingMessage} is being processed
+     * (e.g., inside a handler or during interceptor execution). This allows other components to access
+     * metadata about the active message (such as message ID, index, or payload) without needing to pass it explicitly.
+     *
+     * <p>Typical use cases include:
+     * <ul>
+     *   <li>Determining the source or context of a command, event, or query</li>
+     *   <li>Extracting routing or correlation metadata</li>
+     *   <li>Constructing exceptions or results that are scoped to the current message</li>
+     * </ul>
+     */
     private static final ThreadLocal<DeserializingMessage> current = new ThreadLocal<>();
 
     @Getter(AccessLevel.NONE)
@@ -265,8 +289,40 @@ public class DeserializingMessage implements HasMessage {
         return (T) context.computeIfAbsent(contextKey, k -> provider.apply(this));
     }
 
+    /**
+     * Returns the current {@link DeserializingMessage} being processed in this thread, or {@code null} if none is set.
+     *
+     * <p>This method provides direct (nullable) access to the thread-local message context. Prefer {@link #getOptionally()}
+     * when you want to safely handle absence of context.
+     *
+     * <p>Note: This method should typically be called only inside handler code or interceptors
+     * where a {@code DeserializingMessage} is known to be active.
+     *
+     * @return the current message or {@code null} if no message is being processed
+     * @see #getOptionally()
+     */
     public static DeserializingMessage getCurrent() {
         return current.get();
+    }
+
+    /**
+     * Returns the current {@link DeserializingMessage} being processed in this thread, if available.
+     *
+     * <p>This method is safe to call in any thread and will return {@link Optional#empty()} if no message is currently being handled.
+     * It is particularly useful for utility classes or exception handlers that want to conditionally access message metadata.
+     *
+     * <h4>Example</h4>
+     * <pre>{@code
+     * Optional<DeserializingMessage> message = DeserializingMessage.getOptionally();
+     * message.map(DeserializingMessage::getPayloadType)
+     *        .ifPresent(type -> log.debug("Handling message of type {}", type));
+     * }</pre>
+     *
+     * @return an {@link Optional} containing the current message or empty if none is set
+     * @see #getCurrent()
+     */
+    public static Optional<DeserializingMessage> getOptionally() {
+        return Optional.ofNullable(current.get());
     }
 
     @Override

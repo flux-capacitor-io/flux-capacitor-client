@@ -69,6 +69,36 @@ import static java.lang.String.format;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
 
+/**
+ * Default implementation of the {@link Tracking} interface that coordinates message tracking for a specific
+ * {@link MessageType}.
+ * <p>
+ * This class is responsible for:
+ * <ul>
+ *   <li>Assigning handler objects to appropriate {@link ConsumerConfiguration}s based on declared filters</li>
+ *   <li>Creating and managing {@link Tracker} instances for those consumers and their associated topics</li>
+ *   <li>Ensuring messages are deserialized, dispatched, and (if applicable) responded to with proper error handling</li>
+ *   <li>Invoking handlers using the provided {@link HandlerFactory} and {@link HandlerInvoker}</li>
+ *   <li>Integrating with {@link ResultGateway} to send back command/query/web responses when needed</li>
+ * </ul>
+ *
+ * <p>
+ * Supports per-consumer batch interceptors and general batch processing logic, including:
+ * <ul>
+ *   <li>Functional and technical exception management with retry hooks</li>
+ *   <li>Tracking exclusivity to prevent handlers from being assigned to multiple consumers simultaneously</li>
+ *   <li>Internal shutdown coordination and pending message flushes via {@link #close()}</li>
+ * </ul>
+ *
+ * <h2>Typical Usage</h2>
+ * This class is used internally when starting a {@link FluxCapacitor#registerHandlers(List)} invocation
+ * for a given {@link MessageType}, and typically shouldn't be used directly by application developers.
+ *
+ * @see Tracking
+ * @see ConsumerConfiguration
+ * @see Tracker
+ * @see ResultGateway
+ */
 @AllArgsConstructor
 @Slf4j
 public class DefaultTracking implements Tracking {
@@ -85,6 +115,18 @@ public class DefaultTracking implements Tracking {
     private final Collection<CompletableFuture<?>> outstandingRequests = new CopyOnWriteArrayList<>();
     private final AtomicReference<Registration> shutdownFunction = new AtomicReference<>(Registration.noOp());
 
+    /**
+     * Starts tracking by assigning the given handlers to configured consumers and creating topic-specific or shared
+     * trackers.
+     * <p>
+     * Throws a {@link TrackingException} if handlers can't be matched to consumers or if a consumer has already been
+     * started previously.
+     *
+     * @param fluxCapacitor the owning {@link FluxCapacitor} instance
+     * @param handlers      the handler instances to assign and activate
+     * @return a {@link Registration} that can be used to stop all created trackers
+     * @throws TrackingException if no consumer is found for a handler or if tracking has already been started
+     */
     @SuppressWarnings("unchecked")
     @Override
     @Synchronized
@@ -118,6 +160,15 @@ public class DefaultTracking implements Tracking {
         });
     }
 
+    /**
+     * Matches the given handlers to known {@link ConsumerConfiguration}s using handler filters and exclusivity rules.
+     * <p>
+     * Throws a {@link TrackingException} if:
+     * <ul>
+     *   <li>No consumer is found for a handler</li>
+     *   <li>Conflicting consumers have been defined for the same handler</li>
+     * </ul>
+     */
     private Map<ConsumerConfiguration, List<Object>> assignHandlersToConsumers(List<?> handlers) {
         var unassignedHandlers = new ArrayList<Object>(handlers);
         var configurations = Stream.concat(
@@ -302,6 +353,9 @@ public class DefaultTracking implements Tracking {
                 : new BatchProcessingException(message.getIndex());
     }
 
+    /**
+     * Shuts down all started trackers and waits briefly for asynchronous results (e.g. command responses) to complete.
+     */
     @Override
     @Synchronized
     public void close() {

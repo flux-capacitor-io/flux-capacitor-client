@@ -18,6 +18,9 @@ import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.javaclient.common.HasMessage;
 import lombok.AllArgsConstructor;
 
+/**
+ * An extendable {@link UserProvider} that delegates to another {@link UserProvider}.
+ */
 @AllArgsConstructor
 public class DelegatingUserProvider implements UserProvider {
     protected final UserProvider delegate;

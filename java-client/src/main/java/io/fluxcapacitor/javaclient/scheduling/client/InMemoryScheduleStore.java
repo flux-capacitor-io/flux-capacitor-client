@@ -42,6 +42,14 @@ import static io.fluxcapacitor.javaclient.tracking.IndexUtils.millisFromIndex;
 import static io.fluxcapacitor.javaclient.tracking.IndexUtils.timestampFromIndex;
 import static java.util.stream.Collectors.toList;
 
+/**
+ * An in-memory implementation of a scheduling store that allows the scheduling, retrieval, and management of scheduled
+ * messages. It extends `InMemoryMessageStore` to reuse the functionalities for storing and managing messages and
+ * implements `SchedulingClient` to support scheduling-specific operations.
+ * <p>
+ * This implementation provides thread-safe mechanisms for scheduling, retrieving, and cancelling messages. Messages are
+ * scheduled to be processed at specific timestamps, with support for expiration and filtering of schedules.
+ */
 @Slf4j
 public class InMemoryScheduleStore extends InMemoryMessageStore implements SchedulingClient {
 

@@ -22,6 +22,12 @@ import lombok.AllArgsConstructor;
 
 import java.util.concurrent.TimeUnit;
 
+/**
+ * The default implementation of the {@link KeyValueStore} interface that provides operations for storing, retrieving,
+ * and deleting key-value pairs using a {@link KeyValueClient} and a {@link Serializer}. This class handles
+ * serialization and deserialization of values and ensures that operations conform to the guarantees provided by the
+ * client.
+ */
 @AllArgsConstructor
 public class DefaultKeyValueStore implements KeyValueStore {
 

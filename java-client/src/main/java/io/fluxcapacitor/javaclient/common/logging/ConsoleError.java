@@ -17,6 +17,14 @@ package io.fluxcapacitor.javaclient.common.logging;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Value;
 
+/**
+ * A marker message type published to the Flux error gateway for error-level log entries.
+ * <p>
+ * The associated metadata includes stack traces, log message details, and context.
+ *
+ * @see ConsoleWarning
+ * @see FluxCapacitorLogbackAppender
+ */
 @Value
 @JsonInclude
 public class ConsoleError {

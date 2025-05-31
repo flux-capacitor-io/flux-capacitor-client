@@ -23,23 +23,57 @@ import io.fluxcapacitor.common.api.scheduling.Schedule;
 import io.fluxcapacitor.common.api.scheduling.SerializedSchedule;
 import io.fluxcapacitor.javaclient.common.websocket.AbstractWebsocketClient;
 import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient;
+import io.fluxcapacitor.javaclient.scheduling.MessageScheduler;
 import jakarta.websocket.ClientEndpoint;
 
 import java.net.URI;
 import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;
 
+/**
+ * WebSocket-based implementation of the {@link SchedulingClient} interface that communicates with the Flux Platform.
+ * <p>
+ * This client is responsible for scheduling, cancelling, and querying deferred messages (schedules) over a WebSocket
+ * connection. It acts as the transport layer for the {@link io.fluxcapacitor.javaclient.scheduling.MessageScheduler}.
+ *
+ * <p>Usage is typically indirect via high-level APIs like {@code FluxCapacitor.schedule(...)} or the
+ * {@link MessageScheduler}. Direct interaction with this client is uncommon in most application code.
+ *
+ * @see SchedulingClient
+ * @see MessageScheduler
+ * @see SerializedSchedule
+ */
 @ClientEndpoint
 public class WebsocketSchedulingClient extends AbstractWebsocketClient implements SchedulingClient {
 
+    /**
+     * Constructs a scheduling client connected to the given endpoint URL.
+     *
+     * @param endPointUrl The endpoint URL of the Flux Platform scheduling gateway.
+     * @param client      The Flux {@link WebSocketClient} configuration to use.
+     */
     public WebsocketSchedulingClient(String endPointUrl, WebSocketClient client) {
         this(URI.create(endPointUrl), client);
     }
 
+    /**
+     * Constructs a scheduling client connected to the given endpoint URI.
+     *
+     * @param endpointUri The URI of the scheduling gateway.
+     * @param client      The Flux {@link WebSocketClient} configuration to use.
+     */
     public WebsocketSchedulingClient(URI endpointUri, WebSocketClient client) {
         this(endpointUri, client, true);
     }
 
+    /**
+     * Constructs a scheduling client connected to the given endpoint URI with an option to enable or disable metrics
+     * tracking.
+     *
+     * @param endpointUri The URI of the scheduling gateway.
+     * @param client      The WebSocket client configuration.
+     * @param sendMetrics Whether to send metrics about schedule operations.
+     */
     public WebsocketSchedulingClient(URI endpointUri, WebSocketClient client, boolean sendMetrics) {
         super(endpointUri, client, sendMetrics, client.getClientConfig()
                 .getGatewaySessions().get(MessageType.SCHEDULE));

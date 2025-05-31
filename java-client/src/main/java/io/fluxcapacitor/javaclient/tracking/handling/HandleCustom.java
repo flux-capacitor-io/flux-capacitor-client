@@ -31,7 +31,7 @@ import java.lang.annotation.Target;
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.METHOD, ElementType.CONSTRUCTOR})
-@HandleMessage(MessageType.DOCUMENT)
+@HandleMessage(MessageType.CUSTOM)
 public @interface HandleCustom {
     /**
      * Specifies the topic name.

@@ -16,7 +16,13 @@ package io.fluxcapacitor.javaclient.configuration.spring;
 
 import lombok.Value;
 
+/**
+ * Wrapper class representing a prototype-scoped Spring handler type within Flux Capacitor.
+ */
 @Value
 public class FluxPrototype {
+    /**
+     * The annotated handler class.
+     */
     Class<?> type;
 }

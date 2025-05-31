@@ -51,7 +51,7 @@ public class DisconnectTracker extends Command {
     MessageType messageType;
 
     /**
-     * The name of the consumer group to which the tracker belongs.
+     * The name of the consumer to which the tracker belongs.
      */
     String consumer;
 

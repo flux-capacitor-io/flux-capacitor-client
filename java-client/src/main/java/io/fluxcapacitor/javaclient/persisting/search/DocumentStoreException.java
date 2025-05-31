@@ -14,6 +14,10 @@
 
 package io.fluxcapacitor.javaclient.persisting.search;
 
+/**
+ * This class represents an exception that is thrown by the {@link DocumentStore} when a document store operation
+ * fails.
+ */
 public class DocumentStoreException extends RuntimeException {
     public DocumentStoreException(String message, Throwable cause) {
         super(message, cause);

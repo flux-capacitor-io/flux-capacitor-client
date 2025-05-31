@@ -79,6 +79,40 @@ import static java.lang.String.format;
 import static java.util.stream.Collectors.toMap;
 import static java.util.stream.Collectors.toSet;
 
+
+/**
+ * Default implementation of the {@link AggregateRepository} interface.
+ * <p>
+ * This class supports aggregates that are either event-sourced or document-based. Its behavior is driven by the
+ * {@link Aggregate @Aggregate} annotation on the aggregate class, which determines aspects such as:
+ * <ul>
+ *   <li>Whether the aggregate is event-sourced or backed by a document store.</li>
+ *   <li>If snapshots should be used and their frequency (via {@code snapshotPeriod}).</li>
+ *   <li>Whether the aggregate is searchable (indexed for queries).</li>
+ *   <li>Whether events should be published and how (via {@link EventPublicationStrategy}).</li>
+ * </ul>
+ *
+ * <p>It supports caching of aggregates and entity-aggregate relationship metadata via the provided {@link Cache} instances.
+ * These are consulted and updated during load and commit operations.
+ *
+ * <p>This repository coordinates with several components to manage aggregates:
+ * <ul>
+ *   <li>{@link EventStore} and {@link EventStoreClient} for storing and loading events.</li>
+ *   <li>{@link SnapshotStore} for loading and storing snapshots.</li>
+ *   <li>{@link DocumentStore} for searchable aggregates (non-event-sourced).</li>
+ *   <li>{@link DispatchInterceptor} to inspect or modify outgoing events before dispatch.</li>
+ * </ul>
+ *
+ * <p>This implementation also tracks relationships between aggregates and nested entities (e.g., value objects or sub-entities)
+ * and can repair these links after structural refactors using {@link #repairRelationships(Entity)}.
+ *
+ * <p>The inner {@code AnnotatedAggregateRepository<T>} class handles aggregate-specific operations by introspecting the
+ * annotations and metadata declared on a given aggregate type.
+ *
+ * @see Aggregate
+ * @see AggregateRepository
+ * @see Entity
+ */
 @Slf4j
 @AllArgsConstructor
 @Getter(AccessLevel.PRIVATE)
@@ -161,6 +195,27 @@ public class DefaultAggregateRepository implements AggregateRepository {
                 aggregate.relationships().stream().map(Relationship::getEntityId).collect(toSet()), STORED));
     }
 
+    /**
+     * Aggregate-type-specific delegate used internally by {@link DefaultAggregateRepository}.
+     * <p>
+     * This class is instantiated per aggregate class and parses metadata from the {@link Aggregate} annotation to determine:
+     * <ul>
+     *   <li>Whether the aggregate is event-sourced or backed by the document store.</li>
+     *   <li>If and how frequently snapshots should be created.</li>
+     *   <li>Whether the aggregate is indexed for search.</li>
+     *   <li>How events should be published and committed.</li>
+     *   <li>Which cache(s) to use.</li>
+     * </ul>
+     *
+     * <p>It provides loading and committing capabilities tailored to the configured storage and publication strategy.
+     * It also supports refetching aggregates from the Flux platform and maintaining relationships with child entities.
+     *
+     * <p>Snapshot and document-based aggregates are supported out of the box. Event replay is triggered as needed.
+     *
+     * <p>This class is not intended to be used directly outside the {@code DefaultAggregateRepository}.
+     *
+     * @param <T> the aggregate root type
+     */
     public class AnnotatedAggregateRepository<T> {
 
         private final Class<T> type;

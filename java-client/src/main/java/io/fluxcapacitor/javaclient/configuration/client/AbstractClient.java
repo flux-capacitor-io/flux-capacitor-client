@@ -44,29 +44,93 @@ import static io.fluxcapacitor.common.ObjectUtils.asConsumer;
 import static io.fluxcapacitor.common.ObjectUtils.memoize;
 import static java.util.Objects.requireNonNull;
 
+/**
+ * Abstract base implementation of the {@link Client} interface, providing shared logic and lifecycle management for
+ * both local (in-memory) and remote (WebSocket-based) Flux clients.
+ * <p>
+ * Concrete implementations such as {@link LocalClient} and {@link WebSocketClient} extend this class to define specific
+ * transport and storage mechanisms for each subsystem (event store, scheduling, etc.).
+ *
+ * <h2>Responsibilities</h2>
+ * <ul>
+ *     <li>Manages memoized creation and reuse of {@link GatewayClient} and {@link TrackingClient} instances.</li>
+ *     <li>Coordinates shutdown behavior and cleanup tasks via {@link #shutDown()} and {@link #beforeShutdown(Runnable)}.</li>
+ *     <li>Provides monitoring support for dispatched messages using {@link ClientDispatchMonitor}.</li>
+ * </ul>
+ */
 @Slf4j
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public abstract class AbstractClient implements Client {
 
-    private final Map<MessageType, List<Map.Entry<ClientDispatchMonitor, Registration>>> monitors = new ConcurrentHashMap<>();
+    /**
+     * Map of message type to a list of dispatch monitors and their corresponding registrations.
+     */
+    private final Map<MessageType, List<Map.Entry<ClientDispatchMonitor, Registration>>> monitors =
+            new ConcurrentHashMap<>();
 
-    MemoizingBiFunction<MessageType, String, ? extends GatewayClient> gatewayClients = memoize(this::createGatewayClient);
-    MemoizingBiFunction<MessageType, String, ? extends TrackingClient> trackingClients = memoize(this::createTrackingClient);
-    @Getter(lazy = true) EventStoreClient eventStoreClient = createEventStoreClient();
-    @Getter(lazy = true) SchedulingClient schedulingClient = createSchedulingClient();
-    @Getter(lazy = true) KeyValueClient keyValueClient = createKeyValueClient();
-    @Getter(lazy = true) SearchClient searchClient = createSearchClient();
+    /**
+     * Lazily instantiated and memoized gateway clients, keyed by message type and topic.
+     */
+    MemoizingBiFunction<MessageType, String, ? extends GatewayClient> gatewayClients =
+            memoize(this::createGatewayClient);
 
+    /**
+     * Lazily instantiated and memoized tracking clients, keyed by message type and topic.
+     */
+    MemoizingBiFunction<MessageType, String, ? extends TrackingClient> trackingClients =
+            memoize(this::createTrackingClient);
 
+    @Getter(lazy = true)
+    EventStoreClient eventStoreClient = createEventStoreClient();
+
+    @Getter(lazy = true)
+    SchedulingClient schedulingClient = createSchedulingClient();
+
+    @Getter(lazy = true)
+    KeyValueClient keyValueClient = createKeyValueClient();
+
+    @Getter(lazy = true)
+    SearchClient searchClient = createSearchClient();
+
+    /**
+     * Tracks shutdown callbacks that will be run when {@link #shutDown()} is invoked.
+     */
     protected final Set<Runnable> shutdownTasks = new CopyOnWriteArraySet<>();
 
+    /**
+     * Subclasses must implement this method to return a {@link GatewayClient} for the given message type and topic.
+     */
     protected abstract GatewayClient createGatewayClient(MessageType messageType, String topic);
+
+    /**
+     * Subclasses must implement this method to return a {@link TrackingClient} for the given message type and topic.
+     */
     protected abstract TrackingClient createTrackingClient(MessageType messageType, String topic);
+
+    /**
+     * Subclasses must implement this method to return a {@link EventStoreClient}.
+     */
     protected abstract EventStoreClient createEventStoreClient();
+
+    /**
+     * Subclasses must implement this method to return a {@link SchedulingClient}.
+     */
     protected abstract SchedulingClient createSchedulingClient();
+
+    /**
+     * Subclasses must implement this method to return a {@link KeyValueClient}.
+     */
     protected abstract KeyValueClient createKeyValueClient();
+
+    /**
+     * Subclasses must implement this method to return a {@link SearchClient}.
+     */
     protected abstract SearchClient createSearchClient();
 
+    /**
+     * Returns the memoized {@link GatewayClient} for the given message type and topic. Automatically registers any
+     * previously registered {@link ClientDispatchMonitor} instances.
+     */
     @Override
     public GatewayClient getGatewayClient(MessageType messageType, String topic) {
         switch (messageType) {

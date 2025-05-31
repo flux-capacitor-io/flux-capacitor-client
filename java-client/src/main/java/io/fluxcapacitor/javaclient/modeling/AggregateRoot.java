@@ -16,6 +16,22 @@ package io.fluxcapacitor.javaclient.modeling;
 
 import java.time.Instant;
 
+/**
+ * Represents the root of an aggregate in a domain model.
+ * <p>
+ * An {@code AggregateRoot} is a specialized {@link Entity} that serves as the entry point for a consistency boundary
+ * in domain-driven design.
+ * <p>
+ * Unlike nested entities, an {@code AggregateRoot}'s {@link #parent()} is always {@code null}, as it is the top-level
+ * context for its child entities.
+ * <p>
+ * {@link #previous()} can be used to access the prior version of the aggregate, enabling differential processing.
+ *
+ * @param <T> the type of the underlying domain object
+ *
+ * @see Entity
+ * @see Aggregate
+ */
 public interface AggregateRoot<T> extends Entity<T> {
 
     @Override

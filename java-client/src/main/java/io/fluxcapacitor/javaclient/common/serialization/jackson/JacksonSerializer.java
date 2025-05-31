@@ -47,8 +47,37 @@ import static io.fluxcapacitor.common.ObjectUtils.memoize;
 import static io.fluxcapacitor.javaclient.common.ClientUtils.getRevisionNumber;
 import static java.lang.String.format;
 
+/**
+ * A concrete {@link io.fluxcapacitor.javaclient.common.serialization.Serializer} implementation based on Jackson.
+ * <p>
+ * This is the default serializer used in Flux Capacitor, supporting:
+ * <ul>
+ *     <li>Serialization and deserialization using Jackson's {@link ObjectMapper}</li>
+ *     <li>Integration with upcasters/downcasters for versioned data evolution</li>
+ *     <li>Intermediate representation based on {@link JsonNode} for revision tracking</li>
+ *     <li>{@link DocumentSerializer} support for document store interoperability</li>
+ *     <li>Type caching and memoization for performance</li>
+ * </ul>
+ *
+ * <p>
+ * You can customize or replace this serializer entirely by subclassing or injecting your own implementation of
+ * {@code AbstractSerializer}.
+ */
 @Slf4j
 public class JacksonSerializer extends AbstractSerializer<JsonNode> implements DocumentSerializer {
+    /**
+     * Default {@link JsonMapper} instance used for JSON serialization and deserialization.
+     * <p>
+     * In advanced scenarios, users may replace this field with a custom {@link JsonMapper}. However, this is generally
+     * discouraged unless strictly necessary.
+     * <p>
+     * A better approach for customizing Jackson behavior is to provide your own modules via the Jackson
+     * {@link com.fasterxml.jackson.databind.Module} SPI (ServiceLoader mechanism), which avoids overriding global
+     * configuration and ensures compatibility.
+     * <p>
+     * <strong>Warning:</strong> This mapper is also used to construct and parse search documents.
+     * Misconfiguration may result in inconsistencies in search indexing or data loss.
+     */
     public static JsonMapper defaultObjectMapper = JsonUtils.writer;
 
     @Getter
@@ -59,22 +88,37 @@ public class JacksonSerializer extends AbstractSerializer<JsonNode> implements D
     private final Function<Type, String> typeStringCache = memoize(this::getCanonicalType);
     private final Inverter<JsonNode> inverter;
 
+    /**
+     * Constructs a default JacksonSerializer with no up/downcasters.
+     */
     public JacksonSerializer() {
         this(Collections.emptyList());
     }
 
+    /**
+     * Constructs a JacksonSerializer with the given up/downcaster candidates.
+     */
     public JacksonSerializer(Collection<?> casterCandidates) {
         this(defaultObjectMapper, casterCandidates);
     }
 
+    /**
+     * Constructs a JacksonSerializer with a specific {@link JsonMapper} instance.
+     */
     public JacksonSerializer(JsonMapper objectMapper) {
         this(objectMapper, Collections.emptyList());
     }
 
+    /**
+     * Constructs a JacksonSerializer with an object mapper and up/downcaster candidates.
+     */
     public JacksonSerializer(JsonMapper objectMapper, Collection<?> casterCandidates) {
         this(objectMapper, casterCandidates, new JacksonInverter());
     }
 
+    /**
+     * Full constructor with object mapper, caster candidates and custom document inverter.
+     */
     public JacksonSerializer(JsonMapper objectMapper, Collection<?> casterCandidates, JacksonInverter inverter) {
         super(casterCandidates, inverter, Data.JSON_FORMAT);
         this.objectMapper = objectMapper;
@@ -82,16 +126,26 @@ public class JacksonSerializer extends AbstractSerializer<JsonNode> implements D
         this.inverter = inverter;
     }
 
+    /**
+     * Returns a canonical string name for the given type.
+     */
     @Override
     protected String asString(Type type) {
         return typeStringCache.apply(type);
     }
 
+    /**
+     * Serializes the object to a JSON byte array.
+     */
     @Override
     protected byte[] doSerialize(Object object) throws Exception {
         return objectMapper.writeValueAsBytes(object);
     }
 
+    /**
+     * Deserializes a {@link Data} instance into an object of the given type using the Jackson object mapper. Supports
+     * {@link JsonNode}, byte arrays and strings as serialized input.
+     */
     @Override
     protected Object doDeserialize(Data<?> data, String type) throws Exception {
         return switch (data.getValue()) {
@@ -104,6 +158,9 @@ public class JacksonSerializer extends AbstractSerializer<JsonNode> implements D
         };
     }
 
+    /**
+     * Converts the given object into a {@link JsonNode} for use in revision downcasting.
+     */
     @SneakyThrows
     @Override
     protected JsonNode asIntermediateValue(Object input) {
@@ -112,6 +169,9 @@ public class JacksonSerializer extends AbstractSerializer<JsonNode> implements D
                 : objectMapper.convertValue(input, JsonNode.class);
     }
 
+    /**
+     * Determines whether the given type is known to the Jackson type system.
+     */
     @Override
     protected boolean isKnownType(String type) {
         try {
@@ -122,6 +182,9 @@ public class JacksonSerializer extends AbstractSerializer<JsonNode> implements D
         }
     }
 
+    /**
+     * Fallback handler for deserialization of unknown types. Attempts best-effort conversion using Jackson.
+     */
     @SuppressWarnings({"unchecked", "rawtypes"})
     @Override
     protected Stream<DeserializingObject<byte[], ?>> deserializeUnknownType(SerializedObject<?> s) {
@@ -144,10 +207,16 @@ public class JacksonSerializer extends AbstractSerializer<JsonNode> implements D
         }));
     }
 
+    /**
+     * Resolves a canonical {@link JavaType} for the given string-based type name.
+     */
     protected JavaType getJavaType(String type) {
         return objectMapper.getTypeFactory().constructFromCanonical(type);
     }
 
+    /**
+     * Computes the canonical string representation of a {@link Type}.
+     */
     protected String getCanonicalType(Type type) {
         return objectMapper.constructType(type).toCanonical();
     }
@@ -169,11 +238,18 @@ public class JacksonSerializer extends AbstractSerializer<JsonNode> implements D
         return deserialize(document.getDocument(), type);
     }
 
+    /**
+     * Converts an object into another type using Jackson’s {@link ObjectMapper}.
+     */
     @Override
     public <V> V doConvert(Object value, Type type) {
         return objectMapper.convertValue(value, objectMapper.constructType(type));
     }
 
+    /**
+     * Performs a field-level clone by copying values from the original object into a new instance of the same type.
+     * This first converts the value to an {@link com.fasterxml.jackson.databind.node.ObjectNode}.
+     */
     @Override
     public Object doClone(Object value) {
         return ReflectionUtils.copyFields(value, doConvert(objectMapper.createObjectNode(), value.getClass()));

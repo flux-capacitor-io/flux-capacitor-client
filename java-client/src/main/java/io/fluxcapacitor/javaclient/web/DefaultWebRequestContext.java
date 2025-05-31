@@ -72,15 +72,82 @@ import java.util.stream.Stream;
 
 import static java.util.stream.Collectors.toMap;
 
+/**
+ * Default implementation of {@link WebRequestContext} that adapts a {@link DeserializingMessage} of type
+ * {@link io.fluxcapacitor.common.MessageType#WEBREQUEST} to a Jooby-compatible {@link Context}.
+ * <p>
+ * This context serves as the main bridge between Flux Capacitor’s web messaging infrastructure and
+ * the Jooby framework’s routing, parameter resolution, and content access APIs.
+ * It enables handler matching and invocation based on path, query, form, header, and cookie parameters.
+ *
+ * <h2>Purpose</h2>
+ * {@code DefaultWebRequestContext} wraps incoming web request metadata into an object that behaves
+ * like a live HTTP request. It can be used during handler method resolution to extract parameter values,
+ * match URI paths, handle routing with method + origin specificity, and access request body, headers, etc.
+ *
+ * <h2>Internals</h2>
+ * <ul>
+ *   <li>Backed by a {@link DeserializingMessage} representing a {@code WEBREQUEST}</li>
+ *   <li>Implements Jooby’s {@link DefaultContext} to take advantage of its form/query/header abstractions</li>
+ *   <li>Supports delayed body deserialization using a {@code Supplier<byte[]>}</li>
+ *   <li>Provides metadata-based implementations of headers, cookies, and remote address resolution</li>
+ *   <li>Can be accessed statically from {@link #getCurrentWebRequestContext()}</li>
+ * </ul>
+ *
+ * <h2>Usage in Routing</h2>
+ * Used primarily by {@link io.fluxcapacitor.javaclient.web.WebHandlerMatcher}, this context provides the
+ * foundation for matching {@link io.fluxcapacitor.javaclient.web.WebPattern}s and routing to appropriate
+ * handler methods.
+ *
+ * <h2>Extensibility</h2>
+ * While this implementation currently delegates most parsing and matching to Jooby, the abstraction is intentionally
+ * based on the {@link WebRequestContext} interface to allow future replacement of Jooby with another HTTP framework
+ * without affecting the rest of the dispatching system.
+ *
+ * <p>
+ * Many Jooby methods are stubbed or unsupported, as Flux only uses a subset of Jooby's APIs for request introspection
+ * (not response handling).
+ *
+ * @see WebRequestContext
+ * @see io.fluxcapacitor.javaclient.web.WebHandlerMatcher
+ * @see io.fluxcapacitor.javaclient.web.WebRequest
+ * @see io.fluxcapacitor.javaclient.web.WebPattern
+ */
 @Value
 @AllArgsConstructor
 public class DefaultWebRequestContext implements DefaultContext, WebRequestContext {
 
+    /**
+     * Returns the current {@link DefaultWebRequestContext} from the active {@link DeserializingMessage},
+     * or {@code null} if no such message is available or it is not a {@link MessageType#WEBREQUEST}.
+     * <p>
+     * This method provides a convenient way to access the web request context during handler invocation,
+     * filtering, or logging without needing to explicitly pass it around.
+     *
+     * @return the current {@code DefaultWebRequestContext}, or {@code null} if unavailable
+     *
+     * @see DeserializingMessage#getCurrent()
+     * @see #getWebRequestContext(DeserializingMessage)
+     */
     public static DefaultWebRequestContext getCurrentWebRequestContext() {
         return Optional.ofNullable(DeserializingMessage.getCurrent()).map(
                 DefaultWebRequestContext::getWebRequestContext).orElse(null);
     }
 
+    /**
+     * Creates or retrieves a {@link DefaultWebRequestContext} from the given {@link DeserializingMessage}.
+     * <p>
+     * Internally caches the context in the message so that repeated lookups are efficient.
+     * This method should only be used with messages of type {@link MessageType#WEBREQUEST}; otherwise,
+     * an {@link IllegalArgumentException} is thrown.
+     *
+     * @param message a deserialized {@code WEBREQUEST} message
+     * @return a {@code DefaultWebRequestContext} wrapping the request metadata and body
+     * @throws IllegalArgumentException if the message type is not {@code WEBREQUEST}
+     *
+     * @see DeserializingMessage#computeContextIfAbsent(Class, java.util.function.Function)
+     * @see #getCurrentWebRequestContext()
+     */
     public static DefaultWebRequestContext getWebRequestContext(DeserializingMessage message) {
         return message.computeContextIfAbsent(DefaultWebRequestContext.class, DefaultWebRequestContext::new);
     }

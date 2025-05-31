@@ -40,7 +40,7 @@ import java.lang.annotation.Target;
  * </p>
  *
  * <p>
- * You may also annotate the class with {@link Consumer} to configure message consumption in an isolated consumer group.
+ * You may also annotate the class with {@link Consumer} to configure message consumption in an isolated consumer.
  * If no {@code @Consumer} annotation is present, the handler will be assigned to the application's default consumer.
  * </p>
  *
@@ -51,7 +51,7 @@ import java.lang.annotation.Target;
  * asynchronous {@code TestFixture}, you must register the class manually.
  * </p>
  *
- * @see Consumer on how to configure message consumption in an isolated consumer group.
+ * @see Consumer on how to configure message consumption in an isolated consumer.
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)

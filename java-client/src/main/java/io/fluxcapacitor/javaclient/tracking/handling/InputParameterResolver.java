@@ -20,6 +20,10 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.Parameter;
 import java.util.function.Function;
 
+/**
+ * Resolves handler method parameters by simply injecting the input if the parameter type is assignable from the input
+ * type.
+ */
 public class InputParameterResolver implements ParameterResolver<Object> {
     @Override
     public Function<Object, Object> resolve(Parameter parameter, Annotation methodAnnotation) {

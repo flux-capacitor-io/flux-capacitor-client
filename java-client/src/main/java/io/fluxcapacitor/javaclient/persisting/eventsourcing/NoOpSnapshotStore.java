@@ -14,11 +14,19 @@
 
 package io.fluxcapacitor.javaclient.persisting.eventsourcing;
 
+import io.fluxcapacitor.javaclient.modeling.Aggregate;
 import io.fluxcapacitor.javaclient.modeling.Entity;
 
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
+/**
+ * A {@link SnapshotStore} implementation that is used when snapshotting is explicitly disabled, such as when
+ * {@code snapshotPeriod <= 0} is configured on an aggregate via {@link Aggregate}.
+ *
+ * @see SnapshotStore
+ * @see Aggregate#snapshotPeriod()
+ */
 public enum NoOpSnapshotStore implements SnapshotStore {
     INSTANCE;
 

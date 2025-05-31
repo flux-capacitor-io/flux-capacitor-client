@@ -40,6 +40,34 @@ import static io.fluxcapacitor.javaclient.common.ClientUtils.waitForResults;
 import static io.fluxcapacitor.javaclient.tracking.client.DefaultTracker.start;
 import static java.lang.String.format;
 
+/**
+ * Default implementation of the {@link RequestHandler} interface.
+ * <p>
+ * This handler supports both single and batch request dispatching, tracking responses using an internal
+ * {@link java.util.concurrent.ConcurrentHashMap} keyed by {@code requestId}. When a request is sent, the handler
+ * subscribes to a corresponding result log (e.g., result or web response) via a
+ * {@link io.fluxcapacitor.javaclient.tracking.client.TrackingClient}, which listens for responses targeted at this
+ * client only.
+ *
+ * <p>Each request is assigned a unique {@code requestId} and tagged with the client's {@code source} identifier.
+ * When a response with a matching {@code requestId} is received, the corresponding {@link CompletableFuture} is
+ * completed.
+ *
+ * <p>If no response is received within the configured timeout (default: 200 seconds), the future is completed
+ * exceptionally.
+ *
+ * <p>Features:
+ * <ul>
+ *   <li>Supports both single and batch request dispatching.</li>
+ *   <li>Tracks responses via the configured {@link MessageType} and filters using {@code filterMessageTarget = true}.</li>
+ *   <li>Ensures startup of the underlying result tracker on first request dispatch.</li>
+ *   <li>Cleans up subscriptions and pending futures on {@link #close()}.</li>
+ * </ul>
+ *
+ * @see RequestHandler
+ * @see MessageType#RESULT
+ * @see MessageType#WEBRESPONSE
+ */
 @RequiredArgsConstructor
 @Slf4j
 public class DefaultRequestHandler implements RequestHandler {
@@ -47,9 +75,15 @@ public class DefaultRequestHandler implements RequestHandler {
     private final Client client;
     private final MessageType resultType;
     private final Duration timeout;
-
     private final String responseConsumerName;
 
+    /**
+     * Constructs a DefaultRequestHandler with the specified client and message type, and a default timeout of 200
+     * seconds.
+     *
+     * @param client     the client responsible for sending and receiving messages
+     * @param resultType the type of message expected as a result
+     */
     public DefaultRequestHandler(Client client, MessageType resultType) {
         this(client, resultType, Duration.ofSeconds(200), format("%s_%s", client.name(), "$request-handler"));
     }
@@ -62,50 +96,52 @@ public class DefaultRequestHandler implements RequestHandler {
     @Override
     public CompletableFuture<SerializedMessage> sendRequest(SerializedMessage request,
                                                             Consumer<SerializedMessage> requestSender) {
+        return sendRequest(request, requestSender, timeout);
+    }
+
+    @Override
+    public CompletableFuture<SerializedMessage> sendRequest(SerializedMessage request,
+                                                            Consumer<SerializedMessage> requestSender,
+                                                            Duration timeout) {
         ensureStarted();
-        int requestId = nextId.getAndIncrement();
-        CompletableFuture<SerializedMessage> result = new CompletableFuture<SerializedMessage>()
-                .orTimeout(timeout.getSeconds(), TimeUnit.SECONDS)
-                .whenComplete((m, e) -> callbacks.remove(requestId));
-        callbacks.put(requestId, result);
-        request.setRequestId(requestId);
-        request.setSource(client.id());
+        CompletableFuture<SerializedMessage> future = prepareRequest(request, timeout);
         requestSender.accept(request);
-        return result;
+        return future;
     }
 
     @Override
     public List<CompletableFuture<SerializedMessage>> sendRequests(List<SerializedMessage> requests,
                                                                    Consumer<List<SerializedMessage>> requestSender) {
+        return sendRequests(requests, requestSender, timeout);
+    }
+
+    @Override
+    public List<CompletableFuture<SerializedMessage>> sendRequests(List<SerializedMessage> requests,
+                                                                   Consumer<List<SerializedMessage>> requestSender,
+                                                                   Duration timeout) {
         ensureStarted();
         List<CompletableFuture<SerializedMessage>> futures = new ArrayList<>();
-        requestSender.accept(requests.stream().peek(request -> {
-            int requestId = nextId.getAndIncrement();
-            CompletableFuture<SerializedMessage> result = new CompletableFuture<SerializedMessage>()
-                    .orTimeout(timeout.getSeconds(), TimeUnit.SECONDS)
-                    .whenComplete((m, e) -> callbacks.remove(requestId));
-            callbacks.put(requestId, result);
-            request.setRequestId(requestId);
-            request.setSource(client.id());
-            futures.add(result);
-        }).collect(Collectors.toList()));
+        requestSender.accept(requests.stream().peek(request -> futures.add(prepareRequest(request, timeout)))
+                                     .collect(Collectors.toList()));
         return futures;
     }
 
-    protected void handleMessages(List<SerializedMessage> messages) {
-        messages.stream().filter(m -> m.getRequestId() != null).forEach(m -> {
-            CompletableFuture<SerializedMessage> future = callbacks.remove(m.getRequestId());
-            if (future == null) {
-                log.warn("Received response with index {} for unknown request {}", m.getIndex(), m.getRequestId());
-                return;
-            }
-            future.complete(m);
-        });
+    private CompletableFuture<SerializedMessage> prepareRequest(SerializedMessage request, Duration timeout) {
+        int requestId = nextId.getAndIncrement();
+        CompletableFuture<SerializedMessage> result = new CompletableFuture<>();
+        if (!timeout.isNegative()) {
+            result = result.orTimeout(timeout.getSeconds(), TimeUnit.SECONDS);
+        }
+        result.whenComplete((m, e) -> callbacks.remove(requestId));
+        callbacks.put(requestId, result);
+        request.setRequestId(requestId);
+        request.setSource(client.id());
+        return result;
     }
 
     protected void ensureStarted() {
         if (started.compareAndSet(false, true)) {
-            registration = start(this::handleMessages, resultType, ConsumerConfiguration.builder()
+            registration = start(this::handleResults, resultType, ConsumerConfiguration.builder()
                     .name(responseConsumerName)
                     .ignoreSegment(true)
                     .clientControlledIndex(true)
@@ -114,6 +150,17 @@ public class DefaultRequestHandler implements RequestHandler {
                             FluxCapacitor.currentTime().minusSeconds(2)))
                     .build(), client);
         }
+    }
+
+    protected void handleResults(List<SerializedMessage> messages) {
+        messages.stream().filter(m -> m.getRequestId() != null).forEach(m -> {
+            CompletableFuture<SerializedMessage> future = callbacks.remove(m.getRequestId());
+            if (future == null) {
+                log.warn("Received response with index {} for unknown request {}", m.getIndex(), m.getRequestId());
+                return;
+            }
+            future.complete(m);
+        });
     }
 
     @Override

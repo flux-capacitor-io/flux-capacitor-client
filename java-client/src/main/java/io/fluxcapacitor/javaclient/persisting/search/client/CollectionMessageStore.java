@@ -24,6 +24,12 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
+/**
+ * A {@link MessageStore} implementation backed by a collection in an {@link InMemorySearchStore}. This class provides
+ * functionality for tracking updated documents in a specific collection.
+ * <p>
+ * Used to support {@link io.fluxcapacitor.javaclient.tracking.handling.HandleDocument} from in-memory search stores.
+ */
 @AllArgsConstructor
 public class CollectionMessageStore implements MessageStore {
 
@@ -33,7 +39,7 @@ public class CollectionMessageStore implements MessageStore {
     @Override
     public List<SerializedMessage> getBatch(Long minIndex, int maxSize, boolean inclusive) {
         minIndex = minIndex == null ? 0L : minIndex;
-        long lastIndex = inclusive ? minIndex -1L : minIndex;
+        long lastIndex = inclusive ? minIndex - 1L : minIndex;
         return searchClient.openStream(collection, lastIndex, maxSize).toList();
     }
 

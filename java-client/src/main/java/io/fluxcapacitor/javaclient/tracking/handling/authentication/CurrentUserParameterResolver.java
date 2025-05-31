@@ -20,6 +20,9 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.Parameter;
 import java.util.function.Function;
 
+/**
+ * Resolves handler method parameters of type {@link User}.
+ */
 public class CurrentUserParameterResolver extends TypedParameterResolver<Object> {
 
     public CurrentUserParameterResolver() {

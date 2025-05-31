@@ -28,6 +28,21 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
+/**
+ * {@link Conditional} that only matches when a specific property is set and matches a given pattern.
+ *
+ * <h2>Usage</h2>
+ * <pre>{@code
+ * @ConditionalOnProperty(value = "feature.enabled")
+ * @Bean
+ * public FeatureService featureService() {
+ *     return new FeatureService();
+ * }
+ * }</pre>
+ *
+ * <p>
+ * The pattern is a regular expression (defaults to {@code ".+"}, i.e., non-empty).
+ */
 @Target({ElementType.METHOD, ElementType.TYPE})
 @Retention(RetentionPolicy.RUNTIME)
 @Conditional(ConditionalOnProperty.Condition.class)

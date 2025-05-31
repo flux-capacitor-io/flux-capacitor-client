@@ -19,6 +19,7 @@ import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.Apply;
+import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventStore;
 import io.fluxcapacitor.javaclient.publishing.DispatchInterceptor;
 import io.fluxcapacitor.javaclient.tracking.handling.Invocation;
 import lombok.EqualsAndHashCode;
@@ -43,6 +44,49 @@ import static io.fluxcapacitor.javaclient.modeling.EventPublication.IF_MODIFIED;
 import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.toMap;
 
+/**
+ * A mutable, stateful {@link AggregateRoot} implementation that allows in-place updates and applies events
+ * with commit support for persisting the state and synchronizing it with the Flux platform.
+ * <p>
+ * This class acts as a wrapper around an immutable entity (typically an {@link ImmutableAggregateRoot}),
+ * providing additional lifecycle management for:
+ * <ul>
+ *     <li>Capturing uncommitted changes during an event or command handler execution.</li>
+ *     <li>Intercepting and applying updates and events with legality assertions.</li>
+ *     <li>Buffering applied events and committing them via a {@link CommitHandler} callback.</li>
+ *     <li>Supporting batch-commit semantics for grouped event processing.</li>
+ *     <li>Tracking active aggregates for correlation and relationship resolution during handlers.</li>
+ * </ul>
+ *
+ * <h2>Commit Lifecycle</h2>
+ * During handler invocation, intercepted updates and applied events are stored in a temporary buffer.
+ * When the handler completes successfully, events are committed via the configured {@link CommitHandler},
+ * which typically stores events in the {@link EventStore} and
+ * publishes them if needed.
+ * <p>
+ * If the handler fails (throws), state changes and captured events are discarded, and the aggregate is rolled
+ * back to the last stable state.
+ *
+ * <h2>Publication Strategy</h2>
+ * Events are published according to the {@link EventPublication} and {@link EventPublicationStrategy} specified
+ * either globally or on individual {@link Apply}-annotated methods. This allows
+ * fine-grained control over which events are stored or published.
+ *
+ * <h2>Thread-Scoped Aggregates</h2>
+ * All active {@code ModifiableAggregateRoot} instances are tracked per thread using a thread-local map,
+ * enabling relationship resolution and update tracking across aggregates within the same handler context.
+ * <p>
+ * This mechanism enables other parts of the framework to determine which aggregates are currently in use
+ * or updated within a processing thread, without requiring external state.
+ *
+ * @param <T> the type of the aggregate's value.
+ *
+ * @see ImmutableAggregateRoot
+ * @see LazyAggregateRoot
+ * @see CommitHandler
+ * @see EventPublication
+ * @see EventPublicationStrategy
+ */
 @ToString(onlyExplicitlyIncluded = true)
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 public class ModifiableAggregateRoot<T> extends DelegatingEntity<T> implements AggregateRoot<T> {

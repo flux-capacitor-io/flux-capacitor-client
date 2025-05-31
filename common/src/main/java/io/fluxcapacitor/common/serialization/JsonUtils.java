@@ -132,6 +132,17 @@ import static com.fasterxml.jackson.databind.cfg.JsonNodeFeature.STRIP_TRAILING_
 public class JsonUtils {
     /**
      * Preconfigured JsonMapper for writing/serializing objects to JSON.
+     *
+     * <p>
+     * In advanced scenarios, users may replace this field with a custom {@link JsonMapper}. However, this is generally
+     * discouraged unless strictly necessary.
+     * <p>
+     * A better approach for customizing Jackson behavior is to provide your own modules via the Jackson
+     * {@link com.fasterxml.jackson.databind.Module} SPI (ServiceLoader mechanism), which avoids overriding global
+     * configuration and ensures compatibility.
+     * <p>
+     * <strong>Warning:</strong> This mapper is also used by the default serializer in Flux applications,
+     * {@code JacksonSerializer}. Misconfiguration may result in inconsistencies in search indexing or data loss.
      */
     public static JsonMapper writer = JsonMapper.builder()
             .addModule(new StripStringsModule()).addModule(new NullCollectionsAsEmptyModule())
@@ -149,6 +160,14 @@ public class JsonUtils {
 
     /**
      * Preconfigured JsonMapper for reading/deserializing objects from JSON, including type handling.
+     *
+     * <p>
+     * In advanced scenarios, users may replace this field with a custom {@link JsonMapper}. However, this is generally
+     * discouraged unless strictly necessary.
+     * <p>
+     * A better approach for customizing Jackson behavior is to provide your own modules via the Jackson
+     * {@link com.fasterxml.jackson.databind.Module} SPI (ServiceLoader mechanism), which avoids overriding global
+     * configuration and ensures compatibility.
      */
     public static JsonMapper reader = writer.rebuild()
             .setDefaultTyping(new DefaultTypeResolverBuilder(JAVA_LANG_OBJECT, LaissezFaireSubTypeValidator.instance)

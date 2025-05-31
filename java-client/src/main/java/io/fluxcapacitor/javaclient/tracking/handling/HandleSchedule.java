@@ -15,6 +15,7 @@
 package io.fluxcapacitor.javaclient.tracking.handling;
 
 import io.fluxcapacitor.common.MessageType;
+import io.fluxcapacitor.javaclient.scheduling.MessageScheduler;
 import io.fluxcapacitor.javaclient.scheduling.Periodic;
 
 import java.lang.annotation.Documented;
@@ -29,7 +30,7 @@ import java.lang.annotation.Target;
  * These handlers are invoked in response to scheduled triggers, typically time-based.
  * <p>
  * Scheduled messages may originate from an explicit schedule call (see
- * {@link io.fluxcapacitor.javaclient.scheduling.Scheduler}), or from a payload annotated with {@link Periodic}, which
+ * {@link MessageScheduler}), or from a payload annotated with {@link Periodic}, which
  * enables automatic rescheduling after each invocation.
  *
  * <h2>Return behavior</h2>
@@ -70,7 +71,7 @@ import java.lang.annotation.Target;
  * @see HandleMessage
  * @see MessageType#SCHEDULE
  * @see Periodic
- * @see io.fluxcapacitor.javaclient.scheduling.Scheduler
+ * @see MessageScheduler
  * @see io.fluxcapacitor.javaclient.scheduling.CancelPeriodic
  */
 @Documented

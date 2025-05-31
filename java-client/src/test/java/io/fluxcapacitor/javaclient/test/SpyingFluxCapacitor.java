@@ -37,7 +37,7 @@ import io.fluxcapacitor.javaclient.publishing.QueryGateway;
 import io.fluxcapacitor.javaclient.publishing.ResultGateway;
 import io.fluxcapacitor.javaclient.publishing.WebRequestGateway;
 import io.fluxcapacitor.javaclient.publishing.correlation.CorrelationDataProvider;
-import io.fluxcapacitor.javaclient.scheduling.Scheduler;
+import io.fluxcapacitor.javaclient.scheduling.MessageScheduler;
 import io.fluxcapacitor.javaclient.tracking.Tracking;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.UserProvider;
 import lombok.AllArgsConstructor;
@@ -78,8 +78,8 @@ public class SpyingFluxCapacitor implements FluxCapacitor {
     }
 
     @Override
-    public Scheduler scheduler() {
-        return decorate(delegate.scheduler());
+    public MessageScheduler messageScheduler() {
+        return decorate(delegate.messageScheduler());
     }
 
     @Override

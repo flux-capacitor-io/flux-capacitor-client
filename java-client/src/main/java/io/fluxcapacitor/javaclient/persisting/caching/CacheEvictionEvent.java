@@ -16,12 +16,55 @@ package io.fluxcapacitor.javaclient.persisting.caching;
 
 import lombok.Value;
 
+/**
+ * Represents an eviction event from a {@link Cache}.
+ * <p>
+ * These events are typically emitted when a cached object is removed from memory due to
+ * expiration, memory pressure, manual eviction, or cache size constraints.
+ * <p>
+ * Eviction events are useful for metrics reporting and operational observability, particularly
+ * when monitoring cache hit/miss ratios and understanding retention behaviors under load.
+ *
+ * <p>
+ * Emitted events can be published to the metrics log via {@link CacheEvictionsLogger} and
+ * consumed downstream for alerts or analysis.
+ *
+ * @see CacheEvictionsLogger
+ * @see io.fluxcapacitor.javaclient.publishing.MetricsGateway
+ */
 @Value
 public class CacheEvictionEvent {
+    /**
+     * The identifier of the evicted object.
+     */
     Object id;
+    /**
+     * The cause for the eviction.
+     */
     Reason reason;
 
+    /**
+     * Indicates the cause for a cache entry eviction.
+     */
     public enum Reason {
-        manual, size, memoryPressure, expiry
+        /**
+         * The entry was manually evicted by application logic.
+         */
+        manual,
+
+        /**
+         * The eviction occurred due to exceeding the configured cache size.
+         */
+        size,
+
+        /**
+         * The JVM experienced memory pressure and the cache purged entries to free up space.
+         */
+        memoryPressure,
+
+        /**
+         * The entry expired due to time-based eviction policy.
+         */
+        expiry
     }
 }

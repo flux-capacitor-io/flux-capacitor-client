@@ -45,7 +45,7 @@ import static java.util.stream.Collectors.toSet;
 import static java.util.stream.Stream.concat;
 
 /**
- * Represents the current set of {@link Tracker}s that are connected for a specific consumer group.
+ * Represents the current set of {@link Tracker}s that are connected for a specific consumer.
  * <p>
  * A {@code TrackerCluster} tracks which segments of the message log are assigned to which tracker, as well as
  * which trackers are actively processing messages. It is used during tracking strategy evaluation to balance

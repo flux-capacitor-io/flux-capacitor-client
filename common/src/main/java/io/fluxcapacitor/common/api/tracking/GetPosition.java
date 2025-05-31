@@ -23,7 +23,7 @@ import lombok.Value;
  * {@code consumer} and {@link MessageType}.
  * <p>
  * This is typically used for administrative, diagnostic, or monitoring purposes to inspect the progress of a
- * consumer group within a message stream.
+ * consumer within a message stream.
  *
  * <h2>Use Cases</h2>
  * <ul>
@@ -49,7 +49,7 @@ public class GetPosition extends Request {
     MessageType messageType;
 
     /**
-     * The name of the consumer group whose position is being queried.
+     * The name of the consumer whose position is being queried.
      */
     String consumer;
 }

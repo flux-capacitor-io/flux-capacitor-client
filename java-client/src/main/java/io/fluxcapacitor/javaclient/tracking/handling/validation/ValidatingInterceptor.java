@@ -23,6 +23,9 @@ import java.util.function.Function;
 
 import static io.fluxcapacitor.javaclient.tracking.handling.validation.ValidationUtils.defaultValidator;
 
+/**
+ * A {@link HandlerInterceptor} that validates the payload of messages before they are handled.
+ */
 @AllArgsConstructor
 public class ValidatingInterceptor implements HandlerInterceptor {
     private final Validator validator;

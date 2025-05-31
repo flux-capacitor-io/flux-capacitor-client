@@ -105,10 +105,10 @@ public interface SearchClient extends AutoCloseable {
     CompletableFuture<Void> delete(String documentId, String collection, Guarantee guarantee);
 
     /**
-     * Stores an audit trail event.
+     * Configures Flux to use a search collection as a searchable audit trail.
      *
-     * @param request a structured audit request containing the data to persist
-     * @return a future that completes when the audit entry is stored
+     * @param request a request object specifying the collection to use as an audit trail and retention configuration
+     * @return a future that completes when the audit trail has been created.
      */
     CompletableFuture<Void> createAuditTrail(CreateAuditTrail request);
 

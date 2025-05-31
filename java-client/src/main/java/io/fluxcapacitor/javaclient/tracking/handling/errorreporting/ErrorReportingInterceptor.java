@@ -33,6 +33,27 @@ import static io.fluxcapacitor.common.ObjectUtils.unwrapException;
 import static io.fluxcapacitor.javaclient.common.ClientUtils.isLocalHandler;
 import static java.lang.String.format;
 
+/**
+ * {@link HandlerInterceptor} that reports exceptions to the configured {@link ErrorGateway}.
+ * <p>
+ * This interceptor captures any uncaught exceptions thrown during message handling and appends them to the error log.
+ * It also supports reporting errors from asynchronous {@link CompletionStage} results returned by handler methods.
+ * <p>
+ * Local handler invocations (typically in-process invocations marked as {@code @LocalHandler}) are excluded from error reporting.
+ *
+ * <h2>Behavior</h2>
+ * <ul>
+ *     <li>If the handler returns a {@link CompletionStage}, any exception occurring during its completion is reported.</li>
+ *     <li>If the handler throws an exception synchronously, it is reported immediately and rethrown.</li>
+ *     <li>Exceptions marked as {@link FunctionalException} or {@link TechnicalException} are passed through as-is.</li>
+ *     <li>Other exceptions are wrapped in a {@link TechnicalException} and enriched with stack trace metadata.</li>
+ * </ul>
+ *
+ * @see ErrorGateway
+ * @see HandlerInterceptor
+ * @see TechnicalException
+ * @see FunctionalException
+ */
 @AllArgsConstructor
 @Slf4j
 public class ErrorReportingInterceptor implements HandlerInterceptor {

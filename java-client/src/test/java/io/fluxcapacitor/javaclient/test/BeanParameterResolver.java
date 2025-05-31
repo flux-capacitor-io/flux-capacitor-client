@@ -17,10 +17,12 @@ package io.fluxcapacitor.javaclient.test;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.handling.ParameterResolver;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
-import io.fluxcapacitor.javaclient.common.NoOpAnnotation;
 import lombok.NonNull;
 
 import java.lang.annotation.Annotation;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 import java.lang.reflect.Parameter;
 import java.util.Collection;
 import java.util.concurrent.ConcurrentHashMap;
@@ -49,4 +51,8 @@ public class BeanParameterResolver implements ParameterResolver<Object> {
         return ReflectionUtils.has(autowiredClass, parameter);
     }
 
+    @Target({})
+    @Retention(RetentionPolicy.RUNTIME)
+    @interface NoOpAnnotation {
+    }
 }

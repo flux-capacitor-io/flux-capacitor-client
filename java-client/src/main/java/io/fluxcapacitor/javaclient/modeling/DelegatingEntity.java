@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.javaclient.modeling;
 
+import io.fluxcapacitor.javaclient.common.Message;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NonNull;
@@ -21,7 +22,30 @@ import lombok.ToString;
 
 import java.time.Instant;
 import java.util.Collection;
+import java.util.function.UnaryOperator;
 
+/**
+ * A base implementation of {@link Entity} that forwards all method calls to a delegated {@code Entity} instance.
+ * <p>
+ * {@code DelegatingEntity} is designed to serve as a foundation for wrapper implementations that enrich or modify
+ * entity behavior without altering the core entity logic. It simplifies the creation of decorator-style entities
+ * such as {@link ModifiableEntity}, {@link SideEffectFreeEntity}, and {@link ModifiableAggregateRoot}, allowing
+ * selective method overriding while relying on delegation for the rest.
+ * <p>
+ * Subclasses typically override behavior like {@link #update(UnaryOperator)}, {@link #apply(Message)},
+ * or {@link #assertLegal(Object)} to add custom lifecycle behavior (e.g., interception, queuing, validation)
+ * while maintaining compatibility with the {@link Entity} interface.
+ * <p>
+ * By default, all methods delegate directly to the wrapped {@code Entity} instance, which is exposed via the
+ * {@code #getDelegate()} accessor.
+ *
+ * @param <T> the type of the entity's value
+ *
+ * @see Entity
+ * @see ModifiableEntity
+ * @see ModifiableAggregateRoot
+ * @see SideEffectFreeEntity
+ */
 @ToString
 public abstract class DelegatingEntity<T> implements Entity<T> {
     @ToString.Include

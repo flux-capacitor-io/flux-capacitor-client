@@ -22,6 +22,7 @@ import io.fluxcapacitor.common.handling.HandlerInvoker;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.ClientUtils;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
+import io.fluxcapacitor.javaclient.tracking.TrackSelf;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
@@ -39,6 +40,46 @@ import static io.fluxcapacitor.common.ObjectUtils.memoize;
 import static io.fluxcapacitor.javaclient.common.ClientUtils.getLocalHandlerAnnotation;
 import static java.util.Collections.emptyList;
 
+/**
+ * In-memory implementation of {@link HandlerRegistry} that manages and dispatches local message handlers — i.e.,
+ * handlers that are invoked directly in the publishing thread without involving the Flux platform.
+ * <p>
+ * The {@code LocalHandlerRegistry} only registers and invokes handlers that meet the criteria for local handling. These
+ * include:
+ * <ul>
+ *     <li>Methods explicitly annotated with {@link LocalHandler}</li>
+ *     <li>Handlers defined inside a message payload class (e.g., query or command) <b>not</b> annotated with {@link TrackSelf}</li>
+ * </ul>
+ * <p>
+ * This mechanism is useful for bypassing asynchronous tracking and Flux platform involvement when
+ * immediate, in-process execution is preferred — such as for fast local queries, synchronous command handlers,
+ * or test scenarios.
+ *
+ * <h2>Self-Handlers</h2>
+ * <p>
+ * If a message's payload type defines a handler method (e.g., {@code @HandleQuery}) and is not marked
+ * with {@link TrackSelf}, then that handler is considered a "self-handler" and is treated as local. These handlers are
+ * lazily constructed by the {@link HandlerFactory} and automatically included during message dispatch.
+ *
+ * <h2>Fallback to Flux Platform</h2>
+ * If no local handlers are found for a given message, it will not be processed in the publishing thread. Instead:
+ * <ul>
+ *     <li>The message will be published to the Flux platform using the appropriate gateway</li>
+ *     <li>It will be logged so that remote trackers or consumers can handle it asynchronously</li>
+ * </ul>
+ * <p>
+ * This ensures consistent delivery semantics while giving applications control over what is handled locally.
+ *
+ * <h2>Thread Safety</h2>
+ * Registered handlers are stored in a {@link java.util.concurrent.CopyOnWriteArrayList}, making the registry
+ * safe for concurrent usage and dynamic handler registration.
+ *
+ * @see LocalHandler
+ * @see TrackSelf
+ * @see HandlerRegistry
+ * @see HasLocalHandlers
+ * @see HandlerFactory
+ */
 @RequiredArgsConstructor
 @Slf4j
 public class LocalHandlerRegistry implements HandlerRegistry {
@@ -127,6 +168,11 @@ public class LocalHandlerRegistry implements HandlerRegistry {
         });
     }
 
+    /**
+     * Returns the full list of handlers that should be used to process the given message.
+     * <p>
+     * This may include a self-handler if the message is a request type.
+     */
     protected List<Handler<DeserializingMessage>> getLocalHandlers(DeserializingMessage message) {
         if (!message.getMessageType().isRequest()) {
             return localHandlers;
@@ -135,6 +181,9 @@ public class LocalHandlerRegistry implements HandlerRegistry {
                 .map(h -> Stream.concat(localHandlers.stream(), Stream.of(h)).toList()).orElse(localHandlers));
     }
 
+    /**
+     * Determines whether a handler allows its message to be sent to the Flux platform.
+     */
     protected boolean logMessage(HandlerInvoker invoker) {
         return getLocalHandlerAnnotation(invoker.getTargetClass(), invoker.getMethod())
                 .map(LocalHandler::logMessage).orElse(false);

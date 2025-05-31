@@ -21,6 +21,15 @@ import lombok.experimental.Delegate;
 
 import java.util.concurrent.CompletableFuture;
 
+/**
+ * Default implementation of the {@link EventGateway} interface.
+ * <p>
+ * This class delegates all functionality to an underlying {@link GenericGateway} instance, enabling the use of event
+ * gateway methods while leveraging the generic gateway's capabilities.
+ *
+ * @see EventGateway
+ * @see GenericGateway
+ */
 @AllArgsConstructor
 public class DefaultEventGateway implements EventGateway {
     @Delegate

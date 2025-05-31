@@ -17,6 +17,7 @@ package io.fluxcapacitor.javaclient.tracking.handling;
 import io.fluxcapacitor.common.handling.Handler;
 import io.fluxcapacitor.common.handling.HandlerInvoker;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
+import io.fluxcapacitor.common.serialization.Revision;
 import io.fluxcapacitor.javaclient.common.ClientUtils;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.modeling.SearchParameters;
@@ -34,9 +35,40 @@ import java.util.function.Supplier;
 import static io.fluxcapacitor.javaclient.common.ClientUtils.getSearchParameters;
 import static io.fluxcapacitor.javaclient.common.ClientUtils.memoize;
 
+/**
+ * A {@link HandlerDecorator} that intercepts handler methods annotated with {@link HandleDocument} and synchronizes
+ * their return values with a {@link DocumentStore}.
+ * <p>
+ * This decorator ensures that searchable document views (e.g. projections or read models) are automatically updated
+ * when a message is handled. If the handler method returns an object of the same type as the incoming message payload
+ * (and is non-passive), the decorator will:
+ * <ul>
+ *     <li>Index the return value into the configured document store, if non-null and its {@link Revision} is newer than the original version (before upcasting).</li>
+ *     <li>Delete the corresponding document if the return value is {@code null}.</li>
+ * </ul>
+ * <p>
+ * The collection name is derived from the {@code message topic}. Timestamps for indexing can be determined in two ways:
+ * <ul>
+ *     <li>If {@link io.fluxcapacitor.javaclient.modeling.SearchParameters} are available, they are used to extract timestamps.</li>
+ *     <li>Otherwise, the message metadata keys {@code "$start"} and {@code "$end"} are used (if present).</li>
+ * </ul>
+ *
+ * <h2>Example Usage</h2>
+ * <pre>{@code
+ * @HandleDocument
+ * UserProfile update(UserProfile document) {
+ *     return document.toBuilder().status(active).build(); //gives every existing user a status of active
+ * }
+ * }</pre>
+ *
+ * @see HandleDocument
+ * @see DocumentStore
+ * @see HandlerDecorator
+ */
 @AllArgsConstructor
 public class DocumentHandlerDecorator implements HandlerDecorator {
-    static final Function<Executable, Optional<String>> collectionSupplier = memoize(m -> ReflectionUtils.<HandleDocument>
+    static final Function<Executable, Optional<String>> collectionSupplier =
+            memoize(m -> ReflectionUtils.<HandleDocument>
                     getMethodAnnotation(m, HandleDocument.class).map(a -> ClientUtils.getTopic(a, m)));
 
     private final Supplier<DocumentStore> documentStoreSupplier;

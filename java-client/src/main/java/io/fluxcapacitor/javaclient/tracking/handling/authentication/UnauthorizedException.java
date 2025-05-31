@@ -21,6 +21,9 @@ import io.fluxcapacitor.javaclient.common.exception.FunctionalException;
  * permissions.
  */
 public class UnauthorizedException extends FunctionalException {
+    /**
+     * Constructs a new {@code UnauthorizedException} with the specified detail message.
+     */
     public UnauthorizedException(String message) {
         super(message);
     }

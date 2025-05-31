@@ -57,6 +57,54 @@ import static java.util.Optional.empty;
 import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.toMap;
 
+/**
+ * A {@link Handler} implementation for classes annotated with {@link Stateful}, responsible for resolving and invoking
+ * stateful handler instances based on {@link Association} metadata.
+ * <p>
+ * This handler enables long-lived, stateful components to participate in message processing. It ensures that:
+ * <ul>
+ *     <li>Messages are routed to the correct instance(s) based on matching association keys</li>
+ *     <li>Instances are automatically created, updated, or deleted depending on the result of handler methods</li>
+ *     <li>Static methods may initialize new handler instances (e.g., factory methods on creation events)</li>
+ *     <li>Association routing is supported via property-based or method-level annotations</li>
+ * </ul>
+ *
+ * <h2>Routing Logic</h2>
+ * The handler uses the following mechanisms to determine message dispatch:
+ * <ul>
+ *     <li>{@link Association} annotations on fields and methods define the routing keys used to match incoming messages to stateful instances.</li>
+ *     <li>{@link EntityId} defines the identity of the handler, used when persisting or retrieving state.</li>
+ *     <li>If no matching instances are found, static methods marked with {@code @Handle...} and {@code @Association(always = true)} may be invoked to initialize new instances.</li>
+ *     <li>Fallback routing via {@link RoutingKey} annotations or message metadata is also supported.</li>
+ * </ul>
+ *
+ * <h2>Persistence and Lifecycle</h2>
+ * <ul>
+ *     <li>The resolved handler instances are loaded and stored via a {@link HandlerRepository} (typically backed by the {@code DocumentStore}).</li>
+ *     <li>If a handler method returns a new instance, it replaces the current state.</li>
+ *     <li>If a handler method returns {@code null}, the instance is removed from storage.</li>
+ * </ul>
+ *
+ * <h2>Batch-Aware Behavior</h2>
+ * <ul>
+ *     <li>Routing decisions may respect the current {@link Tracker} context, segment ownership, and routing constraints.</li>
+ *     <li>Within a batch, state changes may be staged locally before committing (when {@code commitInBatch = true}).</li>
+ * </ul>
+ *
+ * <h2>Internal Mechanics</h2>
+ * <ul>
+ *     <li>Associations are lazily resolved and memoized for performance.</li>
+ *     <li>Handler invocation is delegated via {@link HandlerMatcher} and {@link HandlerInvoker} abstractions.</li>
+ *     <li>Support is provided for multiple matches and combined invocation across entries.</li>
+ * </ul>
+ *
+ * @see Stateful
+ * @see Association
+ * @see HandlerRepository
+ * @see HandlerInvoker
+ * @see DeserializingMessage
+ * @see io.fluxcapacitor.javaclient.tracking.Tracker
+ */
 @Getter
 @AllArgsConstructor
 @FieldDefaults(makeFinal = true, level = AccessLevel.PRIVATE)
@@ -149,7 +197,8 @@ public class StatefulHandler implements Handler<DeserializingMessage> {
                                 getAssociationProperties().entrySet().stream())
                         .filter(entry -> includedPayload(payload, entry.getValue()))
                         .flatMap(entry -> ReflectionUtils.readProperty(entry.getKey(), payload)
-                                .or(() -> entry.getValue().isExcludeMetadata() ? empty() : ofNullable(message.getMetadata().get(entry.getKey())))
+                                .or(() -> entry.getValue().isExcludeMetadata() ? empty() :
+                                        ofNullable(message.getMetadata().get(entry.getKey())))
                                 .map(v -> v instanceof Id<?> id ? id.getFunctionalId() : v)
                                 .map(v -> Map.entry(v, entry.getValue().getPath()))
                                 .stream()))

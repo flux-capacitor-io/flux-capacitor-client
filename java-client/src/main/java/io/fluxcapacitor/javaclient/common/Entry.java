@@ -14,8 +14,30 @@
 
 package io.fluxcapacitor.javaclient.common;
 
+/**
+ * Represents a key-value pair with a string-based identifier.
+ * <p>
+ * This interface is commonly used in Flux to model lightweight references to domain objects, documents, or indexed
+ * values. It is intentionally simple and generic to allow broad reuse across components such as the
+ * {@code DocumentStore}, {@code HandlerRepository}, and other infrastructure abstractions.
+ *
+ * @param <T> the type of the associated value
+ */
 public interface Entry<T> {
+
+    /**
+     * Returns the identifier of the entry. Typically, this corresponds to an entity ID, document ID, or association
+     * key.
+     *
+     * @return the unique ID as a {@code String}
+     */
     String getId();
 
+    /**
+     * Returns the value associated with this entry. This may be a domain object, handler instance, or deserialized
+     * document depending on usage.
+     *
+     * @return the value of type {@code T}
+     */
     T getValue();
 }

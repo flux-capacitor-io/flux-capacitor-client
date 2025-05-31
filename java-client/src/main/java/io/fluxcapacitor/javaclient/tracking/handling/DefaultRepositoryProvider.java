@@ -20,6 +20,10 @@ import java.util.function.Function;
 
 import static io.fluxcapacitor.javaclient.common.ClientUtils.memoize;
 
+/**
+ * A default implementation of the {@link RepositoryProvider} interface that uses a {@link ConcurrentHashMap} for each
+ * repository.
+ */
 public class DefaultRepositoryProvider implements RepositoryProvider {
     private final Function<Class<?>, Map<Object, Object>> delegate = memoize(c -> new ConcurrentHashMap<>());
 

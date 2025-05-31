@@ -17,7 +17,25 @@ package io.fluxcapacitor.javaclient.scheduling;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import lombok.Value;
 
+/**
+ * Wrapper for a serialized command message scheduled for deferred execution.
+ * <p>
+ * This class is used by the {@link io.fluxcapacitor.javaclient.scheduling.ScheduledCommandHandler} to encapsulate a
+ * {@link SerializedMessage} representing a command that should be dispatched at a future point in time.
+ *
+ * <p>Instances of this class are typically created by the
+ * {@link MessageScheduler} via helper methods like {@link io.fluxcapacitor.javaclient.FluxCapacitor#scheduleCommand}.
+ *
+ * @see io.fluxcapacitor.javaclient.scheduling.ScheduledCommandHandler
+ */
 @Value
 public class ScheduledCommand {
+    /**
+     * A serialized representation of the original command scheduled for execution at a later time.
+     * <p>
+     * This field encapsulates a {@link SerializedMessage}, containing the full payload, metadata, and other details
+     * necessary for transmitting or persisting the command. It is used to ensure the command can be accurately
+     * reconstituted and dispatched when it is due for execution.
+     */
     SerializedMessage command;
 }

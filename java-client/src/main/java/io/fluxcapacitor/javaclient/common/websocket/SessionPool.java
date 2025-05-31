@@ -24,6 +24,33 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 
+/**
+ * A thread-safe pool of reusable WebSocket {@link Session} objects, supporting concurrent access and routing.
+ * <p>
+ * This class provides a mechanism to manage multiple active WebSocket sessions, either round-robin or keyed by a
+ * {@code routingKey}. It lazily initializes sessions on demand using a configurable {@link Supplier}, ensuring that
+ * each session slot is kept active unless the pool is shutting down or explicitly closed.
+ * <p>
+ * The session pool is particularly useful in high-throughput scenarios, where multiple sessions are used to distribute
+ * load, improve parallelism, or isolate message streams.
+ *
+ * <h2>Usage Modes:</h2>
+ * <ul>
+ *     <li><strong>Round-robin</strong>: Calling {@link #get()} will return the next available session, cycling through
+ *     the pool.</li>
+ *     <li><strong>Hash-based routing</strong>: Calling {@link #get(String)} with a routing key returns the session
+ *     consistently mapped to that key, based on consistent hashing.</li>
+ * </ul>
+ *
+ * <p>
+ * If a session is closed or unavailable, it is automatically replaced using the provided {@code sessionFactory}.
+ * All sessions are closed when {@link #close()} is called.
+ *
+ * <p><strong>Note:</strong> This class is used by Flux WebSocket clients such as {@link AbstractWebsocketClient} to
+ * manage their underlying connections to the Flux platform.
+ *
+ * @see AbstractWebsocketClient
+ */
 @Slf4j
 public class SessionPool implements AutoCloseable {
     private final Map<Integer, Session> sessionMap;

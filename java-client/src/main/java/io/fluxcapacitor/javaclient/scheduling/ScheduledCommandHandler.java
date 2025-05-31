@@ -17,6 +17,7 @@ package io.fluxcapacitor.javaclient.scheduling;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
+import io.fluxcapacitor.javaclient.configuration.FluxCapacitorBuilder;
 import io.fluxcapacitor.javaclient.tracking.Consumer;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleSchedule;
 
@@ -26,7 +27,33 @@ import static io.fluxcapacitor.common.Guarantee.NONE;
 import static io.fluxcapacitor.common.MessageType.COMMAND;
 import static io.fluxcapacitor.javaclient.common.serialization.UnknownTypeStrategy.IGNORE;
 
-@Consumer(name = "ScheduledCommandHandler", typeFilter = "io.fluxcapacitor.javaclient.scheduling.ScheduledCommand")
+/**
+ * Internal handler responsible for executing scheduled commands when they are due. Typically, these commands have been
+ * scheduled using {@link FluxCapacitor#scheduleCommand} methods or via the {@link MessageScheduler}.
+ * <p>
+ * This component listens to {@link Schedule} messages containing serialized command payloads wrapped in
+ * {@link ScheduledCommand}. When a scheduled time is reached, the handler triggers the dispatch of the command. The
+ * handler attempts to deserialize and dispatch the command using the standard {@link FluxCapacitor} command gateway.
+ *
+ * <p>Deserialization is attempted prior to dispatch to ensure that any configured
+ * {@link io.fluxcapacitor.javaclient.publishing.DispatchInterceptor dispatch interceptors} are invoked. Many
+ * interceptors (e.g. those for correlation, routing, data protection, or metrics) require access to the command payload
+ * and metadata, and therefore rely on a proper
+ * {@link io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage} context.
+ * <p>
+ * If deserialization fails (e.g. due to an unknown type or missing class), the command is appended directly to the
+ * lower level {@link io.fluxcapacitor.javaclient.publishing.client.GatewayClient command gateway client} using a raw
+ * {@link SerializedMessage}.
+ *
+ * <p>Consumers typically do not invoke or register this handler directly. It is automatically configured
+ * in the Flux Capacitor client unless explicitly disabled using
+ * {@link FluxCapacitorBuilder#disableScheduledCommandHandler()}.
+ *
+ * @see ScheduledCommand
+ * @see io.fluxcapacitor.javaclient.tracking.handling.HandleSchedule
+ * @see FluxCapacitor#scheduleCommand
+ */
+@Consumer(name = "ScheduledCommandHandler", typeFilter = "\\Qio.fluxcapacitor.javaclient.scheduling.ScheduledCommand\\E")
 public class ScheduledCommandHandler {
     @HandleSchedule
     void handle(ScheduledCommand schedule) {

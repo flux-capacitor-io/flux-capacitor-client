@@ -25,23 +25,67 @@ import io.fluxcapacitor.common.api.keyvalue.StoreValueIfAbsent;
 import io.fluxcapacitor.common.api.keyvalue.StoreValues;
 import io.fluxcapacitor.javaclient.common.websocket.AbstractWebsocketClient;
 import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient;
+import io.fluxcapacitor.javaclient.persisting.keyvalue.KeyValueStore;
 import jakarta.websocket.ClientEndpoint;
 
 import java.net.URI;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
+/**
+ * WebSocket-based implementation of the {@link KeyValueClient} interface for interacting with the Flux Platform.
+ * <p>
+ * This client is responsible for storing, retrieving, and deleting binary key-value data over a WebSocket connection.
+ * It sends encoded requests to the platform's key-value gateway endpoint, which persists and manages the data on the
+ * server-side.
+ *
+ * <p>Operations supported:
+ * <ul>
+ *     <li>{@link #putValue(String, Data, Guarantee)} - Store a value with a given guarantee.</li>
+ *     <li>{@link #putValueIfAbsent(String, Data)} - Conditionally store a value only if the key is not yet present.</li>
+ *     <li>{@link #getValue(String)} - Retrieve a previously stored value.</li>
+ *     <li>{@link #deleteValue(String, Guarantee)} - Remove a value associated with a given key.</li>
+ * </ul>
+ *
+ * <p>This class is typically used internally by Flux clients and not accessed directly by most applications.
+ * Higher-level abstractions like {@link KeyValueStore} are preferred.
+ *
+ * @see KeyValueClient
+ * @see KeyValueStore
+ */
 @ClientEndpoint
 public class WebsocketKeyValueClient extends AbstractWebsocketClient implements KeyValueClient {
 
+    /**
+     * Constructs a WebsocketKeyValueClient instance using the specified endpoint URL and WebSocket client. Sending of
+     * metrics is enabled by default.
+     *
+     * @param endPointUrl the WebSocket endpoint URL to connect to
+     * @param client      the WebSocketClient instance used for managing the WebSocket connection
+     */
     public WebsocketKeyValueClient(String endPointUrl, WebSocketClient client) {
         this(URI.create(endPointUrl), client);
     }
 
+    /**
+     * Constructs a WebsocketKeyValueClient instance with the provided WebSocket endpoint URI and client. Sending of
+     * metrics is enabled by default.
+     *
+     * @param endpointUri the URI of the WebSocket endpoint to connect to
+     * @param client      the WebSocketClient instance used to manage the connection
+     */
     public WebsocketKeyValueClient(URI endpointUri, WebSocketClient client) {
         this(endpointUri, client, true);
     }
 
+    /**
+     * Constructs a new WebsocketKeyValueClient instance.
+     *
+     * @param endpointUri the URI of the WebSocket server endpoint to connect to.
+     * @param client      the WebSocketClient instance used for handling the WebSocket connection.
+     * @param sendMetrics a flag indicating whether to enable metrics collection for this client. If true, metrics will
+     *                    be sent.
+     */
     public WebsocketKeyValueClient(URI endpointUri, WebSocketClient client, boolean sendMetrics) {
         super(endpointUri, client, sendMetrics, client.getClientConfig().getKeyValueSessions());
     }

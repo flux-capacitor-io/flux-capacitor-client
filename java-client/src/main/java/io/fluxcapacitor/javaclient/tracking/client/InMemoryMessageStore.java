@@ -19,6 +19,7 @@ import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.tracking.MessageStore;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
+import io.fluxcapacitor.javaclient.publishing.client.GatewayClient;
 import io.fluxcapacitor.javaclient.tracking.IndexUtils;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -38,6 +39,45 @@ import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
+
+/**
+ * An in-memory implementation of the {@link MessageStore} interface for storing {@link SerializedMessage}s without
+ * external persistence.
+ * <p>
+ * This store underpins both local tracking (via {@link LocalTrackingClient}) and local publishing (via in-memory
+ * {@link GatewayClient}) in test and development environments.
+ *
+ * <h2>Behavior</h2>
+ * <ul>
+ *   <li>Messages are assigned a unique, incrementing index upon append if none is present.</li>
+ *   <li>Stored messages are retained in memory using a {@link ConcurrentSkipListMap} keyed by index.</li>
+ *   <li>Supports expiration via {@link #retentionTime}, with periodic purging during appends.</li>
+ *   <li>Supports message monitors that are notified after every append.</li>
+ * </ul>
+ *
+ * <h2>Thread Safety</h2>
+ * <ul>
+ *   <li>Append and monitor notifications are synchronized to preserve consistency across batch inserts.</li>
+ *   <li>Message storage is based on concurrent data structures, safe for multi-threaded access.</li>
+ *   <li>Monitors use a {@link CopyOnWriteArraySet} for thread-safe iteration and updates.</li>
+ * </ul>
+ *
+ * <h2>Use Cases</h2>
+ * <ul>
+ *   <li>Unit and integration tests for consumers, handlers, and gateways</li>
+ *   <li>Simulating message flow in local environments without a Flux Capacitor backend</li>
+ *   <li>Standalone tools that mock message streams</li>
+ * </ul>
+ *
+ * <h2>Message Expiration</h2>
+ * <ul>
+ *   <li>Expired messages are purged based on wall-clock time via {@link FluxCapacitor#currentTime()}.</li>
+ *   <li>The purge logic is triggered during each call to {@link #append(List)} when a retention policy is set.</li>
+ * </ul>
+ *
+ * @see MessageStore
+ * @see LocalTrackingClient
+ */
 @Slf4j
 @AllArgsConstructor
 public class InMemoryMessageStore implements MessageStore {
@@ -47,7 +87,8 @@ public class InMemoryMessageStore implements MessageStore {
     private final ConcurrentSkipListMap<Long, SerializedMessage> messageLog = new ConcurrentSkipListMap<>();
     @Getter
     private final MessageType messageType;
-    @Getter @Setter
+    @Getter
+    @Setter
     private Duration retentionTime;
 
     public InMemoryMessageStore(MessageType messageType) {

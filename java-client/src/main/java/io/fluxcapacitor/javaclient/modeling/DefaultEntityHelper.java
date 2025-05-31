@@ -46,11 +46,35 @@ import static io.fluxcapacitor.common.handling.HandlerInspector.inspect;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedPropertyValues;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotation;
 
+/**
+ * The {@code DefaultEntityHelper} provides the default implementation of the {@link EntityHelper} interface.
+ * <p>
+ * It is responsible for orchestrating the behavior of domain model entities with respect to: - Intercepting messages
+ * using {@code @InterceptApply} handlers - Applying updates or events via {@code @Apply} handlers - Validating updates
+ * and asserting legal state transitions using {@code @AssertLegal} handlers
+ * <p>
+ * This helper is heavily used during message handling and event sourcing to delegate message processing and validation
+ * logic to methods annotated on the entity class or its nested members.
+ * <p>
+ * The class supports efficient handler resolution through memoized lookups, enabling fast, repeatable application of
+ * complex domain behaviors.
+ */
 public class DefaultEntityHelper implements EntityHelper {
 
+    /**
+     * Default aggregate annotation used when no explicit @Aggregate is found.
+     */
     private static final Aggregate defaultAggregateAnnotation = DefaultAggregate.class.getAnnotation(Aggregate.class);
+
+    /**
+     * Caches resolved @Aggregate annotations for faster repeated access.
+     */
     private static final Function<Class<?>, Aggregate> annotationCache = memoize(type -> Optional.<Aggregate>ofNullable(
             ReflectionUtils.getTypeAnnotation(type, Aggregate.class)).orElse(defaultAggregateAnnotation));
+
+    /**
+     * Returns the cached or default @Aggregate annotation for a given type.
+     */
     public static Aggregate getRootAnnotation(Class<?> type) {
         return annotationCache.apply(type);
     }
@@ -60,6 +84,12 @@ public class DefaultEntityHelper implements EntityHelper {
     private final Function<Class<?>, HandlerMatcher<Object, HasMessage>> assertLegalMatchers;
     private final boolean disablePayloadValidation;
 
+    /**
+     * Creates a new helper using the given parameter resolvers and configuration.
+     *
+     * @param parameterResolvers       Resolvers used to inject values into annotated handler methods
+     * @param disablePayloadValidation If true, disables bean validation of payloads
+     */
     @SuppressWarnings({"unchecked", "rawtypes"})
     public DefaultEntityHelper(List<ParameterResolver<? super DeserializingMessage>> parameterResolvers,
                                boolean disablePayloadValidation) {
@@ -71,6 +101,10 @@ public class DefaultEntityHelper implements EntityHelper {
         this.disablePayloadValidation = disablePayloadValidation;
     }
 
+    /**
+     * Intercepts the given value using {@code @InterceptApply} methods defined on the entity. Interceptors may
+     * transform or replace the original message.
+     */
     @Override
     public Stream<?> intercept(Object value, Entity<?> entity) {
         Object payload = Optional.ofNullable(DeserializingMessage.getCurrent())
@@ -95,6 +129,9 @@ public class DefaultEntityHelper implements EntityHelper {
                 })).orElseGet(() -> Stream.of(value));
     }
 
+    /**
+     * Recursively resolves the best-matching interceptor method, including nested members.
+     */
     protected Optional<HandlerInvoker> getInterceptInvoker(MessageWithEntity m) {
         return interceptMatchers.apply(m.getPayloadClass()).getInvoker(m.getPayload(), m)
                 .or(() -> {
@@ -108,6 +145,9 @@ public class DefaultEntityHelper implements EntityHelper {
                 });
     }
 
+    /**
+     * Finds a handler method annotated with {@code @Apply} and wraps it to preserve apply context flags.
+     */
     @Override
     public Optional<HandlerInvoker> applyInvoker(DeserializingMessage event, Entity<?> entity, boolean searchChildren) {
         var message = new DeserializingMessageWithEntity(event, entity);
@@ -151,6 +191,10 @@ public class DefaultEntityHelper implements EntityHelper {
         return result;
     }
 
+    /**
+     * Performs a validation check using {@code @AssertLegal} handlers for the provided payload. This method is called
+     * both before and after the handler completes, depending on the annotation's settings.
+     */
     @Override
     public <E extends Exception> void assertLegal(Object value, Entity<?> entity) throws E {
         assertLegal(value, entity, false);
@@ -176,12 +220,18 @@ public class DefaultEntityHelper implements EntityHelper {
                              value instanceof HasMessage hasMessage ? hasMessage.getPayload() : value);
     }
 
+    /**
+     * Performs recursive validation for the value and any nested properties or child entities.
+     */
     private void assertLegalRecursive(Object value, Entity<?> entity, boolean afterHandler, Object payload) {
         assertLegalValue(payload.getClass(), payload, value, entity, afterHandler);
         assertLegalValue(entity.type(), entity.get(), value, entity, afterHandler);
         entity.possibleTargets(payload).forEach(e -> assertLegalRecursive(value, e, afterHandler, payload));
     }
 
+    /**
+     * Resolves and invokes @AssertLegal handlers for the given target.
+     */
     private void assertLegalValue(Class<?> targetType, Object target, Object value, Entity<?> entity,
                                   boolean afterHandler) {
         if (value == null) {
@@ -206,6 +256,9 @@ public class DefaultEntityHelper implements EntityHelper {
                 .forEach(p -> assertLegalValue(p.getClass(), p, value, entity, afterHandler));
     }
 
+    /**
+     * Returns an exception if the value is illegal for the current entity, or {@code Optional.empty()} if legal.
+     */
     @Override
     @SuppressWarnings("unchecked")
     public <E extends Exception> Optional<E> checkLegality(Object value, Entity<?> entity) {
@@ -217,15 +270,24 @@ public class DefaultEntityHelper implements EntityHelper {
         }
     }
 
+    /**
+     * Convenience method that returns {@code true} if {@link #checkLegality} yields no error.
+     */
     @Override
     public boolean isLegal(Object value, Entity<?> entity) {
         return checkLegality(value, entity).isEmpty();
     }
 
+    /**
+     * Fallback default annotation for when an entity type lacks an explicit @Aggregate declaration.
+     */
     @Aggregate
     static class DefaultAggregate {
     }
 
+    /**
+     * Wraps a message and its corresponding entity for use in interception or handler invocation.
+     */
     @Value
     protected static class MessageWithEntity implements HasMessage, HasEntity {
         Entity<?> entity;
@@ -257,6 +319,9 @@ public class DefaultEntityHelper implements EntityHelper {
         }
     }
 
+    /**
+     * Decorates a {@link DeserializingMessage} with an associated entity.
+     */
     @Value
     protected static class DeserializingMessageWithEntity extends DeserializingMessage implements HasEntity {
         Entity<?> entity;

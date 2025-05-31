@@ -37,6 +37,15 @@ import java.util.function.Function;
 import static io.fluxcapacitor.common.MessageType.EVENT;
 import static java.util.Collections.synchronizedMap;
 
+/**
+ * An implementation of the {@link EventStoreClient} interface that provides an in-memory event storage solution. This
+ * class extends {@link InMemoryMessageStore} to inherit message store functionality and provides additional
+ * capabilities for storing, retrieving, updating, and managing aggregate event streams and relationships in memory.
+ * <p>
+ * It is designed for use cases where events and relationships are stored and maintained in the application memory,
+ * which makes it lightweight but volatile. The stored data will not persist beyond the lifetime of the application
+ * process and is typically used in test scenarios or for development purposes.
+ */
 public class InMemoryEventStore extends InMemoryMessageStore implements EventStoreClient {
 
     private final Map<String, List<SerializedMessage>> appliedEvents = new ConcurrentHashMap<>();

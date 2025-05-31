@@ -60,9 +60,9 @@ import io.fluxcapacitor.javaclient.publishing.correlation.CorrelationDataProvide
 import io.fluxcapacitor.javaclient.publishing.correlation.DefaultCorrelationDataProvider;
 import io.fluxcapacitor.javaclient.publishing.dataprotection.DataProtectionInterceptor;
 import io.fluxcapacitor.javaclient.publishing.routing.MessageRoutingInterceptor;
-import io.fluxcapacitor.javaclient.scheduling.DefaultScheduler;
+import io.fluxcapacitor.javaclient.scheduling.DefaultMessageScheduler;
+import io.fluxcapacitor.javaclient.scheduling.MessageScheduler;
 import io.fluxcapacitor.javaclient.scheduling.ScheduledCommandHandler;
-import io.fluxcapacitor.javaclient.scheduling.Scheduler;
 import io.fluxcapacitor.javaclient.scheduling.SchedulingInterceptor;
 import io.fluxcapacitor.javaclient.tracking.BatchInterceptor;
 import io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration;
@@ -170,7 +170,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
     private final EventStore eventStore;
     private final KeyValueStore keyValueStore;
     private final DocumentStore documentStore;
-    private final Scheduler scheduler;
+    private final MessageScheduler messageScheduler;
     private final UserProvider userProvider;
     private final Cache cache;
     private final Serializer serializer;
@@ -734,10 +734,10 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                                                       repositorySupplier))));
 
             //misc
-            Scheduler scheduler = new DefaultScheduler(client.getSchedulingClient(),
-                                                       serializer, dispatchInterceptors.get(SCHEDULE),
-                                                       dispatchInterceptors.get(COMMAND),
-                                                       localHandlerRegistry(SCHEDULE, handlerDecorators,
+            MessageScheduler messageScheduler = new DefaultMessageScheduler(client.getSchedulingClient(),
+                                                                            serializer, dispatchInterceptors.get(SCHEDULE),
+                                                                            dispatchInterceptors.get(COMMAND),
+                                                                            localHandlerRegistry(SCHEDULE, handlerDecorators,
                                                                             parameterResolvers,
                                                                             handlerRepositorySupplier,
                                                                             repositorySupplier));
@@ -774,7 +774,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                     doBuild(trackingMap, customGateways, commandGateway, queryGateway, eventGateway,
                             resultGateway, errorGateway, metricsGateway, webRequestGateway,
                             aggregateRepository, snapshotStore,
-                            eventStore, keyValueStore, documentStore.get(), scheduler, userProvider,
+                            eventStore, keyValueStore, documentStore.get(), messageScheduler, userProvider,
                             cache, serializer, correlationDataProvider, identityProvider,
                             propertySource instanceof DecryptingPropertySource dps
                                     ? dps : new DecryptingPropertySource(propertySource),
@@ -807,7 +807,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                                         WebRequestGateway webRequestGateway,
                                         AggregateRepository aggregateRepository, SnapshotStore snapshotStore,
                                         EventStore eventStore, KeyValueStore keyValueStore, DocumentStore documentStore,
-                                        Scheduler scheduler, UserProvider userProvider, Cache cache,
+                                        MessageScheduler messageScheduler, UserProvider userProvider, Cache cache,
                                         Serializer serializer, CorrelationDataProvider correlationDataProvider,
                                         IdentityProvider identityProvider, PropertySource propertySource,
                                         DelegatingClock clock, TaskScheduler taskScheduler,
@@ -817,7 +817,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                                             errorGateway, metricsGateway, webRequestGateway,
                                             aggregateRepository, snapshotStore, eventStore,
                                             keyValueStore, documentStore,
-                                            scheduler, userProvider, cache, serializer, correlationDataProvider,
+                                            messageScheduler, userProvider, cache, serializer, correlationDataProvider,
                                             identityProvider, propertySource,
                                             clock, taskScheduler, client, shutdownHandler);
         }
@@ -836,13 +836,13 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                                                       Map<MessageType, HandlerDecorator> handlerDecorators,
                                                       List<ParameterResolver<? super DeserializingMessage>> parameterResolvers,
                                                       Function<Class<?>, HandlerRepository> handlerRepositorySupplier,
-                                                      RepositoryProvider repositorySupplier,
+                                                      RepositoryProvider repositoryProvider,
                                                       ResponseMapper responseMapper) {
             return new DefaultGenericGateway(client.getGatewayClient(messageType, topic), requestHandler,
                                              this.serializer, dispatchInterceptors.get(messageType), messageType,
                                              topic, localHandlerRegistry(messageType, handlerDecorators,
                                                                          parameterResolvers, handlerRepositorySupplier,
-                                                                         repositorySupplier),
+                                                                         repositoryProvider),
                                              responseMapper);
         }
 

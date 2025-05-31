@@ -15,6 +15,7 @@
 package io.fluxcapacitor.javaclient.modeling;
 
 import io.fluxcapacitor.javaclient.common.Message;
+import io.fluxcapacitor.javaclient.persisting.repository.AggregateRepository;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -28,6 +29,34 @@ import java.util.function.UnaryOperator;
 
 import static java.util.stream.Collectors.toList;
 
+/**
+ * A functional, non-persistent {@link Entity} wrapper that enables safe state mutation and validation without producing
+ * side effects such as event publication or snapshot creation.
+ * <p>
+ * {@code SideEffectFreeEntity} allows invocation of methods like {@link #apply(Message)},
+ * {@link #update(UnaryOperator)}, and {@link #assertLegal(Object)}, making it suitable for scenarios where domain logic
+ * or legality checks are needed without committing the resulting changes.
+ * <p>
+ * This entity is returned from {@link AggregateRepository#asEntity(Object)} or
+ * {@link io.fluxcapacitor.javaclient.FluxCapacitor#asEntity(Object)} to allow ad-hoc interaction with domain objects
+ * outside of the lifecycle of an active aggregate. It is particularly useful for:
+ * <ul>
+ *   <li>Performing validations with {@code @AssertLegal}</li>
+ *   <li>Executing {@code @Apply} handlers to derive a new state</li>
+ *   <li>Analyzing projected changes without actually modifying persisted state</li>
+ * </ul>
+ * Internally, it enforces {@link Entity#isLoading()} to remain {@code true} during {@code apply()} and {@code update()}
+ * invocations to suppress unintended side effects like event publication or committing.
+ * However, the returned state reflects the result of applying the logic, allowing chaining or inspection.
+ * <p>
+ * Unlike {@link NoOpEntity}, which disables all state changes entirely, {@code SideEffectFreeEntity} evaluates them
+ * fully but simply discards any side effects. The {@link #commit()} operation is a no-op.
+ *
+ * @param <T> the type of the entity's value
+ * @see NoOpEntity
+ * @see ModifiableAggregateRoot
+ * @see io.fluxcapacitor.javaclient.FluxCapacitor#asEntity(Object)
+ */
 @AllArgsConstructor
 @Accessors(fluent = true)
 public class SideEffectFreeEntity<T> implements Entity<T> {

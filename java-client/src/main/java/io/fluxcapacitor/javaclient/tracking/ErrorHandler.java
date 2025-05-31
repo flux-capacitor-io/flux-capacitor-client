@@ -21,6 +21,64 @@ import java.util.concurrent.Callable;
 /**
  * An interface to handle errors encountered during message tracking and processing, with the ability to retry
  * operations.
+ *
+ * <p>Several built-in {@code ErrorHandler} implementations are provided for different operational needs:
+ *
+ * <table border="1">
+ *   <caption>Built-in ErrorHandler Implementations</caption>
+ *   <thead>
+ *     <tr>
+ *       <th>Implementation</th>
+ *       <th>Retries</th>
+ *       <th>Throws</th>
+ *       <th>Skips Messages</th>
+ *       <th>Logging</th>
+ *       <th>Use Case</th>
+ *     </tr>
+ *   </thead>
+ *   <tbody>
+ *     <tr>
+ *       <td>{@link ThrowingErrorHandler}</td>
+ *       <td>No</td>
+ *       <td>Always</td>
+ *       <td>No</td>
+ *       <td>Optional (configurable per type)</td>
+ *       <td>Critical systems where any failure must stop processing</td>
+ *     </tr>
+ *     <tr>
+ *       <td>{@link LoggingErrorHandler}</td>
+ *       <td>No</td>
+ *       <td>Never</td>
+ *       <td>Yes</td>
+ *       <td>Error (technical), Warn (functional)</td>
+ *       <td>Default for general-purpose robust message tracking</td>
+ *     </tr>
+ *     <tr>
+ *       <td>{@link SilentErrorHandler}</td>
+ *       <td>No</td>
+ *       <td>Never</td>
+ *       <td>Yes</td>
+ *       <td>Optional (configurable level or silent)</td>
+ *       <td>Logging/audit projections, passive consumers</td>
+ *     </tr>
+ *     <tr>
+ *       <td>{@link RetryingErrorHandler}</td>
+ *       <td>Yes (configurable)</td>
+ *       <td>Optional (on final failure)</td>
+ *       <td>Optional (configurable)</td>
+ *       <td>Error/Warn on failure and retry attempts</td>
+ *       <td>Recoverable transient failures with fallback strategy</td>
+ *     </tr>
+ *     <tr>
+ *       <td>{@link ForeverRetryingErrorHandler}</td>
+ *       <td>Yes (infinite)</td>
+ *       <td>Never</td>
+ *       <td>No</td>
+ *       <td>Error/Warn on retries</td>
+ *       <td>Guaranteed delivery and strict durability requirements</td>
+ *     </tr>
+ *   </tbody>
+ * </table>
  */
 @FunctionalInterface
 public interface ErrorHandler {

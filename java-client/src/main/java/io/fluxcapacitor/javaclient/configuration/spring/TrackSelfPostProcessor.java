@@ -15,6 +15,7 @@
 package io.fluxcapacitor.javaclient.configuration.spring;
 
 import io.fluxcapacitor.javaclient.tracking.TrackSelf;
+import lombok.NoArgsConstructor;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeansException;
@@ -39,14 +40,56 @@ import java.util.stream.Stream;
 import static java.util.stream.Stream.concat;
 import static org.springframework.beans.factory.support.BeanDefinitionBuilder.genericBeanDefinition;
 
+/**
+ * Spring {@link BeanDefinitionRegistryPostProcessor} that detects classes annotated with {@link TrackSelf}
+ * and registers them as {@link FluxPrototype} beans for use by Flux Capacitor.
+ * <p>
+ * This processor differs from {@link StatefulPostProcessor} in that it performs full classpath scanning—rather
+ * than only inspecting instantiated beans—because it must also detect interfaces and abstract classes annotated
+ * with {@code @TrackSelf}. These types represent projection definitions that are later handled dynamically.
+ * <p>
+ * All detected {@code @TrackSelf} types are wrapped as {@link FluxPrototype} and registered as Spring bean
+ * definitions, allowing Flux to discover and register them as self-tracking projections at runtime.
+ *
+ * <h2>Usage</h2>
+ * To enable self-tracking on a class use e.g.:
+ * <pre>{@code
+ * @TrackSelf
+ * public interface UserUpdate {
+ *     UserId getUserId();
+ *
+ *     @HandleCommand
+ *     default void handle() {
+ *         FluxCapacitor.loadAggregate(getUserId()).assertAndApply(this);
+ *     }
+ * }
+ * }</pre>
+ * <p>
+ * Make sure Spring picks up this processor, for example by including
+ * {@link FluxCapacitorSpringConfig} in your configuration:
+ * <pre>{@code
+ * @SpringBootApplication
+ * @Import(FluxCapacitorSpringConfig.class)
+ * public class MyApp { ... }
+ * }</pre>
+ *
+ * @see TrackSelf
+ * @see StatefulPostProcessor
+ * @see FluxPrototype
+ * @see FluxCapacitorSpringConfig
+ */
 @Slf4j
+@NoArgsConstructor
 public class TrackSelfPostProcessor implements BeanDefinitionRegistryPostProcessor, EnvironmentAware {
     private Environment environment;
 
-    public TrackSelfPostProcessor() {
-
-    }
-
+    /**
+     * Scans the classpath for components annotated with {@link TrackSelf}, based on {@link ComponentScan} metadata, and
+     * registers each of them as a {@link FluxPrototype}.
+     * <p>
+     * If the {@code beanFactory} is not a {@link BeanDefinitionRegistry}, a warning is logged and processing is
+     * skipped.
+     */
     @Override
     public void postProcessBeanFactory(@NonNull ConfigurableListableBeanFactory beanFactory) throws BeansException {
         if (!(beanFactory instanceof BeanDefinitionRegistry registry)) {
@@ -85,6 +128,12 @@ public class TrackSelfPostProcessor implements BeanDefinitionRegistryPostProcess
                 });
     }
 
+    /**
+     * Extracts the target class from the scanned {@link BeanDefinition}.
+     *
+     * @param beanDefinition the scanned bean definition
+     * @return the resolved class, or {@code null} if not resolvable
+     */
     protected Class<?> extractBeanClass(BeanDefinition beanDefinition) {
         try {
             return ((ScannedGenericBeanDefinition) beanDefinition)
@@ -94,11 +143,19 @@ public class TrackSelfPostProcessor implements BeanDefinitionRegistryPostProcess
         }
     }
 
+    /**
+     * No-op. This implementation does not modify the registry at this phase.
+     *
+     * @param registry the {@link BeanDefinitionRegistry}
+     */
     @Override
     public void postProcessBeanDefinitionRegistry(@NonNull BeanDefinitionRegistry registry) throws BeansException {
         //no op
     }
 
+    /**
+     * Sets the Spring {@link Environment} used for context-aware scanning.
+     */
     @Override
     public void setEnvironment(Environment environment) {
         this.environment = environment;

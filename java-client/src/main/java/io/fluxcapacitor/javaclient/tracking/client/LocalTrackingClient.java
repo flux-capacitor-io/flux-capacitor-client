@@ -41,6 +41,44 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
+/**
+ * In-memory implementation of the {@link TrackingClient} and {@link GatewayClient} interfaces, designed for
+ * local-only or test-time usage.
+ * <p>
+ * This client simulates message tracking behavior without requiring a live Flux Capacitor backend. It uses local
+ * data structures to emulate:
+ * <ul>
+ *   <li>A {@link MessageStore} to persist serialized messages</li>
+ *   <li>A {@link PositionStore} to track consumer offsets</li>
+ *   <li>A {@link TrackingStrategy} to emulate segment claims and batch fetch behavior</li>
+ * </ul>
+ *
+ * <h2>Use Cases</h2>
+ * <ul>
+ *   <li>Unit tests or integration tests involving command/event/query handling</li>
+ *   <li>Local development without a Flux backend connection</li>
+ *   <li>Custom tooling that simulates tracking or playback behavior</li>
+ * </ul>
+ *
+ * <h2>Behavior</h2>
+ * <ul>
+ *   <li>Messages are stored in memory and may be optionally expired using {@code messageExpiration} if configured</li>
+ *   <li>Tracks per-consumer positions independently via an in-memory position store</li>
+ *   <li>Implements segment claiming and disconnection logic to simulate parallel consumer behavior</li>
+ *   <li>Supports custom topics for {@link io.fluxcapacitor.common.MessageType#CUSTOM} or {@link io.fluxcapacitor.common.MessageType#DOCUMENT}</li>
+ * </ul>
+ *
+ * <h2>Example</h2>
+ * <pre>{@code
+ * TrackingClient testClient = new LocalTrackingClient(MessageType.EVENT, "test-topic", Duration.ofMinutes(10));
+ * }</pre>
+ *
+ * @see TrackingClient
+ * @see GatewayClient
+ * @see HasMessageStore
+ * @see InMemoryMessageStore
+ * @see InMemoryPositionStore
+ */
 @AllArgsConstructor
 public class LocalTrackingClient implements TrackingClient, GatewayClient, HasMessageStore {
     private final TrackingStrategy trackingStrategy;

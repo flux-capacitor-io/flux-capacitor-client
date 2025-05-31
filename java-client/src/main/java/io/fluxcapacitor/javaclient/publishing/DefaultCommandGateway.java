@@ -17,6 +17,15 @@ package io.fluxcapacitor.javaclient.publishing;
 import lombok.AllArgsConstructor;
 import lombok.experimental.Delegate;
 
+/**
+ * Default implementation of the {@link CommandGateway} interface.
+ * <p>
+ * This class delegates all functionality to an underlying {@link GenericGateway} instance, enabling the use of command
+ * gateway methods while leveraging the generic gateway's capabilities.
+ *
+ * @see CommandGateway
+ * @see GenericGateway
+ */
 @AllArgsConstructor
 public class DefaultCommandGateway implements CommandGateway {
     @Delegate

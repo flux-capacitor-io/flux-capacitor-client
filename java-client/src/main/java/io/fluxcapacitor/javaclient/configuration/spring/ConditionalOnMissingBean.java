@@ -29,6 +29,22 @@ import java.lang.annotation.Target;
 
 import static org.springframework.util.ClassUtils.forName;
 
+/**
+ * {@link Conditional} that only matches when a bean of the specified type is <em>not</em> present in the context.
+ * <p>
+ * This is commonly used to allow user-defined overrides of default beans.
+ *
+ * <h2>Usage</h2>
+ * <pre>{@code
+ * @ConditionalOnMissingBean
+ * @Bean
+ * public MyFallbackService myService() {
+ *     return new MyFallbackService();
+ * }
+ * }</pre>
+ *
+ * If no type is specified, the return type of the method is used.
+ */
 @Target({ElementType.METHOD, ElementType.TYPE})
 @Retention(RetentionPolicy.RUNTIME)
 @Conditional(ConditionalOnMissingBean.Condition.class)

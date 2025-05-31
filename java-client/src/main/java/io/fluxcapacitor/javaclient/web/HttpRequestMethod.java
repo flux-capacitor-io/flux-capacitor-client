@@ -14,18 +14,38 @@
 
 package io.fluxcapacitor.javaclient.web;
 
+/**
+ * Defines constants for standard and extended HTTP request methods used by Flux Capacitor's web handling system.
+ * <p>
+ * This interface provides:
+ * <ul>
+ *   <li>String constants for standard HTTP verbs (e.g. {@code GET}, {@code POST})</li>
+ *   <li>Custom pseudo-methods for WebSocket lifecycle events (e.g. {@code WS_HANDSHAKE}, {@code WS_MESSAGE})</li>
+ *   <li>A wildcard constant ({@code *}) for method-agnostic routing</li>
+ *   <li>A helper method to detect whether a method is a WebSocket variant</li>
+ * </ul>
+ *
+ * <h2>Usage</h2>
+ * These constants are used throughout the web routing and handler matching infrastructure:
+ * <ul>
+ *   <li>In {@link WebPattern} to define method constraints</li>
+ *   <li>By {@link io.fluxcapacitor.javaclient.web.WebHandlerMatcher} during dispatch resolution</li>
+ *   <li>In {@link io.fluxcapacitor.javaclient.web.WebRequest} metadata to interpret incoming requests</li>
+ * </ul>
+ *
+ * <p>The extended WebSocket methods are used internally to distinguish between phases of a WebSocket session,
+ * such as handshake negotiation, message delivery, or connection closure.
+ *
+ * @see WebPattern
+ * @see WebRequest
+ * @see io.fluxcapacitor.javaclient.web.WebsocketResponseInterceptor
+ */
 public interface HttpRequestMethod {
 
-    /**
-     * A constant representing a wildcard HTTP request method, used to match any method in HTTP routing or
-     * handling scenarios.
-     */
+    /** Matches any HTTP method (wildcard). Useful for fallback routing. */
     String ANY = "*";
 
-    /*
-        Standard HTTP request methods
-     */
-
+    // Standard HTTP request methods
     String GET = "GET";
     String POST = "POST";
     String PUT = "PUT";
@@ -35,15 +55,29 @@ public interface HttpRequestMethod {
     String OPTIONS = "OPTIONS";
     String TRACE = "TRACE";
 
-    /*
-        For requests over websocket
-     */
+    // Extended WebSocket lifecycle methods (used internally by Flux)
+
+    /** Synthetic method representing a WebSocket handshake (initial HTTP upgrade). */
     String WS_HANDSHAKE = "WS_HANDSHAKE";
+
+    /** Represents the WebSocket session being formally opened after handshake. */
     String WS_OPEN = "WS_OPEN";
+
+    /** Represents a message sent over an established WebSocket connection. */
     String WS_MESSAGE = "WS_MESSAGE";
+
+    /** Represents a pong response received for a ping message. */
     String WS_PONG = "WS_PONG";
+
+    /** Represents an explicit closure of a WebSocket session. */
     String WS_CLOSE = "WS_CLOSE";
 
+    /**
+     * Determines whether the given method string represents a WebSocket-specific method.
+     *
+     * @param requestMethod the method string to check
+     * @return {@code true} if the method is one of the {@code WS_*} variants; {@code false} otherwise
+     */
     static boolean isWebsocket(String requestMethod) {
         return switch (requestMethod) {
             case WS_MESSAGE, WS_HANDSHAKE, WS_OPEN, WS_CLOSE, WS_PONG -> true;

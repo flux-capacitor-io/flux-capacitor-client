@@ -40,9 +40,50 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Future;
 
+
+/**
+ * Annotation processor that validates whether handler methods annotated with {@link HandleCommand}, {@link HandleQuery}
+ * or {@link HandleCustom} correctly match the response type declared by a {@link Request} payload.
+ * <p>
+ * The processor enforces compile-time consistency between:
+ * <ul>
+ *     <li>The generic type {@code R} in {@code Request<R>}</li>
+ *     <li>The actual return type of the handler method (or {@code Future<R>})</li>
+ * </ul>
+ *
+ * <h2>Validation Rules</h2>
+ * <ul>
+ *     <li>If a handler method accepts a {@code Request<R>} as a parameter, its return type must match {@code R}</li>
+ *     <li>Asynchronous handlers that return {@code Future<R>} are also supported</li>
+ *     <li>Handlers marked as {@code passive=true} are skipped</li>
+ *     <li>Errors are reported at compile time with descriptive messages</li>
+ * </ul>
+ *
+ * <h3>Example</h3>
+ * <pre>{@code
+ * @HandleQuery
+ * UserProfile handle(GetUser query) {
+ *     return FluxCapacitor.search(UserProfile.class).match(query.getUserId()).fetchFirstOrNull();
+ * }
+ * }</pre>
+ *
+ * <p>
+ * If the method were to return e.g. {@code String} instead of {@code UserProfile}, a compile-time error would be raised.
+ *
+ * <h3>Supported Annotations</h3>
+ * <ul>
+ *     <li>{@link HandleCommand}</li>
+ *     <li>{@link HandleQuery}</li>
+ *     <li>{@link HandleCustom}</li>
+ * </ul>
+ *
+ * <p>
+ * This processor is automatically registered via {@code @AutoService(Processor.class)} and does not require manual configuration.
+ */
 @SupportedAnnotationTypes({
         "io.fluxcapacitor.javaclient.tracking.handling.HandleQuery",
-        "io.fluxcapacitor.javaclient.tracking.handling.HandleCommand"})
+        "io.fluxcapacitor.javaclient.tracking.handling.HandleCommand",
+        "io.fluxcapacitor.javaclient.tracking.handling.HandleCustom"})
 @AutoService(Processor.class)
 public class RequestAnnotationProcessor extends AbstractProcessor {
     @Override
@@ -182,6 +223,10 @@ public class RequestAnnotationProcessor extends AbstractProcessor {
         }
         if (Optional.ofNullable(method.getAnnotation(HandleQuery.class))
                 .map(HandleQuery::passive).orElse(false)) {
+            return true;
+        }
+        if (Optional.ofNullable(method.getAnnotation(HandleCustom.class))
+                .map(HandleCustom::passive).orElse(false)) {
             return true;
         }
         return false;

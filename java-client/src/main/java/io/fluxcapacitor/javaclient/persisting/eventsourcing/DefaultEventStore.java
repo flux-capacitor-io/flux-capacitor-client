@@ -39,6 +39,13 @@ import static io.fluxcapacitor.common.MessageType.EVENT;
 import static java.lang.String.format;
 import static java.util.stream.Collectors.toList;
 
+/**
+ * Default implementation of the {@link EventStore} interface, providing mechanisms to store and retrieve events
+ * associated with aggregate instances.
+ * <p>
+ * This implementation includes support for intercepting and modifying event messages during dispatch. The
+ * {@link HandlerRegistry} is used to locally invoke event handlers after events are published.
+ */
 @AllArgsConstructor
 @Slf4j
 public class DefaultEventStore implements EventStore {
@@ -62,8 +69,9 @@ public class DefaultEventStore implements EventStore {
                 } else {
                     Message m = dispatchInterceptor.interceptDispatch(Message.asMessage(e), EVENT, null);
                     SerializedMessage serializedMessage
-                            = m == null ? null : dispatchInterceptor.modifySerializedMessage(m.serialize(serializer), m, EVENT,
-                                                                                             null);
+                            = m == null ? null :
+                            dispatchInterceptor.modifySerializedMessage(m.serialize(serializer), m, EVENT,
+                                                                        null);
                     if (serializedMessage == null) {
                         return;
                     }
@@ -84,7 +92,8 @@ public class DefaultEventStore implements EventStore {
             }
             result = switch (strategy) {
                 case DEFAULT, STORE_AND_PUBLISH -> client.storeEvents(aggregateId.toString(), serializedEvents, false);
-                case PUBLISH_ONLY -> eventGateway.append(Guarantee.STORED, serializedEvents.toArray(SerializedMessage[]::new));
+                case PUBLISH_ONLY ->
+                        eventGateway.append(Guarantee.STORED, serializedEvents.toArray(SerializedMessage[]::new));
                 case STORE_ONLY -> client.storeEvents(aggregateId.toString(), serializedEvents, true);
             };
         } catch (Exception e) {

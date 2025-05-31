@@ -47,8 +47,58 @@ import static java.lang.String.format;
 import static java.util.Optional.empty;
 import static java.util.stream.Stream.concat;
 
+/**
+ * Utility class providing common validation and authorization routines for message payloads such as commands,
+ * queries, and web requests.
+ * <p>
+ * The {@code ValidationUtils} class supports two primary responsibilities:
+ * <ol>
+ *     <li><strong>Object validation</strong>: Validates message payloads using a {@link Validator}, optionally
+ *     applying validation groups specified via {@link ValidateWith} annotations.</li>
+ *     <li><strong>Authorization enforcement</strong>: Performs role-based access checks based on annotations such as
+ *     {@link RequiresAnyRole}, {@link ForbidsAnyRole}, and {@link RequiresNoUser} declared on classes, methods, or packages.</li>
+ * </ol>
+ *
+ * <h2>Validation</h2>
+ * <p>
+ * Validation is typically executed automatically by the {@link ValidatingInterceptor} before invoking handler methods.
+ * The default validator implementation is loaded via {@link java.util.ServiceLoader} (e.g. {@code Jsr380Validator}).
+ * <p>
+ * Methods like {@link #assertValid(Object, Class[])} and {@link #checkValidity(Object, Validator, Class[])}
+ * support recursive validation of collections and custom validation groups.
+ *
+ * <h2>Authorization</h2>
+ * <p>
+ * The class also performs role-based security checks. Handler methods or message payloads can declare required roles,
+ * which are evaluated against the current {@link User}. If authorization fails, the utility throws either
+ * {@link UnauthenticatedException} or {@link UnauthorizedException}.
+ *
+ * <h2>Examples</h2>
+ * <pre>{@code
+ * ValidationUtils.assertValid(payload); // Validate a single object
+ * boolean isValid = ValidationUtils.isValid(payload, MyGroup.class); // Validate with a group
+ *
+ * User user = ...;
+ * ValidationUtils.assertAuthorized(MyCommand.class, user); // Authorization check
+ * }</pre>
+ *
+ * @see Validator
+ * @see ValidatingInterceptor
+ * @see RequiresAnyRole
+ * @see ForbidsAnyRole
+ * @see RequiresNoUser
+ * @see ValidateWith
+ * @see UnauthenticatedException
+ * @see UnauthorizedException
+ */
 @Slf4j
 public class ValidationUtils {
+    /**
+     * Returns the default {@link Validator} used for message validation.
+     * <p>
+     * This is resolved via Java's {@link ServiceLoader} mechanism. If no custom {@link Validator}
+     * is found, a default JSR 380 (Bean Validation) implementation is used.
+     */
     public static final Validator defaultValidator = Optional.of(ServiceLoader.load(Validator.class))
             .map(ServiceLoader::iterator).filter(Iterator::hasNext).map(Iterator::next)
             .orElseGet(Jsr380Validator::createDefault);
@@ -65,18 +115,49 @@ public class ValidationUtils {
         Check object validity
      */
 
+    /**
+     * Checks whether the provided object is valid, using the default {@link Validator} and validation groups.
+     *
+     * @param object the object to validate
+     * @param groups optional validation groups
+     * @return an {@link Optional} containing a {@link ValidationException} if validation fails, or empty if valid
+     */
     public static Optional<ValidationException> checkValidity(Object object, Class<?>... groups) {
         return checkValidity(object, defaultValidator, groups);
     }
 
+    /**
+     * Returns {@code true} if the given object is valid using the default {@link Validator} and validation groups.
+     *
+     * @param object the object to validate
+     * @param groups optional validation groups
+     * @return {@code true} if valid, {@code false} otherwise
+     */
     public static boolean isValid(Object object, Class<?>... groups) {
         return isValid(object, defaultValidator, groups);
     }
 
+    /**
+     * Asserts that the given object is valid, using the default {@link Validator}.
+     * <p>
+     * Throws a {@link ValidationException} if the object fails validation.
+     *
+     * @param object the object to validate
+     * @param groups optional validation groups
+     * @throws ValidationException if validation fails
+     */
     public static void assertValid(Object object, Class<?>... groups) {
         assertValid(object, defaultValidator, groups);
     }
 
+    /**
+     * Checks whether the provided object is valid using the given {@link Validator} and validation groups.
+     *
+     * @param object the object to validate
+     * @param validator the validator to use
+     * @param groups optional validation groups
+     * @return an {@link Optional} containing a {@link ValidationException} if invalid, or empty if valid
+     */
     public static Optional<ValidationException> checkValidity(Object object, Validator validator, Class<?>... groups) {
         if (object instanceof Collection<?>) {
             return ((Collection<?>) object).stream().map(
@@ -86,6 +167,14 @@ public class ValidationUtils {
         }
     }
 
+    /**
+     * Returns {@code true} if the object is valid, using the given {@link Validator} and validation groups.
+     *
+     * @param object the object to validate
+     * @param validator the validator to use
+     * @param groups optional validation groups
+     * @return {@code true} if valid, {@code false} otherwise
+     */
     public static boolean isValid(Object object, Validator validator, Class<?>... groups) {
         if (object instanceof Collection<?>) {
             return ((Collection<?>) object).stream().map(
@@ -95,6 +184,16 @@ public class ValidationUtils {
         }
     }
 
+    /**
+     * Asserts that the object is valid using the given {@link Validator} and validation groups.
+     * <p>
+     * Throws a {@link ValidationException} if validation fails.
+     *
+     * @param object the object to validate
+     * @param validator the validator to use
+     * @param groups optional validation groups
+     * @throws ValidationException if validation fails
+     */
     public static void assertValid(Object object, Validator validator, Class<?>... groups) {
         if (object instanceof Iterable<?>) {
             ((Iterable<?>) object).forEach(o -> assertValid(o, validator, groups));
@@ -126,12 +225,28 @@ public class ValidationUtils {
                             .map(ValidationUtils::getRequiredRoles)
                             .filter(Objects::nonNull).findFirst().orElse(null)));
 
+    /**
+     * Verifies whether the given user is authorized to issue the given payload, based on roles
+     * declared via annotations on the payload's class or package.
+     *
+     * @param payloadType the class of the payload
+     * @param user the authenticated user (may be null)
+     * @throws UnauthenticatedException if authentication is required but the user is {@code null}
+     * @throws UnauthorizedException if the user lacks required roles
+     */
     public static void assertAuthorized(Class<?> payloadType,
                                         User user) throws UnauthenticatedException, UnauthorizedException {
         String[] requiredRoles = requiredRolesCache.apply(payloadType);
         assertAuthorized(payloadType.getSimpleName(), user, requiredRoles);
     }
 
+    /**
+     * Checks if the given user is authorized to issue the given payload.
+     *
+     * @param payloadType the class of the payload
+     * @param user the user to check
+     * @return an {@link Optional} containing the exception if unauthorized, or empty if authorized
+     */
     public static Optional<Exception> checkAuthorization(Class<?> payloadType, User user) {
         try {
             assertAuthorized(payloadType, user);
@@ -141,10 +256,27 @@ public class ValidationUtils {
         return empty();
     }
 
+    /**
+     * Returns {@code true} if the given user is authorized to issue the given payload.
+     *
+     * @param payloadType the class of the payload
+     * @param user the user to check
+     * @return {@code true} if authorized, {@code false} otherwise
+     */
     public static boolean isAuthorized(Class<?> payloadType, User user) {
         return checkAuthorization(payloadType, user).isEmpty();
     }
 
+    /**
+     * Returns {@code true} if the given user is authorized to invoke the given method on the given target.
+     * <p>
+     * Role requirements may be defined via annotations on the method, class, or package.
+     *
+     * @param target the class declaring the method
+     * @param method the method to check
+     * @param user the user to check
+     * @return {@code true} if authorized, {@code false} otherwise
+     */
     public static boolean isAuthorized(Class<?> target, Executable method, User user) {
         try {
             assertAuthorized(method.getName(), user, requiredRolesForMethodCache.apply(target, method));

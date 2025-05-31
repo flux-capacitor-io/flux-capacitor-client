@@ -121,7 +121,19 @@ public interface FluxCapacitorBuilder {
     FluxCapacitorBuilder replaceCache(Cache cache);
 
     /**
-     * Forwards web requests to a locally hosted server on the given port.
+     * Forwards incoming {@link io.fluxcapacitor.common.MessageType#WEBREQUEST} messages to a locally running HTTP
+     * server on the specified port.
+     * <p>
+     * This allows applications to handle web requests using their own HTTP server rather than Flux Capacitor’s
+     * message-based {@code @HandleWeb} infrastructure.
+     * <p>
+     * <strong>Note:</strong> This feature pushes requests to the local server and bypasses Flux’s pull-based
+     * dispatch model. Its use is discouraged unless integration with an existing HTTP stack is required.
+     *
+     * @param port the port on which the local HTTP server is listening
+     * @return this builder instance
+     * @see #forwardWebRequestsToLocalServer(LocalServerConfig, UnaryOperator)
+     * @see io.fluxcapacitor.javaclient.web.ForwardingWebConsumer
      */
     default FluxCapacitorBuilder forwardWebRequestsToLocalServer(int port) {
         return forwardWebRequestsToLocalServer(LocalServerConfig.builder().port(port).build(),
@@ -129,7 +141,17 @@ public interface FluxCapacitorBuilder {
     }
 
     /**
-     * Configures forwarding of web requests to a local server using the provided config and consumer modifier.
+     * Configures forwarding of {@link io.fluxcapacitor.common.MessageType#WEBREQUEST} messages to a local HTTP server
+     * using the specified {@link LocalServerConfig} and custom consumer configuration.
+     * <p>
+     * This mechanism is useful for advanced integration scenarios but bypasses Flux's pull-based message tracking.
+     * Prefer native {@code @HandleWeb} handlers when possible.
+     *
+     * @param localServerConfig    configuration for the local server (e.g., port, error behavior)
+     * @param consumerConfigurator function to customize the underlying
+     *                             {@link io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration}
+     * @return this builder instance
+     * @see io.fluxcapacitor.javaclient.web.ForwardingWebConsumer
      */
     FluxCapacitorBuilder forwardWebRequestsToLocalServer(LocalServerConfig localServerConfig,
                                                          UnaryOperator<ConsumerConfiguration> consumerConfigurator);

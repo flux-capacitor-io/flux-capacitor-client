@@ -52,20 +52,63 @@ import static io.fluxcapacitor.javaclient.common.ClientUtils.getRevisionNumber;
 import static java.lang.String.format;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
+/**
+ * Abstract base implementation of the {@link Serializer} interface.
+ *
+ * <p>
+ * This class provides common functionality for serialization frameworks including:
+ * <ul>
+ *     <li>Upcasting and downcasting of serialized data based on revision</li>
+ *     <li>Support for multiple serialization formats</li>
+ *     <li>Lazy deserialization with memoization</li>
+ *     <li>Type upcasting via explicit mappings</li>
+ * </ul>
+ *
+ * <p>
+ * Concrete subclasses must implement the core logic for serializing and deserializing objects using a specific
+ * format (e.g., JSON or Protobuf). This includes:
+ * <ul>
+ *     <li>{@link #doSerialize(Object)}</li>
+ *     <li>{@link #doDeserialize(Data, String)}</li>
+ *     <li>{@link #doClone(Object)}</li>
+ *     <li>{@link #doConvert(Object, Type)}</li>
+ *     <li>{@link #asIntermediateValue(Object)} for downcasting</li>
+ * </ul>
+ *
+ * <p>
+ * Thread-safe and reusable. Used throughout the Flux Capacitor framework for all (de)serialization needs.
+ *
+ * @param <I> the internal intermediate format (e.g., JsonNode) used during downcasting
+ */
 @Slf4j
 public abstract class AbstractSerializer<I> implements Serializer {
+
     private final CasterChain<SerializedObject<byte[]>, SerializedObject<?>> upcasterChain;
     private final CasterChain<Data<I>, Data<I>> downcasterChain;
     @Getter
     private final String format;
     private final Map<String, String> typeCasters = new ConcurrentHashMap<>();
 
+    /**
+     * Constructs a new serializer with the provided caster candidates and converter.
+     *
+     * @param casterCandidates a collection of objects providing up/down-casting functionality
+     * @param converter        a converter used to assist in interpreting serialized data
+     * @param format           the default serialization format name (e.g., "json")
+     */
     protected AbstractSerializer(Collection<?> casterCandidates, Converter<byte[], I> converter, String format) {
         this.upcasterChain = DefaultCasterChain.createUpcaster(casterCandidates, converter);
         this.downcasterChain = DefaultCasterChain.createDowncaster(casterCandidates, converter.getOutputType());
         this.format = format;
     }
 
+    /**
+     * Serializes the given object into a byte-based {@link Data} object, using the specified format.
+     *
+     * @param object the object to serialize
+     * @param format the desired serialization format
+     * @return a {@code Data<byte[]>} object containing the serialized bytes
+     */
     @Override
     @SuppressWarnings("unchecked")
     public Data<byte[]> serialize(Object object, String format) {
@@ -95,6 +138,10 @@ public abstract class AbstractSerializer<I> implements Serializer {
         return value == null ? "null" : ifClass(value) instanceof Class<?> c ? c.getName() : value.getClass().getName();
     }
 
+    /**
+     * Converts common simple object types (e.g., String, byte[]) to the requested alternative format. Used when the
+     * object cannot be serialized using the current default format.
+     */
     @SneakyThrows
     protected Data<byte[]> serializeToOtherFormat(Object object, String format) {
         if (object instanceof String) {
@@ -111,6 +158,9 @@ public abstract class AbstractSerializer<I> implements Serializer {
         throw new UnsupportedOperationException();
     }
 
+    /**
+     * Determines the full type signature of the given object.
+     */
     protected Type getType(Object object) {
         if (object == null) {
             return Void.class;
@@ -134,16 +184,29 @@ public abstract class AbstractSerializer<I> implements Serializer {
         return type;
     }
 
+    /**
+     * Converts a {@link Type} to a readable string name.
+     */
     protected String asString(Type type) {
         return type.getTypeName();
     }
 
+    /**
+     * Resolves the effective string representation of an object's type, including generic parameters if applicable.
+     */
     protected String getTypeString(Object object) {
         return asString(getType(object));
     }
 
+    /**
+     * Hook for serializing the object to bytes using the primary format. Must be implemented by subclasses.
+     */
     protected abstract byte[] doSerialize(Object object) throws Exception;
 
+    /**
+     * Deserializes a stream of {@link SerializedObject} values into deserialized objects. Applies upcasters, format
+     * detection, and lazy deserialization as needed.
+     */
     @SuppressWarnings({"unchecked", "rawtypes"})
     @Override
     public <S extends SerializedObject<byte[]>> Stream<DeserializingObject<byte[], S>> deserialize(
@@ -183,6 +246,9 @@ public abstract class AbstractSerializer<I> implements Serializer {
                 });
     }
 
+    /**
+     * Converts the given object to the specified target type.
+     */
     @SuppressWarnings("unchecked")
     @Override
     public <V> V convert(Object value, Type type) {
@@ -192,6 +258,10 @@ public abstract class AbstractSerializer<I> implements Serializer {
         return doConvert(value, type);
     }
 
+    /**
+     * Creates a deep copy of the object. For known types (collections, maps, etc.) a shallow copy is made; otherwise,
+     * uses {@link #doClone(Object)}.
+     */
     @SuppressWarnings("unchecked")
     @Override
     public <V> V clone(Object value) {
@@ -212,22 +282,34 @@ public abstract class AbstractSerializer<I> implements Serializer {
         return (V) doClone(value);
     }
 
+    /**
+     * Registers custom upcasters for handling older serialized formats.
+     */
     @Override
     public Registration registerUpcasters(Object... casterCandidates) {
         return upcasterChain.registerCasterCandidates(casterCandidates);
     }
 
+    /**
+     * Registers custom downcasters for transforming newer object states to older revisions.
+     */
     @Override
     public Registration registerDowncasters(Object... casterCandidates) {
         return downcasterChain.registerCasterCandidates(casterCandidates);
     }
 
+    /**
+     * Registers a type mapping for upcasting old type names to new ones.
+     */
     @Override
     public Registration registerTypeCaster(String oldType, String newType) {
         typeCasters.put(oldType, newType);
         return () -> typeCasters.remove(oldType);
     }
 
+    /**
+     * Resolves the current type from a potentially chained upcast mapping.
+     */
     @Override
     public String upcastType(String type) {
         if (type == null) {
@@ -240,6 +322,9 @@ public abstract class AbstractSerializer<I> implements Serializer {
         return upcastType(result);
     }
 
+    /**
+     * Downcasts a deserialized object to the desired revision number.
+     */
     @Override
     public Object downcast(Object object, int desiredRevision) {
         return downcastIntermediate(new Data<>(
@@ -247,12 +332,18 @@ public abstract class AbstractSerializer<I> implements Serializer {
                 getRevisionNumber(object), format), desiredRevision);
     }
 
+    /**
+     * Downcasts an object already in {@link Data} form.
+     */
     @Override
     public Object downcast(Data<?> object, int desiredRevision) {
         return downcastIntermediate(new Data<>(asIntermediateValue(object.getValue()), object.getType(),
                                                object.getRevision(), format), desiredRevision);
     }
 
+    /**
+     * Internal helper to run the downcaster chain and extract the object(s) at the desired revision.
+     */
     @Nullable
     private Object downcastIntermediate(Data<I> data, int desiredRevision) {
         var result = downcasterChain.cast(Stream.of(data), desiredRevision).map(Data::getValue)
@@ -264,14 +355,27 @@ public abstract class AbstractSerializer<I> implements Serializer {
         };
     }
 
+    /**
+     * Hook to clone a deserialized object. Subclasses must implement this if custom cloning is needed.
+     */
     protected abstract Object doClone(Object value);
 
+    /**
+     * Converts a deserialized object to the desired target type. May delegate to a type mapping library.
+     */
     protected abstract <V> V doConvert(Object value, Type type);
 
+    /**
+     * Checks whether a given serialized type is recognized on the classpath.
+     */
     protected boolean isKnownType(String type) {
         return type != null && ReflectionUtils.classExists(type);
     }
 
+    /**
+     * Handles deserialization of objects in formats other than the current default (e.g., fallback string
+     * deserialization).
+     */
     @SuppressWarnings({"unchecked", "rawtypes"})
     protected Stream<DeserializingObject<byte[], ?>> deserializeOtherFormat(SerializedObject<byte[]> s) {
         return Stream.of(new DeserializingObject(s, (Function<Class<?>, Object>) type -> {
@@ -295,11 +399,22 @@ public abstract class AbstractSerializer<I> implements Serializer {
         }));
     }
 
+    /**
+     * Hook for handling deserialization of unknown types. Subclasses can override to log or recover gracefully.
+     */
     protected Stream<DeserializingObject<byte[], ?>> deserializeUnknownType(SerializedObject<?> serializedObject) {
         return Stream.empty();
     }
 
+    /**
+     * Core method to deserialize the given {@link Data} with an explicit type hint. Must be implemented by concrete
+     * subclasses.
+     */
     protected abstract Object doDeserialize(Data<?> data, String type) throws Exception;
 
+    /**
+     * Converts an object into its intermediate form (e.g., JsonNode) used for revision downcasting. Must be implemented
+     * by concrete serializers.
+     */
     protected abstract I asIntermediateValue(Object input);
 }

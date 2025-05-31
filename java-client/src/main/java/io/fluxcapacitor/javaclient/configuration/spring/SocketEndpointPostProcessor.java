@@ -27,6 +27,35 @@ import java.util.Objects;
 
 import static org.springframework.beans.factory.support.BeanDefinitionBuilder.genericBeanDefinition;
 
+/**
+ * Spring {@link BeanDefinitionRegistryPostProcessor} that detects beans annotated with {@link SocketEndpoint}
+ * and registers them as {@link FluxPrototype} definitions for use in Flux Capacitor.
+ * <p>
+ * This enables WebSocket endpoints to be managed by Flux, allowing handler methods within these types to respond
+ * to socket-based requests (e.g. via {@link io.fluxcapacitor.javaclient.web.WebRequest}).
+ *
+ * <h2>Usage</h2>
+ * To expose a WebSocket endpoint in your application:
+ * <pre>{@code
+ * @SocketEndpoint
+ * public class ChatSocketEndpoint {
+ *     @HandleSocketMessage
+ *     public ChatResponse handle(ChatRequest request) {
+ *         // respond to request via WebSocket
+ *     }
+ * }
+ * }</pre>
+ * Ensure that Spring picks up this processor, typically via:
+ * <pre>{@code
+ * @SpringBootApplication
+ * @Import(FluxCapacitorSpringConfig.class)
+ * public class MyApp { ... }
+ * }</pre>
+ *
+ * @see SocketEndpoint
+ * @see FluxPrototype
+ * @see FluxCapacitorSpringConfig
+ */
 @Slf4j
 public class SocketEndpointPostProcessor implements BeanDefinitionRegistryPostProcessor {
     @Override

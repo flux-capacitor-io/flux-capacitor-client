@@ -16,11 +16,23 @@ package io.fluxcapacitor.javaclient.common.serialization;
 
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.User;
 
+/**
+ * Represents an interface for filtering content before it is passed to a specified viewer. It allows for the
+ * modification or transformation of the given value based on the logic implemented in the filter and considering the
+ * viewer's details.
+ *
+ * @see FilterContent
+ */
 public interface ContentFilter {
 
     /**
-     * Modify given value before it's passed to the given viewer. See {@link FilterContent} for info on how to filter
-     * the value.
+     * Filters the given value based on the current viewer (user) context. If a {@link FilterContent} handler exists
+     * in the object's class, it will be invoked to produce a user-specific view of the data.
+     *
+     * @param value  the original object
+     * @param viewer the user viewing the content
+     * @param <T>    the type of the content object
+     * @return the filtered version of the object, or the original object if filtering failed or was not applicable
      */
     <T> T filterContent(T value, User viewer);
 }

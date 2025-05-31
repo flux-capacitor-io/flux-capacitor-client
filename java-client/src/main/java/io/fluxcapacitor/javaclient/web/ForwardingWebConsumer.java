@@ -46,6 +46,48 @@ import java.util.stream.Stream;
 import static io.fluxcapacitor.javaclient.FluxCapacitor.currentCorrelationData;
 import static java.net.http.HttpRequest.BodyPublishers.ofByteArray;
 
+/**
+ * A specialized, opt-in {web request consumer that forwards incoming
+ * {@link io.fluxcapacitor.common.MessageType#WEBREQUEST} messages to a locally running HTTP server.
+ * <p>
+ * This class is internally initialized when
+ * {@link io.fluxcapacitor.javaclient.configuration.FluxCapacitorBuilder#forwardWebRequestsToLocalServer(int)} is
+ * configured. Rather than routing messages through Flux’s internal handler infrastructure, it converts web requests
+ * into raw HTTP requests and asynchronously sends them to {@code http://localhost:port}.
+ *
+ * <h2>Purpose</h2>
+ * This mechanism exists primarily for interoperability: it allows applications to integrate with their own HTTP servers
+ * (e.g., frameworks like Spring Boot, Jooby, or Vert.x) rather than adopting the Flux message-based web handler
+ * framework.
+ *
+ * <h2><span style="color:red;">⚠️ Caution: Limited Use Case</span></h2>
+ * While supported, use of this component is generally discouraged. It bypasses the core pull-based message consumption
+ * model of Flux Capacitor by pushing messages asynchronously to a local server. This introduces a risk of losing
+ * delivery guarantees, tracing consistency, and handler lifecycle control.
+ * <br><br>
+ * Consider using {@code @HandleWeb}-based handlers and declarative routing instead.
+ *
+ * <h2>How It Works</h2>
+ * <ul>
+ *   <li>Consumes {@code WEBREQUEST} messages via a {@link io.fluxcapacitor.javaclient.tracking.Tracker}</li>
+ *   <li>For each message, creates a corresponding {@link java.net.http.HttpRequest} and sends it to localhost</li>
+ *   <li>Captures the {@link java.net.http.HttpResponse} and converts it back into a {@link io.fluxcapacitor.common.api.SerializedMessage}</li>
+ *   <li>Publishes the result using the {@code WEBRESPONSE} {@link GatewayClient}</li>
+ * </ul>
+ *
+ * <h2>Features</h2>
+ * <ul>
+ *   <li>Header forwarding with filtering of restricted headers</li>
+ *   <li>Support for request correlation and metadata propagation</li>
+ *   <li>Graceful handling of 404s (configurable via {@code LocalServerConfig#isIgnore404()})</li>
+ *   <li>Fallback error response creation if the target server fails</li>
+ * </ul>
+ *
+ * @see io.fluxcapacitor.javaclient.configuration.FluxCapacitorBuilder#forwardWebRequestsToLocalServer(int)
+ * @see io.fluxcapacitor.javaclient.web.WebRequest
+ * @see io.fluxcapacitor.javaclient.web.WebResponse
+ * @see io.fluxcapacitor.javaclient.tracking.Tracker
+ */
 @Slf4j
 public class ForwardingWebConsumer implements AutoCloseable {
     private final String host;

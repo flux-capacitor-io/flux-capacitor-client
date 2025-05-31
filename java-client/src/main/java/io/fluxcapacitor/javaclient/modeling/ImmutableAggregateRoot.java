@@ -37,6 +37,24 @@ import java.util.function.UnaryOperator;
 import static io.fluxcapacitor.javaclient.FluxCapacitor.currentTime;
 import static java.util.Optional.ofNullable;
 
+/**
+ * Immutable representation of an {@link AggregateRoot}, extending {@link ImmutableEntity} with additional metadata for
+ * event sourcing.
+ * <p>
+ *
+ * The {@code previous} field stores a reference to the prior state, enabling recursive traversal of historical states.
+ * When aggregate caching with a {@link Aggregate#cachingDepth() caching depth} is enabled, older states may be replaced
+ * by a {@link LazyAggregateRoot}, which holds a reference but defers loading the full state.
+ * <p>
+ * This allows memory-efficient checkpointing of long-lived aggregates: once the maximum caching depth is reached,
+ * earlier states are no longer retained in memory and must be reloaded via event sourcing when accessed.
+ *
+ * @param <T> the type of the domain object represented by this aggregate root
+ * @see io.fluxcapacitor.javaclient.modeling.Entity
+ * @see io.fluxcapacitor.javaclient.modeling.AggregateRoot
+ * @see ImmutableEntity
+ * @see LazyAggregateRoot
+ */
 @Value
 @NonFinal
 @SuperBuilder(toBuilder = true)

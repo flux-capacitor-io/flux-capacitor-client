@@ -29,7 +29,7 @@ import java.time.temporal.ChronoUnit;
 import static java.time.temporal.ChronoUnit.SECONDS;
 
 /**
- * Declares a {@code Consumer} group within a Flux application.
+ * Declares a {@code Consumer} within a Flux application.
  * <p>
  * A consumer represents an isolated group of handlers that independently track and process messages from one or more
  * message logs. It can be applied at the class or package level to group handlers together. Handlers that do not
@@ -75,7 +75,7 @@ import static java.time.temporal.ChronoUnit.SECONDS;
 public @interface Consumer {
 
     /**
-     * The unique name of the consumer group. Required. This isolates its tracking tokens from other consumers.
+     * The unique name of the consumer. Required. This isolates its tracking tokens from other consumers.
      */
     String name();
 

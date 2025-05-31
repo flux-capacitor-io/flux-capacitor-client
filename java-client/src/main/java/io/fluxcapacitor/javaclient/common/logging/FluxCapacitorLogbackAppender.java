@@ -39,9 +39,31 @@ import static java.util.Optional.ofNullable;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.exception.ExceptionUtils.getStackTrace;
 
+/**
+ * A Logback-compatible appender that automatically publishes warning and error-level log events to the Flux Capacitor
+ * platform.
+ * <p>
+ * This appender inspects log messages for severity {@code WARN} or higher and forwards them as {@link ConsoleWarning}
+ * or {@link ConsoleError} messages to the Flux error gateway, along with detailed metadata such as stack traces, logger
+ * name, and message content.
+ *
+ * @see ConsoleWarning
+ * @see ConsoleError
+ * @see FluxCapacitor#errorGateway()
+ */
 @Slf4j
 public class FluxCapacitorLogbackAppender extends AppenderBase<ILoggingEvent> {
 
+    /**
+     * Attaches this appender to the root logger in the Logback logging context.
+     * <p>
+     * Once attached, the appender will monitor and forward all warning and error logs to the Flux error gateway as
+     * {@link ConsoleWarning} or {@link ConsoleError} messages.
+     * <p>
+     * Typically, this appender is configured automatically via Logback's own configuration. This method exists for
+     * dynamic attachment at runtime—e.g., during testing or in environments where programmatic logging configuration is
+     * preferred.
+     */
     public static void attach() {
         Context loggerContext = (Context) LoggerFactory.getILoggerFactory();
         FluxCapacitorLogbackAppender appender = new FluxCapacitorLogbackAppender();
@@ -54,6 +76,11 @@ public class FluxCapacitorLogbackAppender extends AppenderBase<ILoggingEvent> {
         rootLogger.addAppender(appender);
     }
 
+    /**
+     * Detaches any active instances of this appender from the root logger.
+     * <p>
+     * This is useful for runtime cleanup or reconfiguration.
+     */
     public static void detach() {
         Logger rootLogger = getRootLogger();
         Iterator<Appender<ILoggingEvent>> iterator = rootLogger.iteratorForAppenders();
@@ -67,6 +94,14 @@ public class FluxCapacitorLogbackAppender extends AppenderBase<ILoggingEvent> {
         appenders.forEach(rootLogger::detachAppender);
     }
 
+    /**
+     * Processes log events of level {@code WARN} or higher.
+     * <p>
+     * Extracts the stack trace and relevant context, transforms the message into a {@link ConsoleWarning} or
+     * {@link ConsoleError}, and sends it to the Flux error gateway.
+     *
+     * @param event the logging event to be processed
+     */
     @Override
     protected void append(ILoggingEvent event) {
         try {
@@ -112,11 +147,24 @@ public class FluxCapacitorLogbackAppender extends AppenderBase<ILoggingEvent> {
         }
     }
 
+    /**
+     * Determines whether the given log event should be ignored.
+     * <p>
+     * Events marked with {@code ClientUtils.ignoreMarker} will be skipped and not sent to Flux.
+     *
+     * @param event the logging event to check
+     * @return {@code true} if the event should be ignored, {@code false} otherwise
+     */
     protected boolean ignoreEvent(ILoggingEvent event) {
         return Optional.ofNullable(event.getMarkerList()).map(markers -> markers.stream().anyMatch(
                 m -> m.contains(ClientUtils.ignoreMarker))).orElse(false);
     }
 
+    /**
+     * Returns the root logger from the SLF4J/Logback environment.
+     *
+     * @return the root {@link Logger}
+     */
     private static Logger getRootLogger() {
         return (Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME);
     }

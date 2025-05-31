@@ -39,7 +39,7 @@ import static io.fluxcapacitor.common.MessageType.SCHEDULE;
 import static io.fluxcapacitor.javaclient.tracking.IndexUtils.indexFromTimestamp;
 
 @AllArgsConstructor
-public class DefaultScheduler implements Scheduler, HasLocalHandlers {
+public class DefaultMessageScheduler implements MessageScheduler, HasLocalHandlers {
 
     private final SchedulingClient client;
     private final Serializer serializer;

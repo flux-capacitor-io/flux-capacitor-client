@@ -21,6 +21,8 @@ import io.fluxcapacitor.common.api.search.bulkupdate.DeleteDocument;
 import io.fluxcapacitor.common.api.search.bulkupdate.IndexDocument;
 import io.fluxcapacitor.javaclient.common.Entry;
 import io.fluxcapacitor.javaclient.persisting.search.DocumentSerializer;
+import io.fluxcapacitor.javaclient.persisting.search.DocumentStore;
+import io.fluxcapacitor.javaclient.tracking.handling.Stateful;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.SneakyThrows;
@@ -38,6 +40,20 @@ import static io.fluxcapacitor.javaclient.common.serialization.DeserializingMess
 import static io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage.getCurrent;
 import static io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage.whenBatchCompletes;
 
+/**
+ * A batching wrapper for {@link HandlerRepository} that delays persistence operations until the end of the current
+ * message batch.
+ * <p>
+ * This implementation is intended for use with {@link Stateful#commitInBatch() @Stateful(commitInBatch = true)}
+ * handlers. It buffers all {@code put()} and {@code delete()} calls and flushes them via
+ * {@link DocumentStore#bulkUpdate} once batch processing completes.
+ * <p>
+ * Association lookups during batch processing always take into account:
+ * <ul>
+ *     <li>The persisted state (from the backing repository), and</li>
+ *     <li>The in-memory cache of batch-local updates (created, updated, or deleted handlers) that have not been committed.</li>
+ * </ul>
+ */
 @AllArgsConstructor
 public class BatchingHandlerRepository implements HandlerRepository {
 
@@ -96,6 +112,9 @@ public class BatchingHandlerRepository implements HandlerRepository {
         delegate.getDocumentStore().bulkUpdate(updates).get();
     }
 
+    /**
+     * Represents a buffered update to a handler instance (either index or delete).
+     */
     @Value
     protected class Update implements Entry<Object> {
         String id;

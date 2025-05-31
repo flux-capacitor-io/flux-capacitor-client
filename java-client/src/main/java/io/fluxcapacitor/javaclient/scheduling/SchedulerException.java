@@ -14,6 +14,9 @@
 
 package io.fluxcapacitor.javaclient.scheduling;
 
+/**
+ * Exception thrown by a {@link io.fluxcapacitor.javaclient.scheduling.MessageScheduler} when scheduling a message fails.
+ */
 public class SchedulerException extends RuntimeException {
     public SchedulerException(String message, Throwable cause) {
         super(message, cause);

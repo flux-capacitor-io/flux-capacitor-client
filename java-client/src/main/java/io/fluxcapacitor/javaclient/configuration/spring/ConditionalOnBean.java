@@ -26,6 +26,20 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
+/**
+ * {@link Conditional} that only matches when a bean of the specified type is present in the application context.
+ * <p>
+ * Useful for conditionally registering configurations or beans when certain dependencies exist.
+ *
+ * <h2>Usage</h2>
+ * <pre>{@code
+ * @ConditionalOnBean(MyService.class)
+ * @Bean
+ * public MyBean conditionalBean() {
+ *     return new MyBean();
+ * }
+ * }</pre>
+ */
 @Target({ElementType.METHOD, ElementType.TYPE})
 @Retention(RetentionPolicy.RUNTIME)
 @Conditional(ConditionalOnBean.Condition.class)

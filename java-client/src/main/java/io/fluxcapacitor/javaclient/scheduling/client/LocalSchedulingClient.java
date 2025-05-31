@@ -20,6 +20,12 @@ import lombok.experimental.Delegate;
 
 import java.time.Duration;
 
+/**
+ * A client implementation for managing scheduling operations using an in-memory schedule store.
+ * This class extends {@link LocalTrackingClient} and implements the {@link SchedulingClient} interface.
+ * It serves as a local, non-distributed scheduling client primarily useful for testing scenarios
+ * or where an in-memory schedule store suffices.
+ */
 public class LocalSchedulingClient extends LocalTrackingClient implements SchedulingClient {
 
     public LocalSchedulingClient(Duration messageExpiration) {

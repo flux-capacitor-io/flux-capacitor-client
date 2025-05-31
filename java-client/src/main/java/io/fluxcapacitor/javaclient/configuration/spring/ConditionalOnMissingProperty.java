@@ -28,6 +28,20 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
+/**
+ * {@link Conditional} that only matches when the specified property is either unset or blank.
+ * <p>
+ * This can be used to register default behavior when configuration is absent.
+ *
+ * <h2>Usage</h2>
+ * <pre>{@code
+ * @ConditionalOnMissingProperty("custom.datasource.url")
+ * @Bean
+ * public DataSource defaultDataSource() {
+ *     return new H2DataSource();
+ * }
+ * }</pre>
+ */
 @Target({ElementType.METHOD, ElementType.TYPE})
 @Retention(RetentionPolicy.RUNTIME)
 @Conditional(ConditionalOnMissingProperty.Condition.class)

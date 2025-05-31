@@ -37,6 +37,7 @@ import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient;
 import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient.ClientConfig;
 import io.fluxcapacitor.javaclient.publishing.AdhocDispatchInterceptor;
 import io.fluxcapacitor.javaclient.publishing.DispatchInterceptor;
+import io.fluxcapacitor.javaclient.publishing.client.WebsocketGatewayClient;
 import io.undertow.websockets.jsr.UndertowSession;
 import jakarta.websocket.CloseReason;
 import jakarta.websocket.OnClose;
@@ -88,6 +89,41 @@ import static java.lang.Thread.currentThread;
 import static java.lang.Thread.sleep;
 import static java.util.Optional.ofNullable;
 
+/**
+ * Abstract base class for all WebSocket-based clients in the Flux Capacitor Java client.
+ * <p>
+ * This class provides robust connection management, message dispatching, result handling, batching, metrics publishing,
+ * and ping-based health checking. It underpins core components such as {@code WebsocketGatewayClient}, providing the
+ * shared infrastructure needed for durable, resilient WebSocket communication with the Flux platform.
+ *
+ * <h2>Core Responsibilities</h2>
+ * <ul>
+ *   <li>Establishing and maintaining WebSocket connections with automatic reconnection support</li>
+ *   <li>Managing message sending and batching via {@link Request} and {@link RequestBatch}</li>
+ *   <li>Receiving and processing incoming {@link RequestResult} and {@link ResultBatch} messages</li>
+ *   <li>Supporting command guarantees (e.g., SENT, STORED) with retries and backpressure handling</li>
+ *   <li>Sending periodic ping frames to detect connection drops</li>
+ *   <li>Integrating with the Flux metrics infrastructure for custom performance telemetry</li>
+ * </ul>
+ *
+ * <h2>Key Features</h2>
+ * <ul>
+ *   <li><b>Session Pooling:</b> Maintains multiple concurrent sessions to handle high-throughput scenarios</li>
+ *   <li><b>Request Backlogs:</b> Each session has a backlog to buffer and batch outgoing requests</li>
+ *   <li><b>Ping Scheduling:</b> Scheduled tasks detect broken sessions using WebSocket pings</li>
+ *   <li><b>Auto Retry:</b> Failed requests are retried if the session is closed unexpectedly</li>
+ *   <li><b>Async Result Handling:</b> Responses are handled on a separate thread pool to avoid blocking I/O</li>
+ *   <li><b>Metrics Publishing:</b> Optional emission of message-related metrics based on configuration</li>
+ * </ul>
+ *
+ * @see WebsocketGatewayClient
+ * @see Command
+ * @see WebSocketRequest
+ * @see SessionPool
+ * @see Request
+ * @see RequestResult
+ * @see ResultBatch
+ */
 public abstract class AbstractWebsocketClient implements AutoCloseable {
     public static WebSocketContainer defaultWebSocketContainer = new DefaultWebSocketContainerProvider().getContainer();
     public static ObjectMapper defaultObjectMapper = JsonMapper.builder().disable(FAIL_ON_UNKNOWN_PROPERTIES)
@@ -112,16 +148,47 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
     @Getter(value = AccessLevel.PROTECTED, lazy = true)
     private final Serializer fallbackSerializer = new JacksonSerializer();
 
+    /**
+     * Creates a WebSocket client using the given endpoint URI, client implementation, and a flag to allow metrics. Uses
+     * a default WebSocket container, default object mapper, and a single WebSocket session.
+     *
+     * @param endpointUri  the URI of the WebSocket endpoint to connect to
+     * @param client       the client implementation that provides configuration and gateway access
+     * @param allowMetrics whether metrics should be published for each request
+     */
     public AbstractWebsocketClient(URI endpointUri, WebSocketClient client, boolean allowMetrics) {
         this(endpointUri, client, allowMetrics, 1);
     }
 
+    /**
+     * Creates a WebSocket client with multiple parallel sessions using default settings. This constructor allows you to
+     * specify the number of WebSocket sessions to use, which is useful for increasing throughput and isolating message
+     * streams.
+     *
+     * @param endpointUri      the URI of the WebSocket endpoint to connect to
+     * @param client           the client implementation that provides configuration and gateway access
+     * @param allowMetrics     whether metrics should be published for each request
+     * @param numberOfSessions the number of WebSocket sessions to maintain concurrently
+     */
     public AbstractWebsocketClient(URI endpointUri, WebSocketClient client, boolean allowMetrics,
                                    int numberOfSessions) {
         this(defaultWebSocketContainer, endpointUri, client, allowMetrics, Duration.ofSeconds(1),
              defaultObjectMapper, numberOfSessions);
     }
 
+    /**
+     * Constructs a WebSocket client with fine-grained control over connection setup. This constructor allows you to
+     * specify a custom container, reconnect delay, object mapper, and session count. It is primarily used for advanced
+     * configuration or test scenarios.
+     *
+     * @param container        the WebSocket container to use for establishing connections
+     * @param endpointUri      the WebSocket server endpoint
+     * @param client           the client providing config and access to the Flux platform
+     * @param allowMetrics     flag to enable or disable automatic metrics publishing
+     * @param reconnectDelay   the delay between reconnect attempts if the connection is lost
+     * @param objectMapper     the Jackson object mapper for (de)serializing requests and responses
+     * @param numberOfSessions the number of WebSocket sessions to establish in parallel
+     */
     public AbstractWebsocketClient(WebSocketContainer container, URI endpointUri, WebSocketClient client,
                                    boolean allowMetrics, Duration reconnectDelay, ObjectMapper objectMapper,
                                    int numberOfSessions) {
@@ -141,11 +208,11 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
                         .exceptionLogger(status -> {
                             if (status.getNumberOfTimesRetried() == 0) {
                                 log().warn("Failed to connect to endpoint {}; reason: {}. Retrying every {} ms...",
-                                         endpointUri, status.getException().getMessage(),
-                                         status.getRetryConfiguration().getDelay().toMillis());
+                                           endpointUri, status.getException().getMessage(),
+                                           status.getRetryConfiguration().getDelay().toMillis());
                             } else if (status.getNumberOfTimesRetried() % 100 == 0) {
                                 log().warn("Still trying to connect to endpoint {}. Last error: {}.",
-                                         endpointUri, status.getException().getMessage());
+                                           endpointUri, status.getException().getMessage());
                             }
                         }).build()));
     }
@@ -290,7 +357,7 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
                     }
                     return new PingRegistration(pingScheduler.schedule(clientConfig.getPingTimeout(), () -> {
                         log().warn("Failed to get a ping response in time for session {}. Resetting connection",
-                                 session.getId());
+                                   session.getId());
                         abort(session);
                     }));
                 });
@@ -353,7 +420,7 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
                 requests.values().stream().filter(r -> sessionId.equals(r.sessionId)).toList().forEach(
                         r -> {
                             log().info("Retrying request {} using a new session (old session {})",
-                                     r.request.getRequestId(), sessionId);
+                                       r.request.getRequestId(), sessionId);
                             r.send();
                         });
             }
@@ -386,7 +453,7 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
                 pingDeadlines.clear();
                 if (!requests.isEmpty()) {
                     log().warn("{}: Closed websocket session to endpoint with {} outstanding requests",
-                             getClass().getSimpleName(), requests.size());
+                               getClass().getSimpleName(), requests.size());
                 }
             }
         }

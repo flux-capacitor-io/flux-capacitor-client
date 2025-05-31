@@ -22,18 +22,91 @@ import lombok.AllArgsConstructor;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
+/**
+ * Interface for registering and invoking local message handlers.
+ * <p>
+ * A {@code HandlerRegistry} is responsible for managing one or more message handlers — including discovery,
+ * invocation, and filtering logic. It is a central abstraction in scenarios where handlers are registered
+ * programmatically (e.g. embedded services, tests, functional configurations).
+ *
+ * <h2>Responsibilities</h2>
+ * <ul>
+ *     <li>Registering local handler instances (e.g. beans, stateful components)</li>
+ *     <li>Dispatching messages to matching handlers</li>
+ *     <li>Composing multiple registries to form a combined resolution chain</li>
+ *     <li>Delegating filtering behavior via {@link HandlerFilter}</li>
+ * </ul>
+ *
+ * <h2>Usage</h2>
+ * Handlers can be registered using {@link #registerHandler(Object)} or {@link #registerHandler(Object, HandlerFilter)}.
+ * Message handling can be triggered manually via {@link #handle(DeserializingMessage)}.
+ *
+ * <pre>{@code
+ * HandlerRegistry registry = ...;
+ * registry.registerHandler(new MyCommandHandler());
+ *
+ * registry.handle(myMessage).ifPresent(resultFuture -> {
+ *     Object result = resultFuture.join();
+ *     ...
+ * });
+ * }</pre>
+ *
+ * <h2>Composing Registries</h2>
+ * Use {@link #andThen(HandlerRegistry)} or {@link #orThen(HandlerRegistry)} to chain multiple registries:
+ * <ul>
+ *     <li>{@code andThen}: invokes both registries and merges results (e.g. for broadcasting)</li>
+ *     <li>{@code orThen}: invokes the second only if the first produces no result</li>
+ * </ul>
+ *
+ * <pre>{@code
+ * HandlerRegistry composite = registry1.orThen(registry2);
+ * }</pre>
+ *
+ * <h2>Built-in Implementations</h2>
+ * <ul>
+ *     <li>{@link NoOpHandlerRegistry} — a stub that does nothing, always returns empty</li>
+ *     <li>{@link MergedHandlerRegistry} — combines two registries into one</li>
+ * </ul>
+ *
+ * @see HasLocalHandlers
+ * @see HandlerFilter
+ * @see DeserializingMessage
+ */
 public interface HandlerRegistry extends HasLocalHandlers {
 
+    /**
+     * A no-op registry that does not register or invoke any handlers.
+     */
     static HandlerRegistry noOp() {
         return NoOpHandlerRegistry.INSTANCE;
     }
 
+    /**
+     * Attempts to handle the given message using local handlers.
+     *
+     * @param message the deserialized message to dispatch
+     * @return an optional future containing the result, or empty if no handler was found
+     */
     Optional<CompletableFuture<Object>> handle(DeserializingMessage message);
 
+    /**
+     * Creates a composite registry that invokes both this and the given registry.
+     * <p>
+     * Results are merged via {@code thenCombine()} if both registries handle the message.
+     *
+     * @param next the registry to invoke second
+     * @return a combined registry
+     */
     default HandlerRegistry andThen(HandlerRegistry next) {
         return new MergedHandlerRegistry(this, next);
     }
 
+    /**
+     * Creates a fallback registry that only invokes the given registry if this one yields no result.
+     *
+     * @param next the fallback registry
+     * @return a combined registry with short-circuiting behavior
+     */
     default HandlerRegistry orThen(HandlerRegistry next) {
         return new MergedHandlerRegistry(this, next) {
             @Override
@@ -43,6 +116,11 @@ public interface HandlerRegistry extends HasLocalHandlers {
         };
     }
 
+    /**
+     * Combines two {@link HandlerRegistry} instances into one.
+     * <p>
+     * Useful for layering or composing registries programmatically.
+     */
     @AllArgsConstructor
     class MergedHandlerRegistry implements HandlerRegistry {
         protected final HandlerRegistry first, second;
@@ -77,6 +155,9 @@ public interface HandlerRegistry extends HasLocalHandlers {
         }
     }
 
+    /**
+     * A no-op handler registry that performs no registration or dispatch.
+     */
     enum NoOpHandlerRegistry implements HandlerRegistry {
         INSTANCE;
 
@@ -92,7 +173,7 @@ public interface HandlerRegistry extends HasLocalHandlers {
 
         @Override
         public void setSelfHandlerFilter(HandlerFilter selfHandlerFilter) {
-            //no op
+            // no-op
         }
 
         @Override

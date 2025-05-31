@@ -17,6 +17,9 @@ package io.fluxcapacitor.javaclient.tracking.handling;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.javaclient.common.Message;
 
+/**
+ * A default implementation of the {@link ResponseMapper} interface that simply wraps the response in a {@link Message}
+ */
 public class DefaultResponseMapper implements ResponseMapper {
     @Override
     public Message map(Object response) {

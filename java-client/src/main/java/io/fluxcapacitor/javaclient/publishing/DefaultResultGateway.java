@@ -29,6 +29,17 @@ import java.util.concurrent.CompletableFuture;
 import static io.fluxcapacitor.common.MessageType.RESULT;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.ifClass;
 
+/**
+ * Default implementation of the {@link ResultGateway} interface for sending response messages.
+ * <p>
+ * This class is responsible for handling responses to commands, queries, dispatching the result message to the
+ * specified target using a {@link GatewayClient}.
+ * <p>
+ * The dispatch process utilizes the {@link DispatchInterceptor} and {@link ResponseMapper} to modify or monitor
+ * messages before they are sent.
+ *
+ * @see ResultGateway
+ */
 @AllArgsConstructor
 public class DefaultResultGateway implements ResultGateway {
 

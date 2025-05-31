@@ -15,8 +15,12 @@
 package io.fluxcapacitor.javaclient.common.websocket;
 
 import io.undertow.websockets.jsr.UndertowContainerProvider;
+import jakarta.websocket.ContainerProvider;
 import jakarta.websocket.WebSocketContainer;
 
+/**
+ * The default {@link ContainerProvider} used to create and manage websocket sessions with Flux Platform.
+ */
 public class DefaultWebSocketContainerProvider extends UndertowContainerProvider {
 
     @Override

@@ -28,11 +28,44 @@ import java.util.function.Function;
 
 import static io.fluxcapacitor.javaclient.publishing.AdhocDispatchInterceptor.runWithAdhocInterceptor;
 
+/**
+ * Interceptor that disables the dispatch of outbound {@link MessageType#METRICS} messages.
+ *
+ * <p>This class implements both {@link HandlerInterceptor} and {@link BatchInterceptor}, allowing it to wrap
+ * individual message handlers as well as batch execution by message trackers. When applied, it uses an
+ * {@link AdhocDispatchInterceptor} to suppress the publication of metrics within the scope of the handler
+ * or batch execution.
+ *
+ * <p>Typical usage includes applying this interceptor to consumers that should not emit metrics, such as
+ * utility consumers that operate in high-frequency or low-signal environments.
+ *
+ * <h2>Example Usage</h2>
+ * To apply this interceptor, annotate your handler class using
+ * {@code @Consumer(batchInterceptors = DisableMetrics.class)} or
+ * {@code @Consumer(handlerInterceptors = DisableMetrics.class)}:
+ *
+ * <pre>{@code
+ * @Consumer(handlerInterceptors = DisableMetrics.class)
+ * public class OrderHandler {
+ *
+ *     @HandleEvent
+ *     public void on(OrderPlaced event) {
+ *         // Any outbound metrics from this handler will be suppressed
+ *     }
+ * }
+ * }</pre>
+ *
+ * @see AdhocDispatchInterceptor
+ * @see MessageType#METRICS
+ * @see HandlerInterceptor
+ * @see BatchInterceptor
+ */
 public class DisableMetrics implements HandlerInterceptor, BatchInterceptor {
     @Override
     public Consumer<MessageBatch> intercept(Consumer<MessageBatch> consumer, Tracker tracker) {
         return batch -> AdhocDispatchInterceptor.runWithAdhocInterceptor(() -> consumer.accept(batch),
-                                                                         (message, messageType, topic) -> null, MessageType.METRICS);
+                                                                         (message, messageType, topic) -> null,
+                                                                         MessageType.METRICS);
     }
 
     @Override

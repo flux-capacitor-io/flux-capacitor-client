@@ -45,7 +45,7 @@ import java.beans.ConstructorProperties;
  *
  * <p>
  * This approach helps replicate Flux’s load balancing capabilities for external streams,
- * even when the external system does not support partitioning or consumer groups.
+ * even when the external system does not support multithreaded tracking natively.
  *
  * @see Read
  * @see MessageStore

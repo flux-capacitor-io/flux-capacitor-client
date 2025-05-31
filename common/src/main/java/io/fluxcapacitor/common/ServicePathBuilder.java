@@ -22,21 +22,21 @@ package io.fluxcapacitor.common;
  *
  * <h2>Examples</h2>
  * <ul>
- *     <li>{@code ServicePathBuilder.producerPath(COMMAND)} returns {@code "tracking/publishcommand"}</li>
+ *     <li>{@code ServicePathBuilder.gatewayPath(COMMAND)} returns {@code "tracking/publishcommand"}</li>
  *     <li>{@code ServicePathBuilder.searchPath()} returns {@code "search"}</li>
  * </ul>
  */
 public class ServicePathBuilder {
 
     /**
-     * Returns the tracking path used to publish messages of the given {@link MessageType}.
+     * Returns the gateway path used to publish messages of the given {@link MessageType}.
      * <p>
      * This endpoint is used for producers of messages (e.g. commands, events, queries).
      *
      * @param messageType the type of message to publish
      * @return a string like {@code "tracking/publishcommand"}
      */
-    public static String producerPath(MessageType messageType) {
+    public static String gatewayPath(MessageType messageType) {
         return "tracking/publish" + messageType.name().toLowerCase();
     }
 
@@ -48,7 +48,7 @@ public class ServicePathBuilder {
      * @param messageType the type of message to consume
      * @return a string like {@code "tracking/readcommand"}
      */
-    public static String consumerPath(MessageType messageType) {
+    public static String trackingPath(MessageType messageType) {
         return "tracking/read" + messageType.name().toLowerCase();
     }
 

@@ -29,6 +29,31 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiFunction;
 
+/**
+ * A specialized {@link Handler} that maintains and mutates an internal delegate instance.
+ * <p>
+ * This handler is designed for use cases where the state of the handler may evolve dynamically
+ * across message invocations. It is particularly suited for temporarily scoped objects (e.g. sagas, user sessions).
+ *
+ * <h2>Behavior</h2>
+ * When a handler method returns an instance of the handler’s target class, this instance is stored
+ * as the new delegate:
+ * <pre>{@code
+ * Object result = method.invoke(target);
+ * if (result instanceof MyHandler) {
+ *     target = result; // promote new version
+ * }
+ * }</pre>
+ * <p>
+ * If the method returns {@code null} and the method's return type matches the target class, the internal
+ * target is cleared, and any registered delete callbacks are triggered.
+ *
+ * <h2>Lifecycle Hooks</h2>
+ * A delete callback can be registered using {@link #onDelete(Runnable)} to perform cleanup when
+ * the handler deletes its state (i.e., returns {@code null}).
+ *
+ * @param <M> the message type this handler supports
+ */
 @AllArgsConstructor
 public class MutableHandler<M> implements Handler<M> {
     @Getter

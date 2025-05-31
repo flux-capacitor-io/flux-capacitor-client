@@ -24,8 +24,36 @@ import lombok.AllArgsConstructor;
 
 import static io.fluxcapacitor.javaclient.web.HttpRequestMethod.isWebsocket;
 
+/**
+ * A {@link DispatchInterceptor} that modifies outgoing {@link WebResponse} messages in response to WebSocket-based
+ * {@link WebRequest}s.
+ * <p>
+ * This interceptor ensures that appropriate metadata is included in the corresponding {@link WebResponse}. It supports
+ * both the WebSocket handshake phase and subsequent message exchanges over an established WebSocket session.
+ *
+ * <p>Specifically:
+ * <ul>
+ *     <li>If the incoming message is a {@code WS_HANDSHAKE}, it adds the {@code clientId}
+ *     and {@code trackerId} to the response metadata to identify the connection.</li>
+ *     <li>If the session is already open, it includes the {@code sessionId} and, if
+ *     absent, sets a {@code function} field to either {@code message} or {@code ack},
+ *     depending on whether the outgoing message has a payload.</li>
+ * </ul>
+ *
+ * <p>This ensures that the Flux WebSocket infrastructure can properly route and
+ * interpret messages sent back to the client.
+ */
 @AllArgsConstructor
 public class WebsocketResponseInterceptor implements DispatchInterceptor {
+
+    /**
+     * Intercepts and conditionally modifies an outgoing message in the context of a WebSocket request.
+     *
+     * @param message     the original message to be dispatched
+     * @param messageType the type of the message (e.g., WEBRESPONSE)
+     * @param topic       the topic to which the message is being published
+     * @return the possibly modified message
+     */
     @Override
     public Message interceptDispatch(Message message, MessageType messageType, String topic) {
         DeserializingMessage currentMessage = DeserializingMessage.getCurrent();

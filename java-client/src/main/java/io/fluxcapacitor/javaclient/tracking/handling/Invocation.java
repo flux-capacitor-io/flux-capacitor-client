@@ -25,13 +25,63 @@ import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.function.BiConsumer;
 
+/**
+ * Tracks the lifecycle and identity of a single message handler invocation.
+ * <p>
+ * This class enables consistent tagging and correlation of all side effects (e.g. metrics, queries, event sourcing,
+ * message publication) produced during the execution of a handler. Each invocation is assigned a unique
+ * {@link #getId() invocation ID} which is automatically added to metadata and logging contexts to trace functional and
+ * non-functional effects back to the triggering message.
+ *
+ * <h2>Automatic Invocation Wrapping</h2>
+ * The Flux Capacitor client automatically wraps all handler invocations using this class. This includes:
+ * <ul>
+ *     <li>Local handlers (i.e. message handling in the publishing thread)</li>
+ *     <li>Tracked handlers (i.e. message tracking via the Flux platform)</li>
+ * </ul>
+ * <p>
+ * As a result, developers typically do not need to call {@link #performInvocation(Callable)} directly,
+ * unless they are manually invoking a handler outside of the Flux infrastructure.
+ *
+ * <h2>Usage</h2>
+ * When used manually, wrap handler logic with {@link #performInvocation(Callable)} to activate an invocation context:
+ *
+ * <pre>{@code
+ * Invocation.performInvocation(() -> {
+ *     // handler logic
+ *     FluxCapacitor.publishEvent(new SomeEvent());
+ *     return result;
+ * });
+ * }</pre>
+ * <p>
+ * This ensures:
+ * <ul>
+ *     <li>A consistent invocation ID is available throughout the thread</li>
+ *     <li>Any emitted messages, metrics, or queries can include that ID as a correlation token</li>
+ *     <li>Callbacks can be registered via {@link #whenHandlerCompletes(BiConsumer)} to react to success/failure</li>
+ * </ul>
+ *
+ * @see #performInvocation(Callable)
+ * @see #getCurrent()
+ * @see #whenHandlerCompletes(BiConsumer)
+ */
 @Value
 public class Invocation {
 
     private static final ThreadLocal<Invocation> current = new ThreadLocal<>();
-    @Getter(lazy = true) String id = IdentityProvider.defaultIdentityProvider.nextTechnicalId();
+    @Getter(lazy = true)
+    String id = IdentityProvider.defaultIdentityProvider.nextTechnicalId();
     transient List<BiConsumer<Object, Throwable>> callbacks = new ArrayList<>();
 
+    /**
+     * Wraps the given {@link Callable} in an invocation context.
+     * <p>
+     * This method ensures that callbacks registered via {@link #whenHandlerCompletes(BiConsumer)} are executed
+     * upon completion of the callable.
+     *
+     * @param callable the task to run
+     * @return the callable result
+     */
     @SneakyThrows
     public static <V> V performInvocation(Callable<V> callable) {
         if (current.get() != null) {
@@ -51,10 +101,21 @@ public class Invocation {
         }
     }
 
+    /**
+     * Returns the current {@code Invocation} bound to this thread, or {@code null} if none exists.
+     */
     public static Invocation getCurrent() {
         return current.get();
     }
 
+    /**
+     * Registers a callback to be executed when the current handler invocation completes.
+     * <p>
+     * If no invocation is active, the callback is executed immediately with {@code null} values.
+     *
+     * @param callback the handler result/error consumer
+     * @return a {@link Registration} handle to cancel the callback
+     */
     public static Registration whenHandlerCompletes(BiConsumer<Object, Throwable> callback) {
         Invocation invocation = current.get();
         if (invocation == null) {

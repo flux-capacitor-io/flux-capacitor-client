@@ -52,6 +52,33 @@ import static java.time.Instant.ofEpochMilli;
 import static java.time.temporal.ChronoUnit.MINUTES;
 import static java.util.Optional.ofNullable;
 
+/**
+ * Intercepts scheduled messages to handle periodic scheduling logic.
+ * <p>
+ * This interceptor enables powerful scheduling features such as:
+ * <ul>
+ *     <li><strong>Initial scheduling of @Periodic types:</strong> When a handler method or its parameter type is annotated
+ *     with {@link io.fluxcapacitor.javaclient.scheduling.Periodic}, this interceptor will automatically initialize the
+ *     schedule at startup if {@code autoStart=true}.</li>
+ *     <li><strong>Rescheduling on success or failure:</strong> Upon successful or failed invocation of a scheduled handler,
+ *     this interceptor can reschedule the next invocation based on the result or according to cron/delay rules.</li>
+ *     <li><strong>Metadata injection:</strong> Adds the {@code scheduleId} metadata to outgoing scheduled messages to
+ *     support correlation and rescheduling.</li>
+ *     <li><strong>Dynamic behavior based on handler return value:</strong> Supports dynamic rescheduling based on return
+ *     types like {@link TemporalAmount}, {@link TemporalAccessor}, {@link Schedule}, or even a replacement payload object.</li>
+ * </ul>
+ *
+ * <p>
+ * Additionally, if the scheduled handler throws a {@link io.fluxcapacitor.javaclient.scheduling.CancelPeriodic} exception,
+ * the schedule is permanently cancelled without logging an error.
+ *
+ * <p>
+ * This interceptor is registered automatically with {@link FluxCapacitor}.
+ *
+ * @see io.fluxcapacitor.javaclient.scheduling.Periodic
+ * @see io.fluxcapacitor.javaclient.scheduling.CancelPeriodic
+ * @see io.fluxcapacitor.javaclient.scheduling.Schedule
+ */
 @Slf4j
 public class SchedulingInterceptor implements DispatchInterceptor, HandlerInterceptor {
 
@@ -106,7 +133,7 @@ public class SchedulingInterceptor implements DispatchInterceptor, HandlerInterc
             Metadata metadata = ofNullable(fluxCapacitor.userProvider()).flatMap(
                             p -> ofNullable(p.getSystemUser()).map(u -> p.addToMetadata(Metadata.empty(), u)))
                     .orElse(Metadata.empty());
-            fluxCapacitor.scheduler().schedule(new Schedule(
+            fluxCapacitor.messageScheduler().schedule(new Schedule(
                     payload, metadata, scheduleId, firstDeadline), true);
         }
     }
@@ -220,7 +247,7 @@ public class SchedulingInterceptor implements DispatchInterceptor, HandlerInterc
                     .or(() -> ofNullable(periodic).map(Periodic::scheduleId))
                     .orElseGet(() -> schedule.getPayloadClass().getName());
             log.info("Periodic schedule {} will be cancelled.", scheduleId);
-            FluxCapacitor.get().scheduler().cancelSchedule(scheduleId);
+            FluxCapacitor.get().messageScheduler().cancelSchedule(scheduleId);
             return null;
         }
         if (periodic != null && periodic.continueOnError()) {
@@ -246,7 +273,7 @@ public class SchedulingInterceptor implements DispatchInterceptor, HandlerInterc
 
     private void schedule(Schedule schedule) {
         try {
-            FluxCapacitor.get().scheduler().schedule(schedule);
+            FluxCapacitor.get().messageScheduler().schedule(schedule);
         } catch (Exception e) {
             log.error("Failed to reschedule a {}", schedule.getPayloadClass(), e);
         }

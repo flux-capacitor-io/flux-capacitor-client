@@ -51,6 +51,48 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
 
+/**
+ * A {@link TrackingClient} implementation that wraps another client (typically a {@link WebsocketTrackingClient})
+ * and caches recent messages in memory to reduce redundant round trips to the Flux platform.
+ * <p>
+ * This client is particularly useful in environments where multiple consumers or trackers are processing the
+ * same stream of messages. Rather than each tracker reading from the backend individually, a shared in-memory cache
+ * serves recent messages directly when possible.
+ *
+ * <h2>Behavior</h2>
+ * <ul>
+ *   <li>Internally starts a special tracker that continuously appends new messages to a bounded in-memory cache.</li>
+ *   <li>Trackers that read from this client are first served from the local cache when possible.</li>
+ *   <li>Falls back to the delegate {@link TrackingClient} for uncached or missed messages.</li>
+ *   <li>Trackers waiting for new messages are notified via scheduled polling or real-time cache updates.</li>
+ *   <li>Cache size is limited via {@code maxCacheSize}; old messages are evicted in insertion order.</li>
+ * </ul>
+ *
+ * <h2>Use Cases</h2>
+ * <ul>
+ *   <li>Optimizing performance when many trackers are polling the same stream concurrently</li>
+ *   <li>Reducing network latency and load on the Flux platform for high-volume message types</li>
+ *   <li>Minimizing end-to-end processing delay in horizontally scaled applications</li>
+ * </ul>
+ *
+ * <h2>Tracking Mechanics</h2>
+ * <ul>
+ *   <li>Uses a background tracker configured with {@code ignoreSegment = true} and {@code clientControlledIndex = true}
+ *       to stream all new messages into the cache.</li>
+ *   <li>Trackers calling {@link #read} are served from the cache if their {@code lastIndex} is already present.</li>
+ *   <li>If not, the delegate is queried directly to maintain completeness.</li>
+ * </ul>
+ *
+ * <h2>Thread Safety</h2>
+ * <ul>
+ *   <li>The cache is backed by a {@link ConcurrentSkipListMap} for safe concurrent access.</li>
+ *   <li>Eviction and tracker notifications are synchronized to prevent race conditions.</li>
+ * </ul>
+ *
+ * @see TrackingClient
+ * @see WebsocketTrackingClient
+ * @see FluxCapacitor
+ */
 @RequiredArgsConstructor
 @Slf4j
 public class CachingTrackingClient implements TrackingClient {

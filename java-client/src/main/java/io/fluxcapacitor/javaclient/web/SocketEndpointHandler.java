@@ -40,6 +40,31 @@ import java.util.stream.Stream;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getTypeAnnotation;
 import static java.util.Optional.ofNullable;
 
+/**
+ * A specialized {@link Handler} that manages lifecycle events and message dispatching for WebSocket endpoints annotated
+ * with {@link SocketEndpoint}.
+ * <p>
+ * This handler supports:
+ * <ul>
+ *     <li>Instantiating and caching per-session WebSocket handler instances</li>
+ *     <li>Delegating to the correct handler method (e.g., {@code @HandleSocketOpen}, {@code @HandleSocketMessage},
+ *     {@code @HandleSocketPong}, {@code @HandleSocketClose})</li>
+ *     <li>Managing handler lifecycle via {@link SocketEndpointWrapper}, including automatic cleanup and ping-based
+ *     connection health checks</li>
+ * </ul>
+ * <p>
+ * When a {@link DeserializingMessage} is received, the handler checks whether it represents a WebSocket request.
+ * If so, it resolves or initializes a {@link SocketEndpointWrapper} associated with the given session ID and delegates
+ * message handling to the appropriate method. For non-WebSocket messages, the handler behaves like a typical
+ * {@link Handler} by invoking any matching method on the target class or on cached wrappers.
+ * <p>
+ * This class is primarily intended for internal use by the Flux dispatcher infrastructure.
+ *
+ * @see SocketEndpoint
+ * @see SocketSession
+ * @see Handler
+ * @see HandlerInvoker
+ */
 @Getter
 @AllArgsConstructor
 @FieldDefaults(makeFinal = true, level = AccessLevel.PRIVATE)
@@ -92,6 +117,29 @@ public class SocketEndpointHandler implements Handler<DeserializingMessage> {
         return "SocketEndpointHandler[%s]".formatted(targetClass);
     }
 
+    /**
+     * A stateful wrapper around a WebSocket endpoint instance, managing per-session behavior and message handling.
+     * <p>
+     * This class is created per WebSocket session and holds:
+     * <ul>
+     *     <li>A lazily instantiated target handler</li>
+     *     <li>Connection health tracking (ping/pong logic)</li>
+     *     <li>Automatic session cleanup via {@link Registration} hooks</li>
+     *     <li>Delegation to matching methods for open, message, pong, and close events</li>
+     * </ul>
+     * <p>
+     * When the first {@code @HandleSocketOpen} or {@code @HandleSocketMessage} message arrives for a session,
+     * the target handler is initialized and stored. Subsequent WebSocket lifecycle messages (e.g. {@code @HandleSocketPong},
+     * {@code @HandleSocketClose}) are routed to the correct methods on the same instance.
+     * <p>
+     * Ping scheduling and timeout behavior is based on the {@link SocketEndpoint#aliveCheck()} configuration.
+     *
+     * @see HandleSocketOpen
+     * @see HandleSocketMessage
+     * @see HandleSocketPong
+     * @see HandleSocketClose
+     * @see SocketEndpoint
+     */
     @Path("*")
     @RequiredArgsConstructor
     public static class SocketEndpointWrapper {
@@ -188,7 +236,7 @@ public class SocketEndpointHandler implements Handler<DeserializingMessage> {
             }
         }
 
-        public void abort(int closeCode) {
+        protected void abort(int closeCode) {
             if (isOpen()) {
                 session.close(closeCode);
             }
@@ -198,7 +246,7 @@ public class SocketEndpointHandler implements Handler<DeserializingMessage> {
             return !closed.get();
         }
 
-        public Object unwrap() {
+        protected Object unwrap() {
             return targetHandler.getTarget();
         }
     }

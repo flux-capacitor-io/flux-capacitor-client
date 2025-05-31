@@ -44,7 +44,7 @@ import io.fluxcapacitor.javaclient.modeling.Entity;
 import io.fluxcapacitor.javaclient.persisting.search.DefaultDocumentStore;
 import io.fluxcapacitor.javaclient.persisting.search.Search;
 import io.fluxcapacitor.javaclient.publishing.DispatchInterceptor;
-import io.fluxcapacitor.javaclient.scheduling.DefaultScheduler;
+import io.fluxcapacitor.javaclient.scheduling.DefaultMessageScheduler;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
 import io.fluxcapacitor.javaclient.scheduling.ScheduledCommand;
 import io.fluxcapacitor.javaclient.scheduling.client.LocalSchedulingClient;
@@ -399,7 +399,7 @@ public class TestFixture implements Given, When {
                         fluxCapacitor.errorGateway(),
                         fluxCapacitor.webRequestGateway(),
                         fluxCapacitor.metricsGateway()),
-                fluxCapacitor.scheduler() instanceof DefaultScheduler s ? Stream.of(s) : empty(),
+                fluxCapacitor.messageScheduler() instanceof DefaultMessageScheduler s ? Stream.of(s) : empty(),
                 fluxCapacitor.documentStore() instanceof DefaultDocumentStore s ? Stream.of(s) : Stream.empty());
     }
 
@@ -544,10 +544,15 @@ public class TestFixture implements Given, When {
     }
 
     @Override
+    public TestFixture givenStateful(Object stateful) {
+        return (TestFixture) Given.super.givenStateful(stateful);
+    }
+
+    @Override
     public TestFixture givenSchedules(Schedule... schedules) {
         Class<?> callerClass = getCallerClass();
         givenModification(fixture -> fixture.asMessages(callerClass, (Object[]) schedules).forEach(
-                s -> run(() -> fluxCapacitor.scheduler().schedule((Schedule) s, false, Guarantee.STORED).get())));
+                s -> run(() -> fluxCapacitor.messageScheduler().schedule((Schedule) s, false, Guarantee.STORED).get())));
         return this;
     }
 
@@ -556,7 +561,7 @@ public class TestFixture implements Given, When {
         Class<?> callerClass = getCallerClass();
         givenModification(fixture -> fixture.asMessages(callerClass, (Object[]) commands).forEach(
                 s -> run(
-                        () -> fluxCapacitor.scheduler().scheduleCommand((Schedule) s, false, Guarantee.STORED).get())));
+                        () -> fluxCapacitor.messageScheduler().scheduleCommand((Schedule) s, false, Guarantee.STORED).get())));
         return this;
     }
 
@@ -714,7 +719,7 @@ public class TestFixture implements Given, When {
     @Override
     public Then<?> whenScheduleExpires(Object schedule) {
         Message message = trace(schedule);
-        return whenExecuting(fc -> fc.scheduler().schedule(message, getCurrentTime()));
+        return whenExecuting(fc -> fc.messageScheduler().schedule(message, getCurrentTime()));
     }
 
     @Override
@@ -822,7 +827,7 @@ public class TestFixture implements Given, When {
                     List<Schedule> expiredSchedules;
                     do {
                         expiredSchedules = local.removeExpiredSchedules(getFluxCapacitor().serializer());
-                        if (getFluxCapacitor().scheduler() instanceof DefaultScheduler scheduler) {
+                        if (getFluxCapacitor().messageScheduler() instanceof DefaultMessageScheduler scheduler) {
                             expiredSchedules.forEach(scheduler::handleLocally);
                         }
                     } while (!expiredSchedules.isEmpty());

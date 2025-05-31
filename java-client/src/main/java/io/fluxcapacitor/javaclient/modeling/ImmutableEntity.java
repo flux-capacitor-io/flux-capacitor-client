@@ -20,6 +20,7 @@ import io.fluxcapacitor.common.handling.HandlerInvoker;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
+import io.fluxcapacitor.javaclient.persisting.eventsourcing.Apply;
 import lombok.AccessLevel;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -45,6 +46,52 @@ import static io.fluxcapacitor.common.reflection.ReflectionUtils.getValue;
 import static io.fluxcapacitor.javaclient.modeling.AnnotatedEntityHolder.getEntityHolder;
 import static java.util.Collections.emptyList;
 
+
+/**
+ * Immutable implementation of the {@link Entity} interface, representing a snapshot of a domain entity.
+ * <p>
+ * Unlike mutable entities, an {@code ImmutableEntity} is never changed in-place. Instead, updates such as event
+ * applications or transformations return a new, updated instance, preserving immutability and making it suitable
+ * for event-sourced state transitions, testing, and functional-style programming models.
+ * <p>
+ * This entity is typically wrapped by higher-level mutable structures such as {@code ModifiableAggregateRoot},
+ * which manage lifecycle and mutation tracking.
+ *
+ * <h2>Key Features</h2>
+ * <ul>
+ *     <li>Supports event application via methods annotated with {@code @Apply}</li>
+ *     <li>Supports recursive validation using {@code @AssertLegal}</li>
+ *     <li>Automatically resolves child entities and aliases using {@code @Member} and {@code @Alias} annotations</li>
+ *     <li>Preserves immutability by returning a new instance after each update</li>
+ * </ul>
+ *
+ * <h2>Common Usage</h2>
+ * <pre>{@code
+ * ImmutableEntity<Order> orderEntity = ImmutableEntity.<Order>builder()
+ *     .id("order123")
+ *     .type(Order.class)
+ *     .value(order)
+ *     .entityHelper(entityHelper)
+ *     .serializer(serializer)
+ *     .build();
+ *
+ * // Apply an event and receive a new version of the entity
+ * orderEntity = orderEntity.apply(eventMessage);
+ * }</pre>
+ *
+ * <p>
+ * The {@link #update(UnaryOperator)} method applies a transformation to the entity value and automatically
+ * updates parent references when nested.
+ * <p>
+ * Event application is handled via the {@link EntityHelper} which dynamically locates appropriate handlers.
+ * If no direct handler is found, the event is propagated recursively to nested child entities.
+ *
+ * @param <T> the type of the underlying domain object represented by this entity
+ * @see Entity
+ * @see Apply
+ * @see Alias
+ * @see Member
+ */
 @Value
 @NonFinal
 @SuperBuilder(toBuilder = true)

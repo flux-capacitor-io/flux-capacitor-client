@@ -41,7 +41,7 @@ public class StorePosition extends Command {
     MessageType messageType;
 
     /**
-     * The name of the consumer group for which the position is being stored.
+     * The name of the consumer for which the position is being stored.
      */
     String consumer;
 

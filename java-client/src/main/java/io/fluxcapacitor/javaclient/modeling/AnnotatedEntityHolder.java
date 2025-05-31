@@ -52,6 +52,33 @@ import static io.fluxcapacitor.common.reflection.ReflectionUtils.readProperty;
 import static java.beans.Introspector.decapitalize;
 import static java.util.Optional.empty;
 
+/**
+ * Helper class for {@link Entity} instances that manage nested entity relationships annotated with
+ * {@link Member @Member}.
+ * <p>
+ * The {@code AnnotatedEntityHolder} provides a way to access and update a composite object (holder) that contains one
+ * or more nested entities. It supports collections, maps, and single-value member fields. It extracts member values
+ * using reflection and allows updating them through generated "wither" or "setter" logic, making it possible to
+ * reconstruct an updated parent entity when one of its children changes.
+ * <p>
+ * The holder is typically tied to a specific {@link AccessibleObject} (field or method), which is analyzed and cached
+ * to optimize repeated operations.
+ *
+ * <h2>Responsibilities:</h2>
+ * <ul>
+ *   <li>Extract and cache metadata about a member location (field/method), including its type, ID property, and wither.</li>
+ *   <li>Create {@link ImmutableEntity} instances from nested values at this member location.</li>
+ *   <li>Apply updates to these entities and propagate the changes back to the parent object via a wither or clone-and-set.</li>
+ *   <li>Support updating collection and map-based member fields while preserving immutability semantics.</li>
+ * </ul>
+ *
+ * <p>
+ * The holder is initialized and cached via {@link #getEntityHolder(Class, AccessibleObject, EntityHelper, Serializer)},
+ * and update logic falls back to serialization-based cloning if a wither method is not explicitly defined.
+ *
+ * @see ImmutableEntity
+ * @see Member
+ */
 @Slf4j
 public class AnnotatedEntityHolder {
     private static final Map<AccessibleObject, AnnotatedEntityHolder> cache = new ConcurrentHashMap<>();
@@ -76,9 +103,17 @@ public class AnnotatedEntityHolder {
             .idProperty(idProvider.apply(entityType).property())
             .build();
 
+    /**
+     * Retrieves or creates a cached {@code AnnotatedEntityHolder} at the given member location.
+     *
+     * @param ownerType    the class that owns the annotated member
+     * @param location     the accessible field or method annotated with @Member
+     * @param entityHelper the helper used to apply/validate/apply logic to nested entities
+     * @param serializer   the serializer used for cloning values during updates
+     * @return a cached or new instance of {@code AnnotatedEntityHolder}
+     */
     public static AnnotatedEntityHolder getEntityHolder(Class<?> ownerType, AccessibleObject location,
-                                                        EntityHelper entityHelper,
-                                                        Serializer serializer) {
+                                                        EntityHelper entityHelper, Serializer serializer) {
         return cache.computeIfAbsent(location,
                                      l -> new AnnotatedEntityHolder(ownerType, l, entityHelper, serializer));
     }
@@ -154,6 +189,14 @@ public class AnnotatedEntityHolder {
         });
     }
 
+    /**
+     * Returns the set of {@link ImmutableEntity} instances that are defined at the member location within the specified
+     * parent entity. This includes actual members and an "empty" fallback entity used for creating new entities or
+     * assertions to carry out before an entity is created.
+     *
+     * @param parent the parent entity instance
+     * @return a stream of nested {@link ImmutableEntity} instances
+     */
     public Stream<? extends ImmutableEntity<?>> getEntities(Entity<?> parent) {
         if (parent.get() == null) {
             return Stream.empty();
@@ -192,6 +235,20 @@ public class AnnotatedEntityHolder {
                                    .entityHelper(entityHelper).serializer(serializer).build());
     }
 
+
+    /**
+     * Updates the parent object with the new state of a child entity. Uses a wither method if available; otherwise
+     * attempts a reflective update through cloning and direct field access. If the entity has been removed (value has
+     * become {@code null}), the entity is removed from the owner object if possible.
+     * <p>
+     * Note that this method typically returns a new clone of the owner object containing the updated child entity
+     * value.
+     *
+     * @param owner  the parent object containing the member field
+     * @param before the old entity (before update)
+     * @param after  the new entity (after update)
+     * @return a new updated parent object, or the original if mutation fails
+     */
     @SneakyThrows
     public Object updateOwner(Object owner, Entity<?> before, Entity<?> after) {
         Object holder = ReflectionUtils.getValue(location, owner);

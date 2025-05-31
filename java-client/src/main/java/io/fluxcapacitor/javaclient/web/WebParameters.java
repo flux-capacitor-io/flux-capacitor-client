@@ -19,12 +19,51 @@ import lombok.Value;
 import java.util.Arrays;
 import java.util.stream.Stream;
 
+/**
+ * Internal configuration holder used to expand the URI and method mappings of a web request handler method.
+ * <p>
+ * This class supports handlers that match multiple URI patterns and/or HTTP methods. It is typically used in
+ * conjunction with the {@code @HandleWeb} annotation, where a single method can be annotated with multiple
+ * {@link WebParameters} to define various acceptable request routes.
+ *
+ * <p>Each {@code WebParameters} instance includes:
+ * <ul>
+ *     <li>A list of URI patterns (e.g. {@code /users}, {@code /users/{id}})</li>
+ *     <li>A list of HTTP methods (e.g. {@code GET}, {@code POST})</li>
+ *     <li>An optional {@code disabled} flag that disables this set of patterns</li>
+ * </ul>
+ *
+ * <p>The {@link #getWebPatterns()} method expands this configuration into a {@link Stream} of
+ * {@link WebPattern} instances—one for each combination of method and URI pattern.
+ *
+ * @see WebPattern
+ * @see io.fluxcapacitor.javaclient.web.WebUtils#getWebPatterns(java.lang.reflect.Executable)
+ */
 @Value
 public class WebParameters {
+
+    /**
+     * URI patterns to match (can be empty for wildcard).
+     */
     String[] value;
+
+    /**
+     * HTTP methods to match (e.g. GET, POST).
+     */
     String[] method;
+
+    /**
+     * Whether this set of patterns is disabled.
+     */
     boolean disabled;
 
+    /**
+     * Expands this configuration into a stream of {@link WebPattern} instances.
+     * <p>
+     * If no URI patterns are provided, a wildcard pattern ({@code ""}) is assumed.
+     *
+     * @return a stream of {@link WebPattern} combinations for method/URI
+     */
     public Stream<WebPattern> getWebPatterns() {
         Stream<String> methodStream = Arrays.stream(method);
         return methodStream.flatMap(method -> switch (value.length) {

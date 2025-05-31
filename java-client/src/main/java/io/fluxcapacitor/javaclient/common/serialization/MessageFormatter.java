@@ -16,7 +16,34 @@ package io.fluxcapacitor.javaclient.common.serialization;
 
 import java.util.function.Function;
 
+/**
+ * A functional interface for formatting {@link DeserializingMessage} instances into human-readable strings.
+ * <p>
+ * This interface is typically used to customize how messages are represented in logs or UI displays. The formatter
+ * receives a {@link DeserializingMessage}, which may or may not have been fully deserialized at the time of
+ * formatting.
+ *
+ * <p>
+ * Implementations can decide whether to format based on metadata, payload class, or raw type information.
+ *
+ * <h2>Default Implementation</h2>
+ * The {@link #DEFAULT} formatter returns:
+ * <ul>
+ *   <li>The simple name of the payload class if the message is already deserialized</li>
+ *   <li>The type string (usually the fully qualified class name) otherwise</li>
+ * </ul>
+ * <p>
+ * Example usage:
+ * <pre>{@code
+ * String label = MessageFormatter.DEFAULT.apply(message);
+ * }</pre>
+ */
 @FunctionalInterface
 public interface MessageFormatter extends Function<DeserializingMessage, String> {
+
+    /**
+     * The default formatter that returns the simple name of the payload class if deserialized, or the raw type string
+     * if not.
+     */
     MessageFormatter DEFAULT = m -> m.isDeserialized() ? m.getPayloadClass().getSimpleName() : m.getType();
 }

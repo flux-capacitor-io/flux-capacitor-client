@@ -45,6 +45,19 @@ import java.util.concurrent.CompletableFuture;
 
 import static io.fluxcapacitor.common.MessageType.METRICS;
 
+/**
+ * WebSocket-based implementation of the {@link TrackingClient} that connects to the Flux platform.
+ * <p>
+ * All tracking-related operations—including reading messages, claiming segments, storing/resetting positions, and
+ * disconnecting trackers—are performed via a standardized WebSocket protocol with the Flux platform.
+ * <p>
+ * This is the default production implementation used in deployed applications to track message streams such as
+ * commands, queries, events, and other custom message types.
+ * <p>
+ * Requires an active WebSocket connection to the Flux platform’s tracking service.
+ *
+ * @see WebSocketClient
+ */
 @ClientEndpoint
 @Getter
 public class WebsocketTrackingClient extends AbstractWebsocketClient implements TrackingClient {

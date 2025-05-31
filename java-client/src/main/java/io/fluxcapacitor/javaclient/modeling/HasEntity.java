@@ -14,6 +14,14 @@
 
 package io.fluxcapacitor.javaclient.modeling;
 
+/**
+ * Represents an object, typically a message used for invocation, that has an associated {@link Entity}.
+ */
 public interface HasEntity {
+    /**
+     * Retrieves the associated Entity of the object.
+     *
+     * @return the associated Entity.
+     */
     Entity<?> getEntity();
 }

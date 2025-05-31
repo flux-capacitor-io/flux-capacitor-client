@@ -15,6 +15,7 @@
 package io.fluxcapacitor.javaclient.modeling;
 
 import io.fluxcapacitor.common.api.search.Constraint;
+import io.fluxcapacitor.common.api.search.SerializedDocument;
 import io.fluxcapacitor.common.api.search.constraints.AnyConstraint;
 import io.fluxcapacitor.common.api.search.constraints.MatchConstraint;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
@@ -42,10 +43,29 @@ import java.util.function.Supplier;
 
 import static io.fluxcapacitor.javaclient.common.ClientUtils.memoize;
 
+/**
+ * Default implementation of {@link HandlerRepository}, backed by a {@link DocumentStore}.
+ * <p>
+ * This repository provides direct indexing and retrieval of {@code @Stateful} handlers, using values from fields and
+ * methods annotated with {@link io.fluxcapacitor.javaclient.tracking.handling.Association}.
+ * <p>
+ * Timestamp information can optionally be derived from paths specified in the
+ * {@link Stateful} annotation on the handler class.
+ */
 @Slf4j
 @Getter(AccessLevel.PROTECTED)
 public class DefaultHandlerRepository implements HandlerRepository {
 
+    /**
+     * Returns a factory function that creates a {@link HandlerRepository} for a given handler type.
+     * <p>
+     * If the handler type is annotated with {@code @Stateful(commitInBatch = true)}, the returned repository will
+     * buffer updates and commit them as a batch using {@link BatchingHandlerRepository}.
+     *
+     * @param documentStore      the underlying document store supplier
+     * @param documentSerializer serializer used for creating {@link SerializedDocument} objects
+     * @return a factory function that returns a suitable {@link HandlerRepository} for each handler class
+     */
     public static Function<Class<?>, HandlerRepository> handlerRepositorySupplier(Supplier<DocumentStore> documentStore,
                                                                                   DocumentSerializer documentSerializer) {
         return memoize(type -> {
@@ -69,6 +89,8 @@ public class DefaultHandlerRepository implements HandlerRepository {
         this.documentStore = documentStore;
         this.collection = collection;
         this.type = type;
+
+        // Resolve timestamp extraction logic
         AtomicBoolean warnedAboutMissingTimePath = new AtomicBoolean();
         this.timestampFunction = Optional.of(annotation).map(Stateful::timestampPath)
                 .filter(path -> !path.isBlank())
@@ -85,6 +107,8 @@ public class DefaultHandlerRepository implements HandlerRepository {
                             }
                             return FluxCapacitor.currentTime();
                         })).orElseGet(() -> handler -> FluxCapacitor.currentTime());
+
+        // Resolve end timestamp extraction logic
         AtomicBoolean warnedAboutMissingEndPath = new AtomicBoolean();
         this.endFunction = Optional.of(annotation).map(Stateful::endPath)
                 .filter(path -> !path.isBlank())
@@ -125,11 +149,13 @@ public class DefaultHandlerRepository implements HandlerRepository {
                 .filter(h -> type.isAssignableFrom(h.getValue().getClass())).toList();
     }
 
+    @Override
     @SneakyThrows
     public CompletableFuture<?> put(Object id, Object value) {
         return documentStore.index(value, id, collection, timestampFunction.apply(value), endFunction.apply(value));
     }
 
+    @Override
     @SneakyThrows
     public CompletableFuture<?> delete(Object id) {
         return documentStore.deleteDocument(id, collection);

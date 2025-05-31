@@ -23,6 +23,16 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.util.concurrent.CompletableFuture;
 
+
+/**
+ * Default implementation of the {@link MetricsGateway} interface.
+ * <p>
+ * This class delegates all functionality to an underlying {@link GenericGateway} instance, enabling the use of metrics
+ * gateway methods while leveraging the generic gateway's capabilities.
+ *
+ * @see MetricsGateway
+ * @see GenericGateway
+ */
 @AllArgsConstructor
 @Slf4j
 public class DefaultMetricsGateway implements MetricsGateway {

@@ -19,6 +19,7 @@ import io.fluxcapacitor.common.api.modeling.Relationship;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
+import io.fluxcapacitor.javaclient.configuration.FluxCapacitorBuilder;
 import io.fluxcapacitor.javaclient.configuration.client.Client;
 import io.fluxcapacitor.javaclient.modeling.Entity;
 import io.fluxcapacitor.javaclient.persisting.caching.Cache;
@@ -45,6 +46,41 @@ import static io.fluxcapacitor.javaclient.modeling.Entity.getAggregateType;
 import static io.fluxcapacitor.javaclient.tracking.client.DefaultTracker.start;
 import static java.lang.String.format;
 
+/**
+ * A wrapper around a delegate {@link AggregateRepository} that ensures cached aggregates stay in sync with the event
+ * log.
+ * <p>
+ * This repository starts an internal {@link io.fluxcapacitor.javaclient.tracking.client.TrackingClient} that tails the
+ * global event log. It deserializes received events and applies them to any corresponding aggregate in the cache,
+ * thereby ensuring that all cached aggregates reflect the latest known state.
+ *
+ * <p>This design makes it possible to load up-to-date aggregates within event and notification handlers, allowing
+ * these types of handlers to rely on the event model as a read model. This enables event-sourced read models without
+ * requiring the developer to maintain separate query-oriented state.
+ *
+ * <p>Specifically, when an event handler loads an aggregate, the repository first ensures that all events up to and
+ * including the event being handled have been processed by the tracker and applied to the cache. This prevents race
+ * conditions and stale reads.
+ *
+ * <p>If a cache miss occurs, the aggregate is loaded from the delegate repository and cached for future access.
+ *
+ * <h2>Features</h2>
+ * <ul>
+ *   <li>Transparent event replay on cached aggregates.</li>
+ *   <li>Ensures correct ordering and consistency during event handling via index synchronization.</li>
+ *   <li>Relationship metadata is kept up to date using {@link Relationship} updates.</li>
+ *   <li>Configurable slow-tracking detection via {@link #slowTrackingThreshold} (default 10 seconds).</li>
+ * </ul>
+ *
+ * <p>This caching repository is enabled by default in all Flux Capacitor applications to support aggregate access
+ * during event processing. If needed, it can be disabled using
+ * {@link FluxCapacitorBuilder#disableAutomaticAggregateCaching()}, in which case aggregate state will not be tracked
+ * or kept in sync automatically, and developers are expected to manage consistency manually.
+ *
+ * @see AggregateRepository
+ * @see Entity
+ * @see io.fluxcapacitor.javaclient.tracking.client.TrackingClient
+ */
 @RequiredArgsConstructor
 @Slf4j
 public class CachingAggregateRepository implements AggregateRepository {

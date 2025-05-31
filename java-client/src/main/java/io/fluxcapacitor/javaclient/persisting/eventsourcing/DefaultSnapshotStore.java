@@ -29,6 +29,17 @@ import static io.fluxcapacitor.common.Guarantee.STORED;
 import static java.lang.String.format;
 import static java.util.Optional.ofNullable;
 
+/**
+ * Default implementation of the {@link SnapshotStore} interface, responsible for managing snapshots of aggregate roots
+ * in an event-sourced system.
+ *
+ * <p>This implementation uses a key-value store ({@link KeyValueClient}) to store snapshots, a {@link Serializer} to
+ * handle serialization and deserialization of snapshots, and an {@link EventStore} for managing the associated event
+ * data.
+ *
+ * <p>If deserialization fails, a warning is logged, the snapshot is deleted, and the aggregate is reconstructed from
+ * its event history.
+ */
 @Slf4j
 @AllArgsConstructor
 public class DefaultSnapshotStore implements SnapshotStore {

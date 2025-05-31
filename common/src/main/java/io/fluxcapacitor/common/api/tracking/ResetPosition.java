@@ -20,7 +20,7 @@ import io.fluxcapacitor.common.api.Command;
 import lombok.Value;
 
 /**
- * Command to forcibly reset the tracked position for a given consumer group and message type.
+ * Command to forcibly reset the tracked position for a given consumer and message type.
  * <p>
  * Unlike {@link StorePosition}, which only allows the tracked index to move forward, this command allows setting a
  * lower {@code lastIndex}, effectively rewinding the consumer’s position.
@@ -49,7 +49,7 @@ public class ResetPosition extends Command {
     MessageType messageType;
 
     /**
-     * The name of the consumer group whose position should be reset.
+     * The name of the consumer whose position should be reset.
      */
     String consumer;
 
@@ -64,7 +64,7 @@ public class ResetPosition extends Command {
     Guarantee guarantee;
 
     /**
-     * Returns a routing key used for partitioning the reset command by consumer group and message type.
+     * Returns a routing key used for partitioning the reset command by consumer and message type.
      */
     @Override
     public String routingKey() {

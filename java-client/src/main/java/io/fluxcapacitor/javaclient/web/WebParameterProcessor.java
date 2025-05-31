@@ -39,6 +39,47 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+/**
+ * Annotation processor that generates parameter name metadata for web request handler methods annotated with
+ * {@code @QueryParam}, {@code @PathParam}, {@code @HeaderParam}, {@code @CookieParam}, or {@code @FormParam}.
+ * <p>
+ * This processor is necessary for Java-based Flux Capacitor applications where method parameter names are not retained
+ * at runtime (due to type erasure and lack of debug metadata). Without this step, the framework cannot reliably bind
+ * path, query, or form parameters to method arguments in web handler methods.
+ *
+ * <h2>How It Works</h2>
+ * <p>
+ * During compilation, the processor scans for any methods containing web parameter annotations. For each enclosing
+ * class, it generates a companion {@code _params} class (e.g. {@code MyHandler_params}) that extends
+ * {@link ParameterRegistry}. This generated class maps method signatures to ordered parameter name lists.
+ *
+ * <p>At runtime, the framework consults these generated registries to resolve argument names for
+ * annotated web handler methods—effectively restoring the parameter names that would otherwise be erased.
+ * <p>
+ * Kotlin applications do not require this processor, as parameter names are preserved by default in compiled code.
+ *
+ * <h3>Example</h3>
+ * For a Java method like:
+ * <pre>{@code
+ * @HandleWeb
+ * public String getUser(@PathParam("id") String userId, @QueryParam boolean verbose) {
+ *     ...
+ * }
+ * }</pre>
+ * the processor will generate:
+ * <pre>{@code
+ * result.put("getUser(java.lang.String,boolean)", List.of("userId", "verbose"));
+ * }</pre>
+ *
+ * <h2>Usage</h2>
+ * <ul>
+ *   <li>Automatically registered via {@code @AutoService(Processor.class)}</li>
+ *   <li>Triggered by any of the supported parameter annotations</li>
+ *   <li>Works in combination with {@link ParameterRegistry}</li>
+ * </ul>
+ *
+ * @see ParameterRegistry
+ */
 @SupportedAnnotationTypes({
         "io.fluxcapacitor.javaclient.web.QueryParam",
         "io.fluxcapacitor.javaclient.web.PathParam",
@@ -61,7 +102,8 @@ public class WebParameterProcessor extends AbstractProcessor {
     @Override
     public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
         Map<TypeElement, List<ExecutableElement>> methodsMap = new HashMap<>();
-        for (Element element : roundEnv.getElementsAnnotatedWithAny(Set.of(QueryParam.class, PathParam.class, CookieParam.class, HeaderParam.class, FormParam.class))) {
+        for (Element element : roundEnv.getElementsAnnotatedWithAny(
+                Set.of(QueryParam.class, PathParam.class, CookieParam.class, HeaderParam.class, FormParam.class))) {
             if (element.getEnclosingElement() instanceof ExecutableElement method) {
                 methodsMap.computeIfAbsent((TypeElement) method.getEnclosingElement(), c -> new ArrayList<>())
                         .add(method);
@@ -75,20 +117,11 @@ public class WebParameterProcessor extends AbstractProcessor {
         return true;
     }
 
-    private String generateMethodSignature(ExecutableElement method) {
-        String methodName = method.getSimpleName().toString();
-        String parameterTypes = method.getParameters()
-                .stream()
-                .map(param -> param.asType().toString()) // Fully qualified parameter types
-                .reduce((a, b) -> a + "," + b)
-                .orElse("");
-        return methodName + "(" + parameterTypes + ")";
-    }
-
     private void generateParamsClass(TypeElement type, List<ExecutableElement> methods) {
         PackageElement packageElement = processingEnv.getElementUtils().getPackageOf(type);
         String packageName = packageElement.getQualifiedName().toString();
-        String simpleClassName = type.getQualifiedName().toString().replace(packageName + ".", "").replace(".", "_") + "_params";
+        String simpleClassName =
+                type.getQualifiedName().toString().replace(packageName + ".", "").replace(".", "_") + "_params";
         String fullClassName = packageName + "." + simpleClassName;
 
         StringBuilder content = new StringBuilder();
@@ -108,7 +141,8 @@ public class WebParameterProcessor extends AbstractProcessor {
         content.append("\t\tMap<String, List<String>> result = new HashMap<>();\n");
         methods.forEach(m -> {
             content.append("\t\tresult.put(\"").append(ParameterRegistry.signature(m)).append("\", List.of(")
-                    .append(String.join(", ", m.getParameters().stream().map(VariableElement::getSimpleName).map(Name::toString).map(name -> "\"" + name + "\"").toList()))
+                    .append(String.join(", ", m.getParameters().stream().map(VariableElement::getSimpleName)
+                            .map(Name::toString).map(name -> "\"" + name + "\"").toList()))
                     .append("));\n");
         });
         content.append("\t\treturn result;\n");

@@ -14,6 +14,21 @@
 
 package io.fluxcapacitor.javaclient.common.serialization.casting;
 
+/**
+ * Marker interface for wrapper objects that retain a reference to their originating source.
+ *
+ * <p>This is commonly used to wrap or decorate serialized objects (e.g., for format conversion),
+ * while preserving access to the original representation. Used by infrastructure such as
+ * {@link DefaultCasterChain.ConvertingSerializedObject} to maintain traceability of transformations.
+ *
+ * @param <T> the type of the source object being wrapped, e.g. {@link io.fluxcapacitor.common.api.SerializedMessage}.
+ */
 public interface HasSource<T> {
+
+    /**
+     * Returns the original source object this instance was derived from.
+     *
+     * @return the original source object
+     */
     T getSource();
 }

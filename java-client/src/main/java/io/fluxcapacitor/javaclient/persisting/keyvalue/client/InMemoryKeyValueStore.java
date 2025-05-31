@@ -21,6 +21,12 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * An in-memory implementation of the {@link KeyValueClient} interface.
+ * This class provides methods for storing, retrieving, and deleting key-value pairs in a local memory store.
+ * <p>
+ * It is thread-safe by utilizing a {@link ConcurrentHashMap} as an underlying data structure.
+ */
 public class InMemoryKeyValueStore implements KeyValueClient {
 
     private final Map<String, Data<byte[]>> values;

@@ -228,8 +228,6 @@ public class DefaultDocumentStore implements DocumentStore, HasLocalHandlers {
     @RequiredArgsConstructor
     protected class DefaultSearch implements Search {
 
-        public static int defaultFetchSize = 10_000;
-
         private final SearchQuery.Builder queryBuilder;
         private final List<String> sorting = new ArrayList<>();
         private final List<String> pathFilters = new ArrayList<>();

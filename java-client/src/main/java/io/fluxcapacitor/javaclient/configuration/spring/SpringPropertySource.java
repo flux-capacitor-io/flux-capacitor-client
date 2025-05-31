@@ -18,6 +18,13 @@ import io.fluxcapacitor.common.application.PropertySource;
 import lombok.AllArgsConstructor;
 import org.springframework.core.env.Environment;
 
+/**
+ * A {@link PropertySource} implementation that delegates property lookups to a Spring {@link Environment}.
+ * <p>
+ * This allows Flux Capacitor components to access configuration properties managed by Spring's environment system.
+ *
+ * @see Environment
+ */
 @AllArgsConstructor
 public class SpringPropertySource implements PropertySource {
     private final Environment environment;

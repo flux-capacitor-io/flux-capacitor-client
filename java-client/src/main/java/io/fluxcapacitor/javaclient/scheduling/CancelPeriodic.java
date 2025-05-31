@@ -14,5 +14,30 @@
 
 package io.fluxcapacitor.javaclient.scheduling;
 
+import io.fluxcapacitor.javaclient.tracking.handling.HandleSchedule;
+
+/**
+ * Exception used to cancel a periodic schedule from a schedule handler.
+ * <p>
+ * When thrown from a {@link HandleSchedule} handler that was triggered by a
+ * {@link io.fluxcapacitor.javaclient.scheduling.MessageScheduler#schedulePeriodic(Object)} invocation, this exception
+ * will signal to the scheduler that the associated periodic schedule should be cancelled permanently.
+ * <p>
+ * Unlike other exceptions thrown during schedule handling, this will not result in a log warning or error. It is a
+ * controlled mechanism for terminating a repeating schedule.
+ * <p>
+ * Example usage:
+ * <pre>
+ * {@code
+ * @HandleSchedule
+ * void handle(MyPeriodicMessage message) {
+ *     if (shouldStop(message)) {
+ *         throw new CancelPeriodic();
+ *     }
+ *     // process message
+ * }
+ * }
+ * </pre>
+ */
 public class CancelPeriodic extends RuntimeException {
 }

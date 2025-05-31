@@ -60,12 +60,12 @@ import static io.fluxcapacitor.common.MessageType.WEBREQUEST;
 import static io.fluxcapacitor.common.MessageType.WEBRESPONSE;
 import static io.fluxcapacitor.common.ObjectUtils.memoize;
 import static io.fluxcapacitor.common.ObjectUtils.newThreadName;
-import static io.fluxcapacitor.common.ServicePathBuilder.consumerPath;
 import static io.fluxcapacitor.common.ServicePathBuilder.eventSourcingPath;
+import static io.fluxcapacitor.common.ServicePathBuilder.gatewayPath;
 import static io.fluxcapacitor.common.ServicePathBuilder.keyValuePath;
-import static io.fluxcapacitor.common.ServicePathBuilder.producerPath;
 import static io.fluxcapacitor.common.ServicePathBuilder.schedulingPath;
 import static io.fluxcapacitor.common.ServicePathBuilder.searchPath;
+import static io.fluxcapacitor.common.ServicePathBuilder.trackingPath;
 import static io.fluxcapacitor.testserver.websocket.WebsocketDeploymentUtils.deploy;
 import static io.fluxcapacitor.testserver.websocket.WebsocketDeploymentUtils.deployFromSession;
 import static io.fluxcapacitor.testserver.websocket.WebsocketDeploymentUtils.getProjectId;
@@ -92,14 +92,14 @@ public class TestServer {
         for (MessageType messageType : Arrays.asList(METRICS, EVENT, COMMAND, QUERY, RESULT, ERROR, WEBREQUEST, WEBRESPONSE)) {
             pathHandler = deploy(projectId -> new ProducerEndpoint(getMessageStore(projectId, messageType))
                                          .metricsLog(messageType == METRICS ? new NoOpMetricsLog() : metricsLogSupplier.apply(projectId)),
-                                 format("/%s/", producerPath(messageType)), pathHandler);
+                                 format("/%s/", gatewayPath(messageType)), pathHandler);
             pathHandler = deploy(projectId -> new ConsumerEndpoint(getMessageStore(projectId, messageType), messageType)
                                          .metricsLog(messageType == METRICS ? new NoOpMetricsLog() : metricsLogSupplier.apply(projectId)),
-                                 format("/%s/", consumerPath(messageType)), pathHandler);
+                                 format("/%s/", trackingPath(messageType)), pathHandler);
         }
         pathHandler = deploy(projectId -> new ConsumerEndpoint(getMessageStore(projectId, NOTIFICATION), NOTIFICATION)
                                      .metricsLog(metricsLogSupplier.apply(projectId)),
-                             format("/%s/", consumerPath(NOTIFICATION)), pathHandler);
+                             format("/%s/", trackingPath(NOTIFICATION)), pathHandler);
 
         for (MessageType messageType : MessageType.values()) {
             switch (messageType) {
@@ -108,7 +108,7 @@ public class TestServer {
                                 getMessageStore(projectId, messageType, topic), messageType)
                                         .metricsLog(metricsLogSupplier.apply(projectId)))
                                 .compose(s -> new SimpleEntry<>(getProjectId(s), getTopic(s))),
-                        format("/%s/", consumerPath(messageType)), pathHandler);
+                        format("/%s/", trackingPath(messageType)), pathHandler);
             }
         }
 
@@ -122,7 +122,7 @@ public class TestServer {
                 .metricsLog(metricsLogSupplier.apply(projectId)), format("/%s/", schedulingPath()), pathHandler);
         pathHandler = deploy(projectId -> new ConsumerEndpoint((MessageStore) clients.apply(projectId).getSchedulingClient(), SCHEDULE)
                                      .metricsLog(metricsLogSupplier.apply(projectId)),
-                             format("/%s/", consumerPath(SCHEDULE)), pathHandler);
+                             format("/%s/", trackingPath(SCHEDULE)), pathHandler);
         pathHandler = pathHandler.addPrefixPath("/health", exchange -> {
             exchange.getResponseHeaders().put(CONTENT_TYPE, "text/plain");
             exchange.getResponseSender().send("Healthy");

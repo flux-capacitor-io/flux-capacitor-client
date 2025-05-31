@@ -39,12 +39,39 @@ import java.util.stream.Stream;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.ensureAccessible;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAllMethods;
 
+/**
+ * Internal utility for inspecting and instantiating caster methods based on annotations such as {@link Upcast} or {@link Downcast}.
+ *
+ * <p>This class is used by {@link DefaultCasterChain} to discover methods annotated for casting purposes and wrap
+ * them into {@link AnnotatedCaster} instances.
+ *
+ * <p>Supports a variety of method signatures for flexibility, including those returning {@code Data<T>}, {@code Optional<Data<T>>},
+ * plain {@code T}, and {@code Stream<Data<T>>}. The inputs may include {@code Data<T>}, {@code T}, or {@code SerializedMessage}.
+ *
+ * <p>Not intended for public use.
+ */
 public class CastInspector {
 
+    /**
+     * Returns {@code true} if the given class contains any method annotated with {@link Cast}.
+     *
+     * @param type the class to inspect
+     * @return true if at least one casting method is present, false otherwise
+     */
     public static boolean hasCasterMethods(Class<?> type) {
         return getAllMethods(type).stream().anyMatch(m -> ReflectionUtils.has(Cast.class, m));
     }
 
+    /**
+     * Discovers all caster methods annotated with the given annotation (typically {@link Upcast} or {@link Downcast})
+     * in the provided candidates, and wraps them as {@link AnnotatedCaster} instances.
+     *
+     * @param castAnnotation the annotation to look for
+     * @param candidateTargets a collection of objects or classes that may define caster methods
+     * @param dataType the expected input/output data type for casting
+     * @param <T> the type of the serialized data being cast
+     * @return a list of discovered annotated casters
+     */
     public static <T> List<AnnotatedCaster<T>> getCasters(Class<? extends Annotation> castAnnotation,
                                                           Collection<?> candidateTargets, Class<T> dataType) {
         List<AnnotatedCaster<T>> result = new ArrayList<>();

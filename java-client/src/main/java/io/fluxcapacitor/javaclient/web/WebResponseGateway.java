@@ -29,6 +29,17 @@ import java.util.concurrent.CompletableFuture;
 
 import static io.fluxcapacitor.common.MessageType.WEBRESPONSE;
 
+/**
+ * Specialized implementation of the {@link ResultGateway} interface for sending web response messages.
+ * <p>
+ * This class is responsible for handling responses to web requests, dispatching the result message to the specified
+ * target using a {@link GatewayClient}.
+ * <p>
+ * The dispatch process utilizes the {@link DispatchInterceptor} and {@link WebResponseMapper} to modify or monitor
+ * {@link WebResponse web responses} before they are sent.
+ *
+ * @see ResultGateway
+ */
 @AllArgsConstructor
 public class WebResponseGateway implements ResultGateway {
 
@@ -38,11 +49,13 @@ public class WebResponseGateway implements ResultGateway {
     private final WebResponseMapper webResponseMapper;
 
     @Override
-    public CompletableFuture<Void> respond(Object payload, Metadata metadata, String target, Integer requestId, Guarantee guarantee) {
+    public CompletableFuture<Void> respond(Object payload, Metadata metadata, String target, Integer requestId,
+                                           Guarantee guarantee) {
         return respond(webResponseMapper.map(payload, metadata), target, requestId, guarantee);
     }
 
-    private CompletableFuture<Void> respond(WebResponse response, String target, Integer requestId, Guarantee guarantee) {
+    private CompletableFuture<Void> respond(WebResponse response, String target, Integer requestId,
+                                            Guarantee guarantee) {
         try {
             SerializedMessage serializedMessage = interceptDispatch(response);
             if (serializedMessage == null) {
@@ -58,8 +71,8 @@ public class WebResponseGateway implements ResultGateway {
 
     protected SerializedMessage interceptDispatch(WebResponse response) {
         Message message = dispatchInterceptor.interceptDispatch(response, WEBRESPONSE, null);
-        SerializedMessage serializedMessage = message == null ? null
-                : dispatchInterceptor.modifySerializedMessage(message.serialize(serializer), message, WEBRESPONSE, null);
+        SerializedMessage serializedMessage = message == null ? null :
+                dispatchInterceptor.modifySerializedMessage(message.serialize(serializer), message, WEBRESPONSE, null);
         if (serializedMessage != null) {
             dispatchInterceptor.monitorDispatch(message, WEBRESPONSE, null);
         }

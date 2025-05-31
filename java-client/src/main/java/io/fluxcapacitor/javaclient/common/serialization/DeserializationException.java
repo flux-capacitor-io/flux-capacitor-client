@@ -14,6 +14,19 @@
 
 package io.fluxcapacitor.javaclient.common.serialization;
 
+/**
+ * Thrown to indicate that a problem occurred during the deserialization of data.
+ * <p>
+ * This exception is typically thrown by a {@link Serializer} implementation when an attempt to parse a serialized
+ * representation (e.g. JSON or binary) into a Java object fails.
+ * <p>
+ * Common scenarios include:
+ * <ul>
+ *   <li>Invalid or malformed input (e.g. corrupt or truncated JSON)</li>
+ *   <li>Missing required fields in the serialized form</li>
+ *   <li>Type mismatches or class resolution failures</li>
+ * </ul>
+ */
 public class DeserializationException extends RuntimeException {
 
     public DeserializationException() {

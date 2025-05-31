@@ -46,6 +46,26 @@ import java.util.function.BiFunction;
 
 import static java.util.Optional.ofNullable;
 
+/**
+ * Default implementation of a {@link SocketSession} for managing Flux WebSocket sessions.
+ * <p>
+ * This class handles bidirectional communication over a WebSocket session, including:
+ * <ul>
+ *     <li>Sending regular messages, pings, and close instructions using various {@link Guarantee} levels</li>
+ *     <li>Sending and awaiting responses to {@link Request} objects via {@link SocketRequest}/{@link SocketResponse}</li>
+ *     <li>Tracking and completing pending requests with timeout handling</li>
+ *     <li>Dispatching and serializing socket messages using the configured {@link ResultGateway} and {@link TaskScheduler}</li>
+ *     <li>Supporting graceful closure of sessions and safe completion of outstanding requests</li>
+ * </ul>
+ * Internally, this class uses a {@link ConcurrentHashMap} to track open request-response pairs and leverages
+ * {@link HandlerInvoker} delegation to wrap handler execution and return results as {@link SocketResponse}s.
+ * <p>
+ * On receiving an incoming {@link SocketRequest}, it attempts to resolve and invoke the appropriate handler.
+ * On receiving a {@link SocketResponse}, it attempts to match and complete the original request.
+ * <p>
+ * Sessions are identified by a unique session ID and can include custom headers. Delivery guarantees are honored
+ * according to the underlying {@link ResultGateway} implementation.
+ */
 @AllArgsConstructor
 @Slf4j
 public class DefaultSocketSession implements SocketSession {
@@ -81,7 +101,9 @@ public class DefaultSocketSession implements SocketSession {
     public <R> CompletionStage<R> sendRequest(Request<R> request, Duration timeout) {
         SocketRequest socketRequest = SocketRequest.valueOf(request);
         CompletableFuture<R> response = taskScheduler.orTimeout(new CompletableFuture<R>()
-                .whenComplete((r, e) -> pendingRequests.remove(socketRequest.getRequestId())), timeout);
+                                                                        .whenComplete((r, e) -> pendingRequests.remove(
+                                                                                socketRequest.getRequestId())),
+                                                                timeout);
         pendingRequests.put(socketRequest.getRequestId(), new PendingRequest<>(request, response));
         if (isOpen()) {
             try {

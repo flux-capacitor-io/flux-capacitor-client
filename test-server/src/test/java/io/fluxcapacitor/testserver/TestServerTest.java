@@ -88,7 +88,7 @@ class TestServerTest {
         Schedule schedule = new Schedule("bla", "test",
                                          testFixture.getCurrentTime().plusSeconds(10));
         testFixture.givenSchedules(schedule)
-                .whenApplying(fc -> fc.scheduler().getSchedule("test").orElse(null))
+                .whenApplying(fc -> fc.messageScheduler().getSchedule("test").orElse(null))
                 .expectResult(schedule);
     }
 

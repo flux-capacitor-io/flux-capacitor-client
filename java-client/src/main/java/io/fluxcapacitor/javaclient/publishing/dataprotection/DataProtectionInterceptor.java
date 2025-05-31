@@ -35,6 +35,58 @@ import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedFie
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.readProperty;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.writeProperty;
 
+/**
+ * A {@link DispatchInterceptor} and {@link HandlerInterceptor} that supports secure transmission of sensitive data
+ * fields by removing them from the payload before dispatch and restoring them during handling.
+ *
+ * <p>This interceptor works in two phases:
+ * <ul>
+ *   <li><strong>Dispatch phase:</strong>
+ *     <ul>
+ *       <li>Scans the payload for fields annotated with {@link ProtectData}.</li>
+ *       <li>Each such field is serialized and stored securely in a designated store, indexed by a generated key.</li>
+ *       <li>The payload is cloned and sensitive fields are removed (set to {@code null}).</li>
+ *       <li>The generated key references are stored in the message metadata under {@link #METADATA_KEY}.</li>
+ *     </ul>
+ *   </li>
+ *   <li><strong>Handling phase:</strong>
+ *     <ul>
+ *       <li>Looks for protected data references in the message metadata.</li>
+ *       <li>If present, retrieves the original values from the store using the stored keys.</li>
+ *       <li>Injects the retrieved values back into the message payload before invocation.</li>
+ *       <li>If the target method is annotated with {@link DropProtectedData}, the stored entries are deleted after injection.</li>
+ *     </ul>
+ *   </li>
+ * </ul>
+ *
+ * <p>This strategy is useful for preventing sensitive or private data from being persisted to the message log,
+ * while still allowing handlers to receive full context during execution.
+ *
+ * <h2>Example</h2>
+ * <pre>{@code
+ * public class MyHandler {
+ *   @HandleCommand
+ *   public void handle(@ProtectData String ssn, ...) {
+ *     ...
+ *   }
+ *
+ *   @HandleCommand
+ *   @DropProtectedData
+ *   public void auditSensitive(@ProtectData String secretField, ...) {
+ *     ...
+ *     // After invocation, the secret is permanently removed
+ *   }
+ * }
+ * }
+ * </pre>
+ *
+ * <p>Note: The payload is cloned via (de)serialization to ensure the original object remains unmodified.
+ *
+ * @see ProtectData
+ * @see DropProtectedData
+ * @see DispatchInterceptor
+ * @see HandlerInterceptor
+ */
 @AllArgsConstructor
 @Slf4j
 public class DataProtectionInterceptor implements DispatchInterceptor, HandlerInterceptor {

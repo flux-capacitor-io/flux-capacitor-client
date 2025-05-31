@@ -27,6 +27,38 @@ import java.util.function.UnaryOperator;
 
 import static java.util.stream.Collectors.toList;
 
+/**
+ * A read-only, inert {@link Entity} wrapper used exclusively during the loading phase of aggregate state.
+ * <p>
+ * {@code NoOpEntity} is returned when an aggregate is accessed while {@link Entity#isLoading()} is {@code true},
+ * such as during event sourcing or the initialization of other aggregates. This occurs for instance when
+ * an aggregate is loaded from within another aggregate’s {@code @Apply} handler or any other mechanism
+ * that recursively triggers loading.
+ * <p>
+ * This wrapper prevents any state mutation or validation during this phase by disabling:
+ * <ul>
+ *     <li>{@code apply()} – event reapplication is skipped</li>
+ *     <li>{@code update()} – no structural or state changes are made</li>
+ *     <li>{@code assertLegal()} – validations are suppressed</li>
+ *     <li>{@code commit()} – no changes are queued or published</li>
+ * </ul>
+ * However, it allows safe navigation and inspection of the aggregate structure via:
+ * <ul>
+ *     <li>{@code get()}, {@code id()}, {@code type()}, {@code entities()}, {@code aliases()}, etc.</li>
+ *     <li>Delegation to parent or previous versions (wrapped in {@code NoOpEntity})</li>
+ * </ul>
+ * <p>
+ * This mechanism ensures that during loading, especially recursive or nested aggregate access,
+ * no unintended updates are performed or committed. Outside of loading (i.e., when
+ * {@link Entity#isLoading()} is {@code false}), such restrictions are lifted, and aggregates
+ * may freely apply updates to other aggregates.
+ *
+ * @param <T> the type of the entity's value
+ *
+ * @see Entity#isLoading()
+ * @see ModifiableAggregateRoot
+ * @see ImmutableAggregateRoot
+ */
 @AllArgsConstructor
 @Accessors(fluent = true)
 public class NoOpEntity<T> implements Entity<T> {

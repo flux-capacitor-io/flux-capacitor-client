@@ -32,6 +32,19 @@ import static io.fluxcapacitor.javaclient.common.ClientUtils.getSearchParameters
 import static io.fluxcapacitor.javaclient.modeling.SearchParameters.defaultSearchParameters;
 import static java.util.Optional.ofNullable;
 
+/**
+ * Default implementation of the {@link IndexOperation} interface.
+ * <p>
+ * This class provides a mutable, builder-style implementation for preparing and executing document indexing operations
+ * using a {@link DocumentStore}.
+ *
+ * <p>Instances of this class are typically created by calling {@link DocumentStore#prepareIndex(Object)}. Upon
+ * construction, the document ID, collection name, and timestamps are automatically extracted from the object's class
+ * using reflection.
+ *
+ * @see DocumentStore
+ * @see IndexOperation
+ */
 @Data
 @Accessors(chain = true, fluent = true)
 @AllArgsConstructor
@@ -40,6 +53,12 @@ public class DefaultIndexOperation implements IndexOperation {
     final transient DocumentStore documentStore;
     final Object value;
 
+    /**
+     * Constructs a new {@code DefaultIndexOperation} instance for managing document indexing.
+     *
+     * @param documentStore the {@link DocumentStore} used to store and manage the index operations
+     * @param object        the object to be indexed, which will be analyzed and converted for storage
+     */
     public DefaultIndexOperation(DocumentStore documentStore, @NonNull Object object) {
         var searchParams = ofNullable(getSearchParameters(object.getClass())).orElse(defaultSearchParameters);
         this.documentStore = documentStore;
@@ -52,9 +71,12 @@ public class DefaultIndexOperation implements IndexOperation {
                 .orElseGet(() -> currentIdentityProvider().nextTechnicalId());
     }
 
-    @NonNull Object collection;
-    @NonNull Object id;
-    @NonNull Metadata metadata = Metadata.empty();
+    @NonNull
+    Object collection;
+    @NonNull
+    Object id;
+    @NonNull
+    Metadata metadata = Metadata.empty();
     Instant start, end;
     boolean ifNotExists;
 

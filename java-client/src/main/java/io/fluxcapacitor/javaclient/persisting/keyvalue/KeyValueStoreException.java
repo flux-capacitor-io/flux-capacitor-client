@@ -14,6 +14,10 @@
 
 package io.fluxcapacitor.javaclient.persisting.keyvalue;
 
+
+/**
+ * Thrown when a key-value store operation fails.
+ */
 public class KeyValueStoreException extends RuntimeException {
     public KeyValueStoreException(String message, Throwable cause) {
         super(message, cause);

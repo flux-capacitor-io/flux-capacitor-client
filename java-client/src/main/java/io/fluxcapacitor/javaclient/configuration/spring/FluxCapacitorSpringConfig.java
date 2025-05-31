@@ -35,7 +35,7 @@ import io.fluxcapacitor.javaclient.publishing.EventGateway;
 import io.fluxcapacitor.javaclient.publishing.MetricsGateway;
 import io.fluxcapacitor.javaclient.publishing.QueryGateway;
 import io.fluxcapacitor.javaclient.publishing.ResultGateway;
-import io.fluxcapacitor.javaclient.scheduling.Scheduler;
+import io.fluxcapacitor.javaclient.scheduling.MessageScheduler;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.UserProvider;
 import io.fluxcapacitor.javaclient.web.WebResponseMapper;
 import lombok.extern.slf4j.Slf4j;
@@ -58,20 +58,60 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.ifClass;
 
+/**
+ * Spring configuration class for automatically wiring and initializing common Flux Capacitor components in a Spring
+ * application context.
+ * <p>
+ * This configuration simplifies the integration of Flux Capacitor by:
+ * <ul>
+ *     <li>Registering {@code @Handle...} annotated beans as handlers after the context is refreshed</li>
+ *     <li>Auto-detecting and registering upcasters and downcasters with the {@link Serializer}</li>
+ *     <li>Providing default implementations for core interfaces like {@link CommandGateway}, {@link Serializer}, and {@link MessageScheduler}</li>
+ * </ul>
+ * <p>
+ * Note that Flux Capacitor does not require Spring, and this class is entirely optional.
+ * It exists purely to reduce boilerplate in Spring-based applications.
+ *
+ * <p>The simplest way to enable this configuration in a Spring Boot application, is by annotating your main application
+ * class with:
+ * <pre>{@code
+ * @SpringBootApplication
+ * @Import(FluxCapacitorSpringConfig.class)
+ * }</pre>
+ *
+ * @see FluxCapacitor
+ * @see FluxCapacitorBuilder
+ */
 @Configuration
 @Slf4j
 public class FluxCapacitorSpringConfig implements BeanPostProcessor {
 
+    /**
+     * Registers the {@link TrackSelfPostProcessor}, which supports payload classes that track and handle their own
+     * type.
+     *
+     * @see io.fluxcapacitor.javaclient.tracking.TrackSelf
+     */
     @Bean
     public static TrackSelfPostProcessor trackSelfPostProcessor() {
         return new TrackSelfPostProcessor();
     }
 
+    /**
+     * Registers the {@link StatefulPostProcessor}, enabling lifecycle and stateful behavior for beans.
+     *
+     * @see io.fluxcapacitor.javaclient.tracking.handling.Stateful
+     */
     @Bean
     public static StatefulPostProcessor statefulPostProcessor() {
         return new StatefulPostProcessor();
     }
 
+    /**
+     * Registers the {@link SocketEndpointPostProcessor}, used for handlers that manage WebSocket communication.
+     *
+     * @see io.fluxcapacitor.javaclient.web.SocketEndpoint
+     */
     @Bean
     public static SocketEndpointPostProcessor socketEndpointPostProcessor() {
         return new SocketEndpointPostProcessor();
@@ -81,11 +121,18 @@ public class FluxCapacitorSpringConfig implements BeanPostProcessor {
     private final List<Object> springBeans = new CopyOnWriteArrayList<>();
     private final AtomicReference<Registration> handlerRegistration = new AtomicReference<>();
 
+    /**
+     * Stores a reference to the Spring context and prepares for handler detection.
+     */
     @Autowired
     protected FluxCapacitorSpringConfig(ApplicationContext context) {
         this.context = context;
     }
 
+    /**
+     * Captures beans post-initialization to inspect later for handler registration. Prototype beans are handled
+     * specially.
+     */
     @Override
     public Object postProcessAfterInitialization(Object bean, String beanName) throws BeansException {
         if (ifClass(bean) == null) {
@@ -94,6 +141,10 @@ public class FluxCapacitorSpringConfig implements BeanPostProcessor {
         return bean;
     }
 
+    /**
+     * Registers all discovered Spring beans as Flux Capacitor handlers once the application context is refreshed. Also
+     * installs a default uncaught exception handler and starts the application context if needed.
+     */
     @EventListener
     public void handle(ContextRefreshedEvent event) {
         FluxCapacitor fluxCapacitor = context.getBean(FluxCapacitor.class);
@@ -108,6 +159,16 @@ public class FluxCapacitorSpringConfig implements BeanPostProcessor {
         }
     }
 
+    /**
+     * Optionally provides a default {@link Serializer} implementation based on Jackson, automatically detecting and
+     * registering upcasters and downcasters from Spring-managed beans.
+     * <p>
+     * This method is only invoked if no other {@link Serializer} bean is defined.
+     * <p>
+     * If a custom serializer is provided by the application, upcasters and downcasters must be registered explicitly.
+     *
+     * @return a {@link Serializer} configured with discovered casting logic
+     */
     @Bean
     @ConditionalOnMissingBean
     public Serializer serializer() {
@@ -119,6 +180,11 @@ public class FluxCapacitorSpringConfig implements BeanPostProcessor {
         return new JacksonSerializer(upcasters);
     }
 
+    /**
+     * Provides a default {@link FluxCapacitorBuilder}, configured using Spring-provided components such as
+     * {@link UserProvider}, {@link Cache}, and {@link WebResponseMapper}. Automatically uses application properties via
+     * {@link SpringPropertySource}.
+     */
     @Bean
     @ConditionalOnMissingBean
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
@@ -135,6 +201,10 @@ public class FluxCapacitorSpringConfig implements BeanPostProcessor {
         return builder;
     }
 
+    /**
+     * Constructs the {@link FluxCapacitor} instance, preferring a user-provided {@link Client} or falling back
+     * to either a {@link WebSocketClient} or {@link LocalClient} depending on presence of configuration properties.
+     */
     @Bean
     @ConditionalOnMissingBean
     public FluxCapacitor fluxCapacitor(FluxCapacitorBuilder builder, List<FluxCapacitorCustomizer> customizers) {
@@ -167,8 +237,8 @@ public class FluxCapacitorSpringConfig implements BeanPostProcessor {
 
     @Bean
     @ConditionalOnMissingBean
-    public Scheduler scheduler(FluxCapacitor fluxCapacitor) {
-        return fluxCapacitor.scheduler();
+    public MessageScheduler scheduler(FluxCapacitor fluxCapacitor) {
+        return fluxCapacitor.messageScheduler();
     }
 
     @Bean

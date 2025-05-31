@@ -20,6 +20,12 @@ import lombok.experimental.Delegate;
 
 import java.time.Duration;
 
+/**
+ * A client implementation for managing and storing events in an in-memory event store. The LocalEventStoreClient
+ * extends the {@link LocalTrackingClient} to leverage its tracking and gateway functionality while applying it
+ * specifically to event storage operations. It implements the {@link EventStoreClient} interface and serves as a
+ * lightweight, local event store client, primarily for testing or non-distributed environments.
+ */
 public class LocalEventStoreClient extends LocalTrackingClient implements EventStoreClient {
 
     public LocalEventStoreClient(Duration messageExpiration) {

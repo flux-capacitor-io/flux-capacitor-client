@@ -23,6 +23,9 @@ import io.fluxcapacitor.javaclient.common.exception.FunctionalException;
  * </p>
  */
 public class UnauthenticatedException extends FunctionalException {
+    /**
+     * Constructs a new {@code UnauthenticatedException} with the specified detail message.
+     */
     public UnauthenticatedException(String message) {
         super(message);
     }

@@ -14,12 +14,29 @@
 
 package io.fluxcapacitor.javaclient.tracking;
 
+/**
+ * Exception thrown during the initialization of message tracking in Flux Capacitor.
+ * <p>
+ * This exception indicates a configuration or startup problem when assigning handlers to consumers
+ * or when attempting to initiate tracking more than once for the same consumer configuration.
+ */
 public class TrackingException extends RuntimeException {
 
+    /**
+     * Constructs a new {@code TrackingException} with the specified message and cause.
+     *
+     * @param message the detail message
+     * @param cause   the root cause
+     */
     public TrackingException(String message, Throwable cause) {
         super(message, cause);
     }
 
+    /**
+     * Constructs a new {@code TrackingException} with the specified message.
+     *
+     * @param message the detail message
+     */
     public TrackingException(String message) {
         super(message);
     }

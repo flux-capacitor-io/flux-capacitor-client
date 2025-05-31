@@ -25,6 +25,31 @@ import java.util.stream.Collectors;
 
 import static java.util.Optional.ofNullable;
 
+/**
+ * A mutable view on a nested entity within a {@link ModifiableAggregateRoot}.
+ * <p>
+ * This class wraps a delegate {@link Entity} and maintains a reference to the root {@link ModifiableAggregateRoot},
+ * enabling mutating operations—such as {@link #update(UnaryOperator)}, {@link #apply(Message)}, and
+ * {@link #assertLegal(Object)}—to be routed through the root context.
+ * <p>
+ * This ensures that:
+ * <ul>
+ *     <li>All changes are tracked and committed through the root aggregate’s lifecycle.</li>
+ *     <li>Relationship resolution and legality checks are coordinated at the aggregate level.</li>
+ *     <li>Nested child entities participate in the aggregate’s commit process transparently.</li>
+ * </ul>
+ * <p>
+ * The {@code ModifiableEntity} is typically returned when loading or navigating to a non-root entity
+ * (i.e., a member or child entity) of an aggregate. Despite being indirectly updatable,
+ * such child entities share the same mutation and commit infrastructure as the root.
+ * <p>
+ * Any invocation of {@code update()}, {@code apply()}, {@code assertAndApply()}, or {@code commit()}
+ * will cause the root aggregate to manage the lifecycle and capture any applied events or state changes.
+ *
+ * @param <T> the type of the entity’s value
+ * @see ModifiableAggregateRoot
+ * @see DelegatingEntity
+ */
 @Value
 @ToString(callSuper = true)
 public class ModifiableEntity<T> extends DelegatingEntity<T> {

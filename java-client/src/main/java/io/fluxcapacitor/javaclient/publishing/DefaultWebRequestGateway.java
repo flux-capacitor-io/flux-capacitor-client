@@ -29,6 +29,17 @@ import static java.lang.String.format;
 import static java.lang.Thread.currentThread;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
+/**
+ * Default implementation of the {@link WebRequestGateway} interface that delegates requests to a configured
+ * {@link GenericGateway}. This class acts as a bridge for handling outbound web requests using Flux Platform’s proxy
+ * mechanism.
+ * <p>
+ * It supports sending web requests in both asynchronous (fire-and-forget, future-based) and synchronous (blocking)
+ * manners, utilizing the underlying delegate to process the actual interactions with the Flux platform.
+ *
+ * @see WebRequestGateway
+ * @see GenericGateway
+ */
 @AllArgsConstructor
 public class DefaultWebRequestGateway implements WebRequestGateway {
     @Delegate

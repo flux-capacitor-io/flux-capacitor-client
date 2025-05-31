@@ -17,8 +17,26 @@ package io.fluxcapacitor.javaclient.modeling;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import lombok.Value;
 
+/**
+ * Represents an event that has been applied to an aggregate along with its intended publication strategy.
+ *
+ * <p>This object combines a deserialized event with its {@link EventPublicationStrategy}, allowing the system
+ * to determine how the event should be treated upon commit:
+ * <ul>
+ *   <li>Whether it should be published immediately to the event gateway</li>
+ *   <li>Whether it should only be persisted in the event store of the aggregate</li>
+ *   <li>Or both (default behavior)</li>
+ * </ul>
+ */
 @Value
 public class AppliedEvent {
+    /**
+     * The deserialized message representing the applied domain event.
+     */
     DeserializingMessage event;
+
+    /**
+     * The publication strategy indicating whether this event should be published, stored, or both.
+     */
     EventPublicationStrategy publicationStrategy;
 }

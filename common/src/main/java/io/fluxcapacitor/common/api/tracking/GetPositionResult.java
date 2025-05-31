@@ -22,7 +22,7 @@ import lombok.Value;
  * {@link io.fluxcapacitor.common.MessageType}.
  * <p>
  * This result provides insight into how far a consumer has progressed in processing messages. The {@link Position}
- * includes one or more segment-index pairs that together describe the consumption state of a consumer group.
+ * includes one or more segment-index pairs that together describe the consumption state of a consumer.
  *
  * <h2>Use Cases</h2>
  * <ul>

@@ -26,6 +26,13 @@ import lombok.experimental.Delegate;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
+/**
+ * A handler registry implementation intended for local testing and development that registers handlers for document
+ * updates in a specific collection.
+ *
+ * @see InMemorySearchStore
+ * @see HandlerRegistry
+ */
 @AllArgsConstructor
 public class LocalDocumentHandlerRegistry implements HasLocalHandlers {
     private final InMemorySearchStore searchStore;

@@ -56,7 +56,7 @@ import io.fluxcapacitor.javaclient.publishing.ResultGateway;
 import io.fluxcapacitor.javaclient.publishing.WebRequestGateway;
 import io.fluxcapacitor.javaclient.publishing.correlation.CorrelationDataProvider;
 import io.fluxcapacitor.javaclient.publishing.correlation.DefaultCorrelationDataProvider;
-import io.fluxcapacitor.javaclient.scheduling.Scheduler;
+import io.fluxcapacitor.javaclient.scheduling.MessageScheduler;
 import io.fluxcapacitor.javaclient.tracking.Tracker;
 import io.fluxcapacitor.javaclient.tracking.Tracking;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
@@ -443,7 +443,7 @@ public interface FluxCapacitor extends AutoCloseable {
      * @see io.fluxcapacitor.javaclient.scheduling.Periodic
      */
     static String schedulePeriodic(Object schedule) {
-        return get().scheduler().schedulePeriodic(schedule);
+        return get().messageScheduler().schedulePeriodic(schedule);
     }
 
     /**
@@ -454,7 +454,7 @@ public interface FluxCapacitor extends AutoCloseable {
      * @see io.fluxcapacitor.javaclient.scheduling.Periodic
      */
     static void schedulePeriodic(Object schedule, String scheduleId) {
-        get().scheduler().schedulePeriodic(schedule, scheduleId);
+        get().messageScheduler().schedulePeriodic(schedule, scheduleId);
     }
 
     /**
@@ -463,7 +463,7 @@ public interface FluxCapacitor extends AutoCloseable {
      * using the passed value as payload without additional metadata.
      */
     static String schedule(Object schedule, Instant deadline) {
-        return get().scheduler().schedule(schedule, deadline);
+        return get().messageScheduler().schedule(schedule, deadline);
     }
 
     /**
@@ -472,7 +472,7 @@ public interface FluxCapacitor extends AutoCloseable {
      * using the passed value as payload without additional metadata.
      */
     static void schedule(Object schedule, String scheduleId, Instant deadline) {
-        get().scheduler().schedule(schedule, scheduleId, deadline);
+        get().messageScheduler().schedule(schedule, scheduleId, deadline);
     }
 
     /**
@@ -481,7 +481,7 @@ public interface FluxCapacitor extends AutoCloseable {
      * using the passed value as payload without additional metadata.
      */
     static String schedule(Object schedule, Duration delay) {
-        return get().scheduler().schedule(schedule, delay);
+        return get().messageScheduler().schedule(schedule, delay);
     }
 
     /**
@@ -490,7 +490,7 @@ public interface FluxCapacitor extends AutoCloseable {
      * using the passed value as payload without additional metadata.
      */
     static void schedule(Object schedule, String scheduleId, Duration delay) {
-        get().scheduler().schedule(schedule, scheduleId, delay);
+        get().messageScheduler().schedule(schedule, scheduleId, delay);
     }
 
     /**
@@ -499,7 +499,7 @@ public interface FluxCapacitor extends AutoCloseable {
      * scheduled using the passed value as payload without additional metadata.
      */
     static String scheduleCommand(Object command, Instant deadline) {
-        return get().scheduler().scheduleCommand(command, deadline);
+        return get().messageScheduler().scheduleCommand(command, deadline);
     }
 
     /**
@@ -508,7 +508,7 @@ public interface FluxCapacitor extends AutoCloseable {
      * using the passed value as payload without additional metadata.
      */
     static void scheduleCommand(Object command, String scheduleId, Instant deadline) {
-        get().scheduler().scheduleCommand(command, scheduleId, deadline);
+        get().messageScheduler().scheduleCommand(command, scheduleId, deadline);
     }
 
     /**
@@ -517,7 +517,7 @@ public interface FluxCapacitor extends AutoCloseable {
      * using the passed value as payload without additional metadata.
      */
     static String scheduleCommand(Object command, Duration delay) {
-        return get().scheduler().scheduleCommand(command, delay);
+        return get().messageScheduler().scheduleCommand(command, delay);
     }
 
     /**
@@ -526,14 +526,14 @@ public interface FluxCapacitor extends AutoCloseable {
      * the passed value as payload without additional metadata.
      */
     static void scheduleCommand(Object command, String scheduleId, Duration delay) {
-        get().scheduler().scheduleCommand(command, scheduleId, delay);
+        get().messageScheduler().scheduleCommand(command, scheduleId, delay);
     }
 
     /**
      * Cancels the schedule with given {@code scheduleId}.
      */
     static void cancelSchedule(String scheduleId) {
-        get().scheduler().cancelSchedule(scheduleId);
+        get().messageScheduler().cancelSchedule(scheduleId);
     }
 
     /**
@@ -923,9 +923,11 @@ public interface FluxCapacitor extends AutoCloseable {
     SnapshotStore snapshotStore();
 
     /**
-     * Returns the message scheduling client.
+     * Returns the gateway to schedule messages.
+     *
+     * @see MessageType#SCHEDULE
      */
-    Scheduler scheduler();
+    MessageScheduler messageScheduler();
 
     /**
      * Returns the gateway for command messages.

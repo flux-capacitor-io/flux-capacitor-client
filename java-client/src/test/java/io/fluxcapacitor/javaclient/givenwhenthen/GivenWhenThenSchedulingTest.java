@@ -112,7 +112,7 @@ class GivenWhenThenSchedulingTest {
         Object command = "command";
         subject.givenSchedules(new Schedule(new YieldsCommand(command), "test",
                                             subject.getCurrentTime().plusSeconds(10)))
-                .given(fc -> fc.scheduler().cancelSchedule("test"))
+                .given(fc -> fc.messageScheduler().cancelSchedule("test"))
                 .whenTimeElapses(Duration.ofSeconds(10))
                 .expectNoCommands();
     }
@@ -126,7 +126,7 @@ class GivenWhenThenSchedulingTest {
                 .expectThat(fc -> firstIndex.set(fc.client().getSchedulingClient().getSchedule(scheduleId).getMessage().getIndex()))
                 .andThen()
                 .whenExecuting(fc -> FluxCapacitor.cancelSchedule(scheduleId))
-                .expectTrue(fc -> fc.scheduler().getSchedule(scheduleId).isEmpty())
+                .expectTrue(fc -> fc.messageScheduler().getSchedule(scheduleId).isEmpty())
                 .andThen()
                 .whenExecuting(fc -> FluxCapacitor.schedule("foo2", scheduleId, subject.getCurrentTime()))
                 .expectTrue(fc -> !firstIndex.get().equals(fc.client().getSchedulingClient()
@@ -456,7 +456,7 @@ class GivenWhenThenSchedulingTest {
         Schedule schedule = new Schedule(new YieldsCommand("bla"), "test",
                                          subject.getCurrentTime().plusSeconds(10));
         subject.givenSchedules(schedule)
-                .whenApplying(fc -> fc.scheduler().getSchedule("test").orElse(null))
+                .whenApplying(fc -> fc.messageScheduler().getSchedule("test").orElse(null))
                 .expectResult(schedule);
     }
 
@@ -499,7 +499,7 @@ class GivenWhenThenSchedulingTest {
     static class CommandHandler {
         @HandleCommand
         void handle(YieldsSchedule command) {
-            FluxCapacitor.get().scheduler().schedule(command.getSchedule());
+            FluxCapacitor.get().messageScheduler().schedule(command.getSchedule());
         }
 
         @HandleCommand

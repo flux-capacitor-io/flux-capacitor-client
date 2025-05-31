@@ -188,6 +188,14 @@ public class ReflectionUtils {
         return ReflectionUtils.classExists("kotlin.reflect.full.KClasses");
     }
 
+    /**
+     * Determines and returns the {@link Class} of the provided object if it is either
+     * an instance of {@link Class} or a Kotlin class that can be converted using Kotlin reflection utilities.
+     * If the object does not satisfy these conditions or Kotlin reflection is not supported, returns {@code null}.
+     *
+     * @param value The object to check and convert to {@link Class}, if possible.
+     * @return The {@link Class} of the provided object, or {@code null} if the object is not a class or cannot be converted.
+     */
     public static Class<?> ifClass(Object value) {
         if (value instanceof Class<?> c) {
             return c;
