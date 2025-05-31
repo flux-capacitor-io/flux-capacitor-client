@@ -20,6 +20,7 @@ import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.serialization.JsonUtils;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
+import io.fluxcapacitor.javaclient.publishing.WebRequestGateway;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.User;
 import lombok.AccessLevel;
 import lombok.Data;
@@ -59,7 +60,7 @@ import static io.fluxcapacitor.javaclient.web.WebUtils.asHeaderMap;
  * {@code WebRequest} extends {@link Message} and includes additional metadata such as:
  * </p>
  * <ul>
- *   <li>{@code path} – the requested URI path</li>
+ *   <li>{@code path} – the requested URI path including query parameters</li>
  *   <li>{@code method} – HTTP or WebSocket method (e.g. GET, WS_OPEN)</li>
  *   <li>{@code headers} – structured request headers</li>
  *   <li>{@code cookies} – parsed from the Cookie header</li>
@@ -71,12 +72,13 @@ import static io.fluxcapacitor.javaclient.web.WebUtils.asHeaderMap;
  *
  * <h2>Example Usage</h2>
  * <pre>{@code
- * WebRequest request = WebRequest.builder()
- *     .method("GET")
- *     .url("/projects")
- *     .payload(new ListProjectsQuery())
+ * WebRequest request = WebRequest.post("https://api.example.com/projects")
+ *     .body(new ProjectDetails("My Project", "My Description"))
  *     .build();
  * }</pre>
+ *
+ * <p>Outbound requests with an absolute URL that are dispatched using the {@link WebRequestGateway} will be forwarded
+ * by the proxy in Flux Platform.
  *
  * @see WebResponse
  * @see HandleWeb
@@ -86,26 +88,50 @@ import static io.fluxcapacitor.javaclient.web.WebUtils.asHeaderMap;
 @ToString(exclude = {"headers", "cookies"})
 public class WebRequest extends Message {
     /**
-     * Creates and returns a new {@link Builder} instance for constructing a {@link WebRequest}.
-     *
-     * @return a new {@link Builder} instance
+     * Creates a new {@link Builder} instance for constructing a {@link WebRequest}.
      */
     public static Builder builder() {
         return new Builder();
     }
 
     /**
-     * Creates a new {@link Builder} instance initialized with the provided metadata.
-     *
-     * @param metadata the metadata to initialize the builder with
-     * @return a new {@link Builder} instance pre-populated with data derived from the provided metadata
+     * Creates a new {@link Builder} instance for constructing a {@link WebRequest GET request} to given url.
      */
-    public static Builder builderFromMetadata(Metadata metadata) {
-        return new Builder(metadata);
+    public static Builder get(String url) {
+        return builder().method(HttpRequestMethod.GET).url(url);
     }
 
     /**
-     * The request path (e.g. {@code "/api/users"}).
+     * Creates a new {@link Builder} instance for constructing a {@link WebRequest POST request} to given url.
+     */
+    public static Builder post(String url) {
+        return builder().method(HttpRequestMethod.POST).url(url);
+    }
+
+    /**
+     * Creates a new {@link Builder} instance for constructing a {@link WebRequest PUT request} to given url.
+     */
+    public static Builder put(String url) {
+        return builder().method(HttpRequestMethod.PUT).url(url);
+    }
+
+    /**
+     * Creates a new {@link Builder} instance for constructing a {@link WebRequest PATCH request} to given url.
+     */
+    public static Builder patch(String url) {
+        return builder().method(HttpRequestMethod.PATCH).url(url);
+    }
+
+    /**
+     * Creates a new {@link Builder} instance for constructing a {@link WebRequest DELETE request} to given url.
+     */
+    public static Builder delete(String url) {
+        return builder().method(HttpRequestMethod.DELETE).url(url);
+    }
+
+    /**
+     * The request path including query parameters (e.g. {@code "/api/users?id=123"}). May contain the full URL for
+     * outbound web requests.
      */
     @NonNull
     String path;
@@ -387,9 +413,8 @@ public class WebRequest extends Message {
             return header("Content-Type", contentType);
         }
 
-        public Builder payload(Object payload) {
-            this.payload = payload;
-            return this;
+        public Builder body(Object payload) {
+            return payload(payload);
         }
 
         public Map<String, List<String>> headers() {
