@@ -29,7 +29,7 @@
         <module>proxy</module>
     </modules>
 
-    <name>Flux Capacitor</name>
+    <name>Flux Capacitor Client</name>
     <description>Flux Capacitor provides messaging-as-a-service for distributed applications.</description>
     <url>https://flux-capacitor.io</url>
 
@@ -288,6 +288,11 @@
                     <artifactId>maven-assembly-plugin</artifactId>
                     <version>3.7.1</version>
                 </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-project-info-reports-plugin</artifactId>
+                    <version>3.9.0</version>
+                </plugin>
             </plugins>
         </pluginManagement>
 
@@ -328,6 +333,33 @@
             </plugin>
         </plugins>
     </build>
+
+    <reporting>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <version>3.11.2</version>
+                <reportSets>
+                    <reportSet>
+                        <id>aggregate</id>
+                        <reports>
+                            <report>aggregate</report>
+                        </reports>
+                    </reportSet>
+                </reportSets>
+                <configuration>
+                    <javadocExecutable>${java.home}/bin/javadoc</javadocExecutable>
+                    <doclint>all,-reference,-missing</doclint>
+                    <additionalJOptions>
+                        <additionalJOption>--add-modules</additionalJOption>
+                        <additionalJOption>java.net.http</additionalJOption>
+                    </additionalJOptions>
+                    <failOnError>true</failOnError>
+                </configuration>
+            </plugin>
+        </plugins>
+    </reporting>
 
     <profiles>
         <profile>

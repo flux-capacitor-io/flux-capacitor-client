@@ -20,12 +20,29 @@ jobs:
           java-version: '21'
           cache: 'maven'
 
-      - name: Deploy to Maven Central
-        run: mvn -P javadoc -B javadoc:aggregate
+      - name: Maven install
+        run: mvn -B install -DskipTests
+
+      - name: Generate javadoc html
+        run: mvn -B site
+
+      - name: Move per-module sites
+        run: |
+          for module in java-client common proxy test-server; do
+            mkdir -p target/site/$module
+            mv $module/target/site/* target/site/$module/
+          done
+
+      - name: Add no-cache meta headers
+        run: |
+          find target/site -name "*.html" -exec sed -i'' '/<head>/a\
+          <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0" />\
+          <meta http-equiv="Pragma" content="no-cache" />\
+          <meta http-equiv="Expires" content="0" />' {} +
 
       - name: Publish Javadoc to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./target/site/apidocs  # for javadoc:aggregate
+          publish_dir: ./target/site
           destination_dir: javadoc

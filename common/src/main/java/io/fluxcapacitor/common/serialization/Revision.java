@@ -31,7 +31,6 @@ import java.lang.annotation.Target;
  * The revision number is stored in the serialized {@link io.fluxcapacitor.common.api.Data} object and used to determine
  * whether an {@code Upcaster} needs to be applied during deserialization.
  * <p>
- * <p>
  * Revisions are commonly used in conjunction with:
  * <ul>
  *     <li>Message payloads sent through the event store or command log</li>

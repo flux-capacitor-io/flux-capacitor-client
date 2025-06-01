@@ -22,8 +22,8 @@ import io.fluxcapacitor.common.handling.HandlerMatcher;
 import io.fluxcapacitor.common.handling.ParameterResolver;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
+import io.fluxcapacitor.javaclient.web.internal.WebUtilsInternal;
 import io.jooby.Router;
-import io.jooby.internal.RouterImpl;
 
 import java.lang.reflect.Executable;
 import java.util.HashMap;
@@ -75,7 +75,7 @@ import static java.util.stream.Stream.concat;
  * @see io.fluxcapacitor.javaclient.web.WebUtils#getWebPatterns
  */
 public class WebHandlerMatcher implements HandlerMatcher<Object, DeserializingMessage> {
-    private final Router router = new RouterImpl();
+    private final Router router = WebUtilsInternal.router();
     private final boolean hasAnyHandlers;
 
     public static WebHandlerMatcher create(
@@ -101,7 +101,7 @@ public class WebHandlerMatcher implements HandlerMatcher<Object, DeserializingMe
 
             for (WebPattern pattern : webPatterns) {
                 String origin = pattern.getOrigin();
-                var router = origin == null ? this.router : subRouters.computeIfAbsent(origin, __ -> new RouterImpl());
+                var router = origin == null ? this.router : subRouters.computeIfAbsent(origin, __ -> WebUtilsInternal.router());
                 if (HttpRequestMethod.ANY.equals(pattern.getMethod())) {
                     hasAnyHandlers = true;
                 }
