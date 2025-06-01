@@ -65,6 +65,12 @@ import java.util.stream.Collectors;
 @Value
 @lombok.Builder(toBuilder = true, builderClassName = "Builder")
 public class SearchQuery {
+    /**
+     * Builder class for constructing instances of {@link SearchQuery}.
+     */
+    public static class Builder {
+    }
+
     @JsonAlias("collections")
     @JsonProperty("collection")
     @Singular

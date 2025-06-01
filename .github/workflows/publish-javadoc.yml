@@ -1,0 +1,31 @@
+name: Publish javadoc
+
+on:
+  workflow_dispatch:
+
+env:
+  BUILD_ENVIRONMENT: github
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out Git repository
+        uses: actions/checkout@v4
+
+      - name: Install Java and Maven
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+          cache: 'maven'
+
+      - name: Deploy to Maven Central
+        run: mvn -P javadoc -B javadoc:aggregate
+
+      - name: Publish Javadoc to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./target/site/apidocs  # for javadoc:aggregate
+          destination_dir: javadoc
