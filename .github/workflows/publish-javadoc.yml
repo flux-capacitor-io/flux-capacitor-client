@@ -21,7 +21,7 @@ jobs:
           cache: 'maven'
 
       - name: Generate javadoc html
-        run: mvn -B site
+        run: mvn -B install site
 
       - name: Move per-module sites
         run: |
@@ -29,6 +29,13 @@ jobs:
             mkdir -p target/site/$module
             mv $module/target/site/* target/site/$module/
           done
+
+      - name: Add no-cache meta headers
+        run: |
+          find target/site -name "*.html" -exec sed -i'' '/<head>/a\
+          <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0" />\
+          <meta http-equiv="Pragma" content="no-cache" />\
+          <meta http-equiv="Expires" content="0" />' {} +
 
       - name: Publish Javadoc to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
