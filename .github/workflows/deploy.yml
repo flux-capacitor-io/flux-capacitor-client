@@ -46,6 +46,30 @@ jobs:
           MAVEN_GPG_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
           MAVEN_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
 
+      - name: Generate javadoc html
+        run: mvn -B site
+
+      - name: Move per-module sites
+        run: |
+          for module in java-client common proxy test-server; do
+            mkdir -p target/site/$module
+            mv $module/target/site/* target/site/$module/
+          done
+
+      - name: Add no-cache meta headers
+        run: |
+          find target/site -name "*.html" -exec sed -i'' '/<head>/a\
+          <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0" />\
+          <meta http-equiv="Pragma" content="no-cache" />\
+          <meta http-equiv="Expires" content="0" />' {} +
+
+      - name: Publish Javadoc to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./target/site
+          destination_dir: javadoc
+
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
         with:
