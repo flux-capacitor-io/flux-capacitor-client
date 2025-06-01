@@ -25,8 +25,7 @@
             <item name="io.flux-capacitor:proxy" href="proxy/apidocs/index.html"/>
             <item name="io.flux-capacitor:test-server" href="test-server/apidocs/index.html"/>
         </menu>
-        <menu ref="modules"/> <!-- Includes module-level navigation -->
-        <menu ref="reports"/> <!-- This pulls in Javadoc + other auto-generated reports -->
+        <menu ref="reports"/> <!-- This pulls in project information + auto-generated reports -->
     </body>
 
     <skin>
@@ -34,7 +33,4 @@
         <artifactId>maven-fluido-skin</artifactId>
         <version>2.1.0</version>
     </skin>
-
-    <!-- Disable 'Powered by' -->
-    <poweredBy/>
 </site>
