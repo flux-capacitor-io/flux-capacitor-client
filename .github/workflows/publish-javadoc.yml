@@ -20,8 +20,11 @@ jobs:
           java-version: '21'
           cache: 'maven'
 
+      - name: Maven install
+        run: mvn -B install -DskipTests
+
       - name: Generate javadoc html
-        run: mvn -B install site -DskipTests
+        run: mvn -B site
 
       - name: Move per-module sites
         run: |
