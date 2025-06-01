@@ -21,7 +21,7 @@ jobs:
           cache: 'maven'
 
       - name: Generate javadoc html
-        run: mvn -B install site
+        run: mvn -B install site -DskipTests
 
       - name: Move per-module sites
         run: |

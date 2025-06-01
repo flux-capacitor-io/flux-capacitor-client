@@ -13,7 +13,7 @@
   -->
 
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="mvn site (javadoc html)" type="MavenRunConfiguration" factoryName="Maven">
+  <configuration default="false" name="mvn clean install site (javadoc html)" type="MavenRunConfiguration" factoryName="Maven">
     <MavenSettings>
       <option name="myGeneralSettings" />
       <option name="myRunnerSettings" />
@@ -25,6 +25,8 @@
           </option>
           <option name="goals">
             <list>
+              <option value="clean" />
+              <option value="install" />
               <option value="site" />
             </list>
           </option>
