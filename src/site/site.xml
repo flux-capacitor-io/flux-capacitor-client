@@ -20,8 +20,8 @@
     <body>
         <menu name="Javadoc">
             <item name="All Modules" href="apidocs/index.html"/>
-            <item name="io.flux-capacitor:java-client" href="java-client/apidocs/index.html"/>
             <item name="io.flux-capacitor:common" href="common/apidocs/index.html"/>
+            <item name="io.flux-capacitor:java-client" href="java-client/apidocs/index.html"/>
             <item name="io.flux-capacitor:proxy" href="proxy/apidocs/index.html"/>
             <item name="io.flux-capacitor:test-server" href="test-server/apidocs/index.html"/>
         </menu>
