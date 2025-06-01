@@ -29,7 +29,7 @@
         <module>proxy</module>
     </modules>
 
-    <name>Flux Capacitor</name>
+    <name>Flux Capacitor Client</name>
     <description>Flux Capacitor provides messaging-as-a-service for distributed applications.</description>
     <url>https://flux-capacitor.io</url>
 
