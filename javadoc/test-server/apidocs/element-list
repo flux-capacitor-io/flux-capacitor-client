@@ -1,0 +1,5 @@
+module:io.fluxcapacitor.testserver
+io.fluxcapacitor.testserver
+io.fluxcapacitor.testserver.metrics
+io.fluxcapacitor.testserver.scheduling
+io.fluxcapacitor.testserver.websocket
