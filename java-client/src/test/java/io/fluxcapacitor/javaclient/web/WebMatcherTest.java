@@ -17,8 +17,8 @@ package io.fluxcapacitor.javaclient.web;
 import io.fluxcapacitor.common.handling.HandlerConfiguration;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
+import io.fluxcapacitor.javaclient.web.internal.WebUtilsInternal;
 import io.jooby.Context;
-import io.jooby.internal.RouterImpl;
 import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
@@ -33,7 +33,7 @@ class WebMatcherTest {
 
     @Test
     void name() {
-        var router = new RouterImpl();
+        var router = WebUtilsInternal.router();
         router.get("/abc/{userId}", ctx -> "regex");
         router.get("/abc/henk", ctx -> "henk");
 

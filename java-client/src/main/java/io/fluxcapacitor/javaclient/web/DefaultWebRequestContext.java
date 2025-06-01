@@ -18,6 +18,7 @@ import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.serialization.JsonUtils;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
+import io.fluxcapacitor.javaclient.web.internal.WebUtilsInternal;
 import io.jooby.Body;
 import io.jooby.Context;
 import io.jooby.Cookie;
@@ -35,7 +36,6 @@ import io.jooby.ValueConverter;
 import io.jooby.ValueNode;
 import io.jooby.WebSocket;
 import io.jooby.buffer.DataBuffer;
-import io.jooby.internal.RouterImpl;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
@@ -514,7 +514,7 @@ public class DefaultWebRequestContext implements DefaultContext, WebRequestConte
 
     protected static class ConvertingRouter implements Router {
         @Delegate
-        private final Router delegate = new RouterImpl();
+        private final Router delegate = WebUtilsInternal.router();
 
         public ConvertingRouter() {
             delegate.converter(new DefaultConverter());
