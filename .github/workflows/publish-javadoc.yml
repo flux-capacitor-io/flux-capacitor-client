@@ -21,7 +21,7 @@ jobs:
           cache: 'maven'
 
       - name: Deploy to Maven Central
-        run: mvn -B site
+        run: mvn -B install site
 
       - name: Publish Javadoc to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
