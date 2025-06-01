@@ -1,4 +1,3 @@
-module:io.fluxcapacitor.common
 io.fluxcapacitor.common
 io.fluxcapacitor.common.api
 io.fluxcapacitor.common.api.eventsourcing

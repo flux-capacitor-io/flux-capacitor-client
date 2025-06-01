@@ -1,1 +1,1 @@
-moduleSearchIndex = [{"l":"io.fluxcapacitor.proxy"}];updateSearchResults();
+moduleSearchIndex = [];updateSearchResults();

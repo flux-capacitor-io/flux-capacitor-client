@@ -1,1 +1,1 @@
-packageSearchIndex = [{"l":"All Packages","u":"allpackages-index.html"},{"m":"io.fluxcapacitor.proxy","l":"io.fluxcapacitor.proxy"}];updateSearchResults();
+packageSearchIndex = [{"l":"All Packages","u":"allpackages-index.html"},{"l":"io.fluxcapacitor.proxy"}];updateSearchResults();

@@ -1,4 +1,3 @@
-module:io.fluxcapacitor.javaclient
 io.fluxcapacitor.javaclient
 io.fluxcapacitor.javaclient.common
 io.fluxcapacitor.javaclient.common.exception

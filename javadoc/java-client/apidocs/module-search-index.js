@@ -1,1 +1,1 @@
-moduleSearchIndex = [{"l":"io.fluxcapacitor.javaclient"}];updateSearchResults();
+moduleSearchIndex = [];updateSearchResults();
