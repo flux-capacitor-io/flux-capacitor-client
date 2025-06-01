@@ -26,15 +26,13 @@ jobs:
       - name: Generate javadoc html
         run: mvn -B site
 
-      - name: Move per-module sites
+      - name: Generate javadoc html
         run: |
+          mvn -B site
           for module in java-client common proxy test-server; do
             mkdir -p target/site/$module
             mv $module/target/site/* target/site/$module/
           done
-
-      - name: Add no-cache meta headers
-        run: |
           find target/site -name "*.html" -exec sed -i'' '/<head>/a\
           <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0" />\
           <meta http-equiv="Pragma" content="no-cache" />\
