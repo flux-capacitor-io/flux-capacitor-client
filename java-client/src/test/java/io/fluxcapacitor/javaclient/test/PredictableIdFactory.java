@@ -17,17 +17,43 @@ package io.fluxcapacitor.javaclient.test;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
+/**
+ * Default implementation of {@link PredictableIdentityProvider} for test environments.
+ * <p>
+ * This implementation generates predictable, repeatable identifiers for both functional and technical use.
+ * Functional IDs are simple incrementing integers (as strings), while technical IDs are deterministically
+ * generated from a separate counter using {@link UUID#nameUUIDFromBytes(byte[])}.
+ * <p>
+ * Keeping the counters separate ensures test reproducibility while avoiding cross-contamination
+ * between identifier types. This behavior is critical for existing tests relying on specific sequences.
+ */
 public class PredictableIdFactory implements PredictableIdentityProvider {
 
-    private final AtomicInteger next = new AtomicInteger();
+    private final AtomicInteger functionalCounter = new AtomicInteger(), technicalCounter = new AtomicInteger();
 
+    /**
+     * Returns a predictable functional ID using an incrementing counter.
+     * <p>
+     * The first call returns {@code "0"}, the next {@code "1"}, and so on.
+     *
+     * @return a deterministic functional ID as a string
+     */
     @Override
     public String nextFunctionalId() {
-        return Integer.toString(next.getAndIncrement());
+        return Integer.toString(functionalCounter.getAndIncrement());
     }
 
+    /**
+     * Returns a deterministic technical ID derived from a separate counter using UUID name-based generation.
+     * <p>
+     * This ensures a stable sequence of UUIDs across test runs without affecting the functional ID sequence.
+     *
+     * @return a predictable UUID string for technical use
+     */
     @Override
     public String nextTechnicalId() {
-        return UUID.randomUUID().toString();
+        int index = technicalCounter.getAndIncrement();
+        UUID uuid = UUID.nameUUIDFromBytes(("technical-id-" + index).getBytes());
+        return uuid.toString();
     }
 }

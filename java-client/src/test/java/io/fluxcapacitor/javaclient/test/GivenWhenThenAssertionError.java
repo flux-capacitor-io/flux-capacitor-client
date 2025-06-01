@@ -30,25 +30,87 @@ import java.util.Objects;
 
 import static java.util.stream.Collectors.toList;
 
+/**
+ * Specialized {@link AssertionFailedError} used by the Flux Capacitor testing framework to signal assertion failures
+ * during {@code then} phase validations in a {@code given-when-then} test.
+ * <p>
+ * This exception provides enhanced formatting for improved diffing between expected and actual values. Specifically,
+ * if the compared values include:
+ * <ul>
+ *   <li>{@link Message} instances – only user metadata is retained (technical metadata is stripped), and payload is shown separately</li>
+ *   <li>{@link Throwable} instances – stack traces are extracted and rendered as strings</li>
+ *   <li>Other objects – serialized using a pretty-printed JSON formatter</li>
+ * </ul>
+ * <p>
+ * Formatting is handled internally via {@link #formatForComparison(Object)}. Differences are then passed to the parent
+ * {@link AssertionFailedError} constructor to enable clear diffs in IDEs and test runners.
+ */
 public class GivenWhenThenAssertionError extends AssertionFailedError {
+
+    /**
+     * Shared JSON object writer used to serialize expected and actual values for comparison.
+     * Uses {@link JsonUtils} with default pretty printer enabled.
+     */
     public static ObjectWriter formatter = JsonUtils.reader.writerWithDefaultPrettyPrinter();
 
+    /**
+     * Constructs an assertion error with only a message.
+     *
+     * @param message the failure message
+     */
     public GivenWhenThenAssertionError(String message) {
         super(message);
     }
 
+    /**
+     * Constructs an assertion error with a message and a cause.
+     *
+     * @param message the failure message
+     * @param cause   the exception that caused this failure
+     */
     public GivenWhenThenAssertionError(String message, Throwable cause) {
         super(message, cause);
     }
 
+    /**
+     * Constructs an assertion error with a message and expected/actual values to compare.
+     * <p>
+     * The values are preprocessed and serialized to human-readable form using {@link #formatForComparison(Object)}.
+     *
+     * @param message  the failure message
+     * @param expected the expected value
+     * @param actual   the actual value
+     */
     public GivenWhenThenAssertionError(String message, Object expected, Object actual) {
         super(message, formatForComparison(expected), formatForComparison(actual));
     }
 
+    /**
+     * Constructs an assertion error with a message, expected/actual values, and a cause.
+     * <p>
+     * The values are preprocessed and serialized to human-readable form using {@link #formatForComparison(Object)}.
+     *
+     * @param message  the failure message
+     * @param expected the expected value
+     * @param actual   the actual value
+     * @param cause    the exception that caused this failure
+     */
     public GivenWhenThenAssertionError(String message, Object expected, Object actual, Throwable cause) {
         super(message, formatForComparison(expected), formatForComparison(actual), cause);
     }
 
+    /**
+     * Prepares an object for textual comparison by transforming it into a clean and readable form:
+     * <ul>
+     *   <li>For {@link Message} instances: wraps into a {@link PayloadAndMetadata} without technical metadata</li>
+     *   <li>For {@link Collection} instances: formats each element individually</li>
+     *   <li>For {@link Throwable}: extracts and returns stack trace</li>
+     *   <li>For other values: serializes to pretty-printed JSON if possible</li>
+     * </ul>
+     *
+     * @param expectedOrActual the object to format
+     * @return a readable representation of the value for use in assertion output
+     */
     @SneakyThrows
     private static Object formatForComparison(Object expectedOrActual) {
         if (expectedOrActual instanceof Message message) {
@@ -78,6 +140,9 @@ public class GivenWhenThenAssertionError extends AssertionFailedError {
         }
     }
 
+    /**
+     * Helper class used to render a message's payload and stripped-down metadata cleanly in assertion output.
+     */
     @Value
     private static class PayloadAndMetadata {
         Object payload;
@@ -100,6 +165,4 @@ public class GivenWhenThenAssertionError extends AssertionFailedError {
             return payload == null ? Void.class.getName() : payload.getClass().getName();
         }
     }
-
-
 }

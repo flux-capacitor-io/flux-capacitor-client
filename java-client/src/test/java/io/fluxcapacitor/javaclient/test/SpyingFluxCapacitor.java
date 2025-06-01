@@ -47,18 +47,59 @@ import java.time.Clock;
 import java.util.Map;
 import java.util.WeakHashMap;
 
+/**
+ * A {@link FluxCapacitor} implementation that wraps another instance and spies on its major components using Mockito.
+ * <p>
+ * This class is used internally by {@link io.fluxcapacitor.javaclient.test.TestFixture#spy()} to enable verification
+ * of interactions with {@link FluxCapacitor} infrastructure such as gateways, stores, repositories, and schedulers.
+ * <p>
+ * Components that are wrapped with {@link Mockito#spy(Object)} include:
+ * <ul>
+ *     <li>{@link AggregateRepository}</li>
+ *     <li>{@link CommandGateway}</li>
+ *     <li>{@link QueryGateway}</li>
+ *     <li>{@link EventGateway}</li>
+ *     <li>{@link EventStore}</li>
+ *     <li>{@link SnapshotStore}</li>
+ *     <li>{@link ResultGateway}</li>
+ *     <li>{@link ErrorGateway}</li>
+ *     <li>{@link MetricsGateway}</li>
+ *     <li>{@link MessageScheduler}</li>
+ *     <li>{@link GenericGateway} (via {@code customGateway(...)})</li>
+ *     <li>{@link Tracking}</li>
+ *     <li>{@link KeyValueStore}</li>
+ *     <li>{@link DocumentStore}</li>
+ *     <li>{@link Cache}</li>
+ * </ul>
+ * Other methods delegate directly to the original (non-spied) {@link FluxCapacitor} instance.
+ *
+ * @see SpyingClient
+ */
 @AllArgsConstructor
 public class SpyingFluxCapacitor implements FluxCapacitor {
+
+    /** Weakly-held cache of all spy-decorated components. */
     private final Map<Object, Object> spiedComponents = new WeakHashMap<>();
 
+    /** The actual underlying {@link FluxCapacitor} instance. */
     private final FluxCapacitor delegate;
 
+    /**
+     * Wraps a component in a spy, or returns the previously created spy from the cache.
+     *
+     * @param component the component to spy
+     * @param <T>       the type of the component
+     * @return the spied version of the component
+     */
     @SuppressWarnings("unchecked")
     protected <T> T decorate(T component) {
         return (T) spiedComponents.computeIfAbsent(component, Mockito::spy);
     }
 
-    public void resetMocks(){
+    /**
+     * Resets all previously created spies, clearing any captured interactions or stubbing.
+     */
+    public void resetMocks() {
         spiedComponents.values().forEach(Mockito::reset);
     }
 
@@ -139,7 +180,7 @@ public class SpyingFluxCapacitor implements FluxCapacitor {
 
     @Override
     public WebRequestGateway webRequestGateway() {
-        return delegate.webRequestGateway();
+        return delegate.webRequestGateway(); // intentionally not spied
     }
 
     @Override
@@ -196,5 +237,4 @@ public class SpyingFluxCapacitor implements FluxCapacitor {
     public void close(boolean silently) {
         delegate.close(silently);
     }
-
 }

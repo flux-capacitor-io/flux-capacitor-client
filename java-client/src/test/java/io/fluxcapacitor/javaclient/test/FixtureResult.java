@@ -26,23 +26,92 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
+/**
+ * Represents the result of a test phase within a {@link io.fluxcapacitor.javaclient.test.TestFixture}.
+ * <p>
+ * This object holds the complete state of outcomes produced during a {@code when} phase, including:
+ * <ul>
+ *     <li>The result or exception returned by the handler</li>
+ *     <li>All published messages (commands, queries, events, web requests/responses, metrics)</li>
+ *     <li>All scheduled messages</li>
+ *     <li>All handler errors (excluding the final returned exception, if any)</li>
+ *     <li>Any custom-topic messages</li>
+ * </ul>
+ * <p>
+ * It also tracks whether result collection is currently active and optionally the {@link Message} that triggered the
+ * action under test (the "traced" message).
+ * <p>
+ * This class is used internally by {@link io.fluxcapacitor.javaclient.test.TestFixture}.
+ */
 @Value
 @NoArgsConstructor
 public class FixtureResult {
+
+    /**
+     * Indicates whether the fixture is currently collecting results (e.g., during the {@code when} phase).
+     */
     @NonFinal
     @Setter
     boolean collectingResults;
+
+    /**
+     * The message being traced as the input to the {@code when} phase, if any.
+     * <p>
+     * Used internally to avoid counting this message as a result when validating expectations.
+     */
     @NonFinal
     @Setter
     Message tracedMessage;
+
+    /**
+     * The result or exception returned by the handler executed in the {@code when} phase.
+     */
     @NonFinal
     @Setter
     Object result;
-    CopyOnWriteArrayList<Message> commands = new CopyOnWriteArrayList<>(), queries = new CopyOnWriteArrayList<>(),
-            events = new CopyOnWriteArrayList<>(),
-            webRequests = new CopyOnWriteArrayList<>(), webResponses = new CopyOnWriteArrayList<>(),
-            metrics = new CopyOnWriteArrayList<>();
+
+    /**
+     * All command messages published during the {@code when} phase.
+     */
+    CopyOnWriteArrayList<Message> commands = new CopyOnWriteArrayList<>();
+
+    /**
+     * All query messages published during the {@code when} phase.
+     */
+    CopyOnWriteArrayList<Message> queries = new CopyOnWriteArrayList<>();
+
+    /**
+     * All event messages published during the {@code when} phase.
+     */
+    CopyOnWriteArrayList<Message> events = new CopyOnWriteArrayList<>();
+
+    /**
+     * All web requests published during the {@code when} phase.
+     */
+    CopyOnWriteArrayList<Message> webRequests = new CopyOnWriteArrayList<>();
+
+    /**
+     * All web responses published during the {@code when} phase.
+     */
+    CopyOnWriteArrayList<Message> webResponses = new CopyOnWriteArrayList<>();
+
+    /**
+     * All metric messages published during the {@code when} phase.
+     */
+    CopyOnWriteArrayList<Message> metrics = new CopyOnWriteArrayList<>();
+
+    /**
+     * All schedules that were newly created during the {@code when} phase.
+     */
     CopyOnWriteArrayList<Schedule> schedules = new CopyOnWriteArrayList<>();
+
+    /**
+     * All errors thrown by message handlers during the {@code when} phase (excluding the final result exception).
+     */
     CopyOnWriteArrayList<Throwable> errors = new CopyOnWriteArrayList<>();
+
+    /**
+     * All messages published to custom topics, grouped by topic name.
+     */
     Map<String, List<Message>> customMessages = new ConcurrentHashMap<>();
 }

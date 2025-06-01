@@ -16,6 +16,7 @@ package io.fluxcapacitor.javaclient.test;
 
 import io.fluxcapacitor.common.ThrowingConsumer;
 import io.fluxcapacitor.common.api.Data;
+import io.fluxcapacitor.common.serialization.JsonUtils;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.configuration.ApplicationProperties;
@@ -34,187 +35,215 @@ import java.time.Instant;
 import java.util.Arrays;
 
 /**
- * Interface of the `given` phase of a behavioral given-when-then test. Here you specify everything that happened prior
- * to the action you want to test the behavior of. Any effects of the `given` phase will *not* be reported in the `then`
- * phase.
+ * Defines the {@code given} phase of a behavioral Given-When-Then test using a {@link TestFixture}.
  * <p>
- * This interface extends from {@link When} meaning you can immediately skip ahead to the `when` phase if there was no
- * prior activity before your test.
+ * Use this interface to declare all prior context before executing the behavior you want to test. This can include
+ * commands, events, schedules, documents, requests, and more. Any effects introduced during this phase
+ * <strong>will not</strong> be included in the {@code then} phase assertions.
+ * <p>
+ * This interface extends {@link When}, allowing you to skip directly to the {@code when} phase if no prior activity is required.
+ * <p>
+ * In all {@code givenXyz(...)} methods, any argument that is a {@link String} and ends with {@code .json} is
+ * interpreted as the location of a JSON resource (e.g., {@code "/user/create-user.json"}). The resource will be
+ * loaded and deserialized using {@link JsonUtils}.
+ * <p>
+ * The JSON file must include a {@code @class} property to indicate the fully qualified class name of the object to deserialize:
+ * <pre>{@code
+ * {
+ *   "@class": "com.example.CreateUser",
+ *   ...
+ * }
+ * }</pre>
+ * <p>
+ * It is also possible to refer to a class using its simple name or partial package path if the class or one of its
+ * ancestor packages is annotated with {@link io.fluxcapacitor.common.serialization.RegisterType @RegisterType}.
+ * For example, if {@code @RegisterType} is present on the {@code com.example} package, you may use:
+ * <pre>{@code
+ * {
+ *   "@class": "CreateUser"
+ * }
+ * }
+ * or
+ * {
+ *   "@class": "example.CreateUser"
+ * }
+ * }</pre>
+ * <p>
+ * JSON files can also extend other JSON files via an {@code @extends} property. The contents of the referenced file
+ * will be recursively merged, with the extending file's values overriding nested properties as needed:
+ * <pre>{@code
+ * {
+ *   "@extends": "/user/create-user.json",
+ *   "details" : {
+ *       "lastName": "Johnson"
+ *   }
+ * }
+ * }</pre>
+ * This behavior is described in more detail in {@link JsonUtils}.
+ *
+ * @see When
+ * @see TestFixture
+ * @see JsonUtils
+ * @see io.fluxcapacitor.common.serialization.RegisterType
  */
 public interface Given extends When {
 
     /**
-     * Specify one or more commands that have been issued prior to the behavior you want to test.
+     * Specifies one or more commands that were issued before the behavior under test.
      * <p>
-     * A command may be an instance of {@link Message} in which case it will be issued as is. Otherwise, the command is
-     * issued using the passed value as payload without additional metadata.
+     * Each command can be a raw {@link Message} or a plain object. If the value is not a {@code Message}, it will be
+     * wrapped with default metadata and used as the message payload.
+     * <p>
+     * You may also pass a {@code String} ending in {@code .json} to load a payload from a resource file.
      */
     Given givenCommands(Object... commands);
 
     /**
-     * Specify one or more commands that have been issued by given {@code user} prior to the behavior you want to test.
+     * Specifies one or more commands that were issued by the specified {@code user} before the behavior under test.
      * <p>
-     * The given {@code user} may be an instance of {@link User} or an object representing the user's id. In the latter
-     * case, the test fixture will use the {@link UserProvider} to provide the user by id.
+     * The user may be a {@link User} object or an identifier. If an ID is provided, the {@link UserProvider} will
+     * resolve it to a {@code User}.
      * <p>
-     * A command may be an instance of {@link Message} in which case it will be issued as is. Otherwise, the command is
-     * issued using the passed value as payload without additional metadata.
+     * Each command can be a raw {@link Message} or a plain object. If not a {@code Message}, it will be wrapped as a
+     * payload.
      */
     Given givenCommandsByUser(Object user, Object... commands);
 
     /**
-     * Specify one or more requests that have been issued to given custom topic prior to the behavior you want to test.
+     * Specifies one or more requests that were sent to the given custom message {@code topic} before the behavior under
+     * test.
      * <p>
-     * A request may be an instance of {@link Message} in which case it will be issued as is. Otherwise, the request is
-     * issued using the passed value as payload without additional metadata.
+     * Each request may be a {@link Message} or a plain object to be wrapped with default metadata.
      */
     Given givenCustom(String topic, Object... requests);
 
     /**
-     * Specify one or more requests that have been issued to given topic by given {@code user} prior to the behavior you
-     * want to test.
+     * Specifies one or more requests that were sent to the given custom {@code topic} by the specified {@code user}.
      * <p>
-     * The given {@code user} may be an instance of {@link User} or an object representing the user's id. In the latter
-     * case, the test fixture will use the {@link UserProvider} to provide the user by id.
+     * The user may be a {@link User} object or an identifier, resolved via {@link UserProvider} if needed.
      * <p>
-     * A request may be an instance of {@link Message} in which case it will be issued as is. Otherwise, the request is
-     * issued using the passed value as payload without additional metadata.
+     * Each request may be a {@link Message} or a plain object to be wrapped with default metadata.
      */
     Given givenCustomByUser(Object user, String topic, Object... requests);
 
     /**
-     * Specify one or more events that have been applied to given aggregate prior to the behavior you want to test.
+     * Simulates one or more events that were previously applied to a specific aggregate.
      * <p>
-     * An event may be an instance of {@link Message} in which case it will be applied as is. An event may also be an
-     * instance of serialized {@link Data}, which will automatically be upcasted and deserialized before applying.
-     * Otherwise, the event is applied using the passed value as payload without additional metadata.
+     * Events can be {@link Message}, {@link Data} (auto-deserialized and upcasted), or plain objects.
+     * <p>
+     * You may also pass a {@code String} ending in {@code .json} to load an event from a resource file.
      */
     default Given givenAppliedEvents(Id<?> aggregateId, Object... events) {
         return givenAppliedEvents(aggregateId.toString(), aggregateId.getType(), events);
     }
 
     /**
-     * Specify one or more events that have been applied to given aggregate prior to the behavior you want to test.
+     * Simulates one or more events that were previously applied to a specific aggregate.
      * <p>
-     * An event may be an instance of {@link Message} in which case it will be applied as is. An event may also be an
-     * instance of serialized {@link Data}, which will automatically be upcasted and deserialized before applying.
-     * Otherwise, the event is applied using the passed value as payload without additional metadata.
+     * Events can be {@link Message}, {@link Data} (auto-deserialized and upcasted), or plain objects.
      */
     Given givenAppliedEvents(String aggregateId, Class<?> aggregateClass, Object... events);
 
     /**
-     * Specify one or more events that have been published prior to the behavior you want to test.
+     * Publishes one or more events that were emitted before the behavior under test.
      * <p>
-     * An event may be an instance of {@link Message} in which case it will be published as is. Otherwise, the event is
-     * published using the passed value as payload without additional metadata.
+     * Events may be {@link Message} or plain objects.
      */
     Given givenEvents(Object... events);
 
     /**
-     * Specify a document that has been stored for search prior to the behavior you want to test.
+     * Stores a document in the search index before the behavior under test.
      * <p>
-     * If the object is (meta-)annotated with {@link Searchable @Searchable} the settings in the annotation will be used
-     * for collection name, timestamp path etc.
+     * If the object is annotated with {@link Searchable}, the annotation metadata will determine how it's indexed.
      */
     Given givenDocument(Object document);
 
     /**
-     * Specify a document that has been stored for search prior to the behavior you want to test.
-     * <p>
-     * The document will be stored in the given {@code collection} with random id and without start or end timestamp.
+     * Stores a document in the given {@code collection} with a generated ID and no timestamps.
      */
     default Given givenDocument(Object document, Object collection) {
         return givenDocument(document, getFluxCapacitor().identityProvider().nextTechnicalId(), collection);
     }
 
     /**
-     * Specify a document that has been stored for search prior to the behavior you want to test.
-     * <p>
-     * The document will be stored in the given {@code collection} with given {@code id} and without start or end
-     * timestamp.
+     * Stores a document in the given {@code collection} with a specific {@code id} and no timestamps.
      */
     default Given givenDocument(Object document, Object id, Object collection) {
         return givenDocument(document, id, collection, null);
     }
 
     /**
-     * Specify a document that has been stored for search prior to the behavior you want to test.
-     * <p>
-     * The document will be stored in the given {@code collection} with given {@code id} and given {@code timestamp} as
-     * start and end timestamp.
+     * Stores a document with a specific {@code id} and timestamp in the given {@code collection}. The timestamp is used
+     * as both start and end time.
      */
     default Given givenDocument(Object document, Object id, Object collection, Instant timestamp) {
         return givenDocument(document, id, collection, timestamp, timestamp);
     }
 
     /**
-     * Specify a document that has been stored for search prior to the behavior you want to test.
-     * <p>
-     * The document will be stored in the given {@code collection} with given {@code id} and given start and end
-     * timestamps.
+     * Stores a document with specific {@code id}, {@code collection}, and time range.
      */
     Given givenDocument(Object document, Object id, Object collection, Instant start, Instant end);
 
     /**
-     * Specify one or multiple documents that has been stored for search prior to the behavior you want to test.
-     * <p>
-     * The documents will be stored in the given {@code collection} with random id and without start or end timestamp.
+     * Stores multiple documents in the given {@code collection} with random IDs and no timestamps.
      */
     Given givenDocuments(Object collection, Object firstDocument, Object... otherDocuments);
 
     /**
-     * Specify a stateful handler that has been stored for search prior to the behavior you want to test.
+     * Registers a stateful handler instance before the behavior under test.
+     * <p>
+     * Internally delegates to {@link #givenDocument(Object)}.
      *
-     * @see io.fluxcapacitor.javaclient.tracking.handling.Stateful for information on how to create a stateful handler.
+     * @see io.fluxcapacitor.javaclient.tracking.handling.Stateful
      */
     default Given givenStateful(Object stateful) {
         return givenDocument(stateful);
     }
 
     /**
-     * Specify one or more schedules that have been issued prior to the behavior you want to test.
+     * Schedules one or more commands before the behavior under test.
      */
     Given givenSchedules(Schedule... schedules);
 
     /**
-     * Specify one or more scheduled commands that have been issued prior to the behavior you want to test.
+     * Issues one or more scheduled commands before the behavior under test.
      */
     Given givenScheduledCommands(Schedule... commands);
 
     /**
-     * Specify one or more expired schedules that have been issued prior to the behavior you want to test.
+     * Simulates expired schedules that should be processed before the behavior under test.
      * <p>
-     * A schedule may be an instance of {@link Message} in which case it will be published as is. Otherwise, the
-     * schedule is issued using the passed value as payload without additional metadata.
+     * If the object is not a {@link Message}, it is wrapped as a payload with a generated ID and the current time.
      */
     default Given givenExpiredSchedules(Object... schedules) {
         return givenSchedules(
                 Arrays.stream(schedules).map(p -> new Schedule(
-                        p, getFluxCapacitor().identityProvider().nextTechnicalId(), getCurrentTime()))
+                                p, getFluxCapacitor().identityProvider().nextTechnicalId(), getCurrentTime()))
                         .toArray(Schedule[]::new));
     }
 
     /**
-     * Simulates moving the time forward to given {@code timestamp} prior to testing for the expected behavior.
+     * Advances the test clock to the specified {@code timestamp} before the behavior under test.
      * <p>
-     * Any schedule that has expired by moving the time will be passed to handlers.
+     * Any schedules that expire during the jump will be processed.
      */
     Given givenTimeAdvancedTo(Instant timestamp);
 
     /**
-     * Simulates moving the time forward by given {@code duration} prior to testing for the expected behavior.
+     * Advances the test clock by the given {@code duration} before the behavior under test.
      * <p>
-     * Any schedule that has expired by moving the time will be passed to handlers.
+     * Any schedules that expire during the jump will be processed.
      */
     Given givenElapsedTime(Duration duration);
 
     /**
-     * Specify a web request that has been issued prior to the behavior you want to test.
+     * Simulates a web request that was issued before the behavior under test.
      */
     Given givenWebRequest(WebRequest webRequest);
 
     /**
-     * Specify a POST request that has been issued prior to the behavior you want to test.
+     * Simulates a POST request to the specified {@code path} with the given {@code payload}.
      */
     default Given givenPost(String path, Object payload) {
         return givenWebRequest(
@@ -222,7 +251,7 @@ public interface Given extends When {
     }
 
     /**
-     * Specify a PUT request that has been issued prior to the behavior you want to test.
+     * Simulates a PUT request to the specified {@code path} with the given {@code payload}.
      */
     default Given givenPut(String path, Object payload) {
         return givenWebRequest(
@@ -230,7 +259,7 @@ public interface Given extends When {
     }
 
     /**
-     * Specify a PATCH request that has been issued prior to the behavior you want to test.
+     * Simulates a PATCH request to the specified {@code path} with the given {@code payload}.
      */
     default Given givenPatch(String path, Object payload) {
         return givenWebRequest(
@@ -238,85 +267,86 @@ public interface Given extends When {
     }
 
     /**
-     * Specify a GET request that has been issued prior to the behavior you want to test.
+     * Simulates a GET request to the specified {@code path}.
      */
     default Given givenGet(String path) {
         return givenWebRequest(WebRequest.builder().method(HttpRequestMethod.GET).url(path).build());
     }
 
     /**
-     * Specify any action that has happened prior to the behavior you want to test.
+     * Performs any arbitrary precondition using the {@link FluxCapacitor} instance directly.
      */
     Given given(ThrowingConsumer<FluxCapacitor> condition);
 
     /**
-     * Returns the {@link FluxCapacitor} instance used by the test fixture.
+     * Returns the {@link FluxCapacitor} instance used in this test fixture.
      */
     FluxCapacitor getFluxCapacitor();
 
     /**
-     * Get the clock used by this test fixture.
+     * Returns the clock used by this test fixture.
      */
     default Clock getClock() {
         return getFluxCapacitor().clock();
     }
 
     /**
-     * Get the current time of this test fixture.
+     * Returns the current time according to the test fixture's clock.
      */
     default Instant getCurrentTime() {
         return getClock().instant();
     }
 
     /**
-     * Specify the name and value of a cookie that should be used when validating future web requests.
+     * Adds a cookie to be used in subsequent simulated web requests.
      */
     default Given withCookie(String name, String value) {
         return withCookie(new HttpCookie(name, value));
     }
 
     /**
-     * Registers a cookie that should be used when validating future web requests. If the given cookie has expired, any
-     * existing matching cookie will be automatically removed.
+     * Adds a cookie to be used in subsequent simulated web requests.
+     * <p>
+     * Expired cookies will remove any matching previously added cookie.
      */
     Given withCookie(HttpCookie cookie);
 
     /**
-     * Registers a header that should be used when validating future web requests. If {@code headerValues} is empty the
-     * header will be removed.
+     * Adds or removes headers to be used in subsequent simulated web requests.
+     * <p>
+     * If {@code headerValues} is empty, the header will be removed.
      */
     Given withHeader(String headerName, String... headerValues);
 
     /**
-     * Removes a header used when validating future web requests.
+     * Removes a previously set header for simulated web requests.
      */
     default Given withoutHeader(String headerName) {
         return withHeader(headerName);
     }
 
     /**
-     * Sets the clock used by this test fixture. By default, the test fixture fixes its clock when it is created, but if
-     * the result of your test depends on the time at which it is run you can fix the test fixture's clock using this
-     * method.
+     * Overrides the test fixture's clock. Use this to simulate time-based behavior explicitly.
      */
     Given withClock(Clock clock);
 
     /**
-     * Fixes the time of the test fixture. By default, the test fixture fixes its clock when it is created, but if the
-     * result of your test depends on the time at which it is run you can fix the test fixture's time using this
-     * method.
+     * Fixes the time at which the test fixture starts.
      */
     Given atFixedTime(Instant time);
 
     /**
-     * Sets a property for the duration of the test fixture, assuming that components obtain their properties via
-     * {@link ApplicationProperties}.
+     * Sets an application property for the duration of the test fixture.
+     * <p>
+     * Only effective if your components resolve properties through {@link ApplicationProperties}.
      */
     Given withProperty(String name, Object value);
 
     /**
-     * Registers an injectable 'Spring' bean for the duration of the test fixture. This bean can be injected into
-     * handler parameters that are annotated with {@link org.springframework.beans.factory.annotation.Autowired}.
+     * Registers a singleton (injected) bean to be used during the test fixture.
+     * <p>
+     * The bean will be available for injection into handlers that use
+     * {@link org.springframework.beans.factory.annotation.Autowired}.
      */
     Given withBean(Object bean);
 

@@ -18,6 +18,8 @@ import io.fluxcapacitor.common.ThrowingConsumer;
 import io.fluxcapacitor.common.ThrowingFunction;
 import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.api.search.Constraint;
+import io.fluxcapacitor.common.serialization.JsonUtils;
+import io.fluxcapacitor.common.serialization.RegisterType;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.modeling.Id;
@@ -34,19 +36,52 @@ import java.util.List;
 import java.util.function.UnaryOperator;
 
 /**
- * Interface of the `when` phase of a behavioral given-when-Then<?> test. Here you specify the action you want to test
- * the behavior of.
+ * Defines the {@code when} phase of a behavioral Given-When-Then test using a {@link TestFixture}.
  * <p>
- * Only effects of the `when` phase will be reported in the `then` phase, i.e. effects of the `given` phase will *not*
- * be reported.
+ * Use this interface to specify the action that triggers the behavior you want to test. Only the effects of the
+ * {@code when} phase are considered in the {@code then} phase; effects from the {@code given} phase are ignored.
+ * <p>
+ * In all {@code whenXyz(...)} methods, any argument that is a {@link String} and ends with {@code .json} is interpreted
+ * as the location of a JSON resource (e.g., {@code "/user/create-user.json"}). The resource will be loaded and
+ * deserialized using {@link io.fluxcapacitor.common.serialization.JsonUtils}.
+ * <p>
+ * The JSON file must include a {@code @class} property to indicate the fully qualified class name of the object to
+ * deserialize:
+ * <pre>{@code
+ * {
+ *   "@class": "com.example.CreateUser",
+ *   ...
+ * }
+ * }</pre>
+ * <p>
+ * It is also possible to refer to a class using its simple name or partial package path if the class or one of its
+ * ancestor packages is annotated with {@link RegisterType @RegisterType}. For
+ * example:
+ * <pre>{@code
+ * {
+ *   "@class": "CreateUser"
+ * }
+ * }</pre>
+ * or
+ * <pre>{@code
+ * {
+ *   "@class": "example.CreateUser"
+ * }
+ * }</pre>
+ * <p>
+ * JSON files can extend other JSON files using {@code @extends}. The extension is recursive and merged deeply.
+ *
+ * @see When
+ * @see TestFixture
+ * @see JsonUtils
+ * @see io.fluxcapacitor.common.serialization.RegisterType
  */
 public interface When {
 
     /**
-     * Test expected behavior of handling the given command, including any side effects.
+     * Executes the specified command and returns a result expectation.
      * <p>
-     * The command may be an instance of {@link Message} in which case it will be issued as is. Otherwise, the command
-     * is issued using the passed value as payload without additional metadata.
+     * If the command is a {@link Message}, it is dispatched as-is. Otherwise, it is wrapped using default metadata.
      */
     @SuppressWarnings("unchecked")
     default <R> Then<R> whenCommand(Request<R> command) {
@@ -54,21 +89,16 @@ public interface When {
     }
 
     /**
-     * Test expected behavior of handling the given command, including any side effects.
+     * Executes the specified command and returns a result expectation.
      * <p>
-     * The command may be an instance of {@link Message} in which case it will be issued as is. Otherwise, the command
-     * is issued using the passed value as payload without additional metadata.
+     * If the command is a {@link Message}, it is dispatched as-is. Otherwise, it is wrapped using default metadata.
      */
     Then<Object> whenCommand(Object command);
 
     /**
-     * Test expected behavior of handling the given command issued by the given user, including any side effects.
+     * Executes the specified command on behalf of a user and returns a result expectation.
      * <p>
-     * The given {@code user} may be an instance of {@link User} or an object representing the user's id. In the latter
-     * case, the test fixture will use the {@link UserProvider} to provide the user by id.
-     * <p>
-     * The command may be an instance of {@link Message} in which case it will be issued as is. Otherwise, the command
-     * is issued using the passed value as payload without additional metadata.
+     * The {@code user} may be a {@link User} instance or an ID resolved via {@link UserProvider}.
      */
     @SuppressWarnings("unchecked")
     default <R> Then<R> whenCommandByUser(Object user, Request<R> command) {
@@ -76,21 +106,16 @@ public interface When {
     }
 
     /**
-     * Test expected behavior of handling the given command issued by the given user, including any side effects.
+     * Executes the specified command on behalf of a user and returns a result expectation.
      * <p>
-     * The given {@code user} may be an instance of {@link User} or an object representing the user's id. In the latter
-     * case, the test fixture will use the {@link UserProvider} to provide the user by id.
-     * <p>
-     * The command may be an instance of {@link Message} in which case it will be issued as is. Otherwise, the command
-     * is issued using the passed value as payload without additional metadata.
+     * The {@code user} may be a {@link User} instance or an ID resolved via {@link UserProvider}.
      */
     Then<Object> whenCommandByUser(Object user, Object command);
 
     /**
-     * Test expected result of the given query (or side effects if any).
+     * Executes the given query and returns its expected result and/or side effects.
      * <p>
-     * The query may be an instance of {@link Message} in which case it will be issued as is. Otherwise, the query is
-     * issued using the passed value as payload without additional metadata.
+     * Query objects may be {@link Message} or plain objects.
      */
     @SuppressWarnings("unchecked")
     default <R> Then<R> whenQuery(Request<R> query) {
@@ -98,21 +123,16 @@ public interface When {
     }
 
     /**
-     * Test expected result of the given query (or side effects if any).
+     * Executes the given query and returns its expected result and/or side effects.
      * <p>
-     * The query may be an instance of {@link Message} in which case it will be issued as is. Otherwise, the query is
-     * issued using the passed value as payload without additional metadata.
+     * Query objects may be {@link Message} or plain objects.
      */
     Then<Object> whenQuery(Object query);
 
     /**
-     * Test expected result of the given query issued by the given user (or side effects if any).
+     * Executes the given query on behalf of a user and returns its result.
      * <p>
-     * The given {@code user} may be an instance of {@link User} or an object representing the user's id. In the latter
-     * case, the test fixture will use the {@link UserProvider} to provide the user by id.
-     * <p>
-     * The query may be an instance of {@link Message} in which case it will be issued as is. Otherwise, the query is
-     * issued using the passed value as payload without additional metadata.
+     * The {@code user} may be a {@link User} or an identifier resolved via {@link UserProvider}.
      */
     @SuppressWarnings("unchecked")
     default <R> Then<R> whenQueryByUser(Object user, Request<R> query) {
@@ -120,29 +140,19 @@ public interface When {
     }
 
     /**
-     * Test expected result of the given query issued by the given user (or side effects if any).
+     * Executes the given query on behalf of a user and returns its result.
      * <p>
-     * The given {@code user} may be an instance of {@link User} or an object representing the user's id. In the latter
-     * case, the test fixture will use the {@link UserProvider} to provide the user by id.
-     * <p>
-     * The query may be an instance of {@link Message} in which case it will be issued as is. Otherwise, the query is
-     * issued using the passed value as payload without additional metadata.
+     * The {@code user} may be a {@link User} or an identifier resolved via {@link UserProvider}.
      */
     Then<Object> whenQueryByUser(Object user, Object query);
 
     /**
-     * Test expected behavior of handling the given message for given custom topic, including any side effects.
-     * <p>
-     * The message may be an instance of {@link Message} in which case it will be issued as is. Otherwise, the message
-     * issued using the passed value as payload without additional metadata.
+     * Sends a message to the given custom topic and returns expectations for the result or side effects.
      */
     Then<Object> whenCustom(String topic, Object message);
 
     /**
-     * Test expected behavior of handling the given request for given custom topic, including any side effects.
-     * <p>
-     * The request may be an instance of {@link Message} in which case it will be issued as is. Otherwise, the request
-     * is issued using the passed value as payload without additional metadata.
+     * Sends a request to the given custom topic and returns its expected result.
      */
     @SuppressWarnings("unchecked")
     default <R> Then<R> whenCustom(String topic, Request<R> request) {
@@ -150,14 +160,9 @@ public interface When {
     }
 
     /**
-     * Test expected result of the given request for given custom topic issued by the given user (or side effects if
-     * any).
+     * Sends a request to a custom topic on behalf of a user and returns its result.
      * <p>
-     * The given {@code user} may be an instance of {@link User} or an object representing the user's id. In the latter
-     * case, the test fixture will use the {@link UserProvider} to provide the user by id.
-     * <p>
-     * The request may be an instance of {@link Message} in which case it will be issued as is. Otherwise, the request
-     * is issued using the passed value as payload without additional metadata.
+     * The {@code user} may be a {@link User} or ID resolved via {@link UserProvider}.
      */
     @SuppressWarnings("unchecked")
     default <R> Then<R> whenCustomByUser(Object user, String topic, Request<R> request) {
@@ -165,133 +170,148 @@ public interface When {
     }
 
     /**
-     * Test expected result of the given message for given custom topic issued by the given user (or side effects if
-     * any).
-     * <p>
-     * The given {@code user} may be an instance of {@link User} or an object representing the user's id. In the latter
-     * case, the test fixture will use the {@link UserProvider} to provide the user by id.
-     * <p>
-     * The message may be an instance of {@link Message} in which case it will be issued as is. Otherwise, the message
-     * is issued using the passed value as payload without additional metadata.
+     * Sends a message to a custom topic on behalf of a user and returns expectations for result or side effects.
      */
     Then<Object> whenCustomByUser(Object user, String topic, Object message);
 
     /**
-     * Test expected behavior of handling the given event, including any side effects.
+     * Publishes the given event and returns expectations for its side effects.
      * <p>
-     * The event may be an instance of {@link Message} in which case it will be issued as is. Otherwise, the event is
-     * issued using the passed value as payload without additional metadata.
+     * Event objects may be {@link Message} or plain objects.
      */
     Then<?> whenEvent(Object event);
 
     /**
-     * Test expected behavior of applying the given events on the given aggregate and Then<?> publishing those events,
-     * including any side effects.
+     * Applies events to a specific aggregate instance and publishes them.
      * <p>
-     * The event may be an instance of {@link Message} in which case it will be applied as is. An event may also be an
-     * instance of serialized {@link Data}, which will automatically be upcasted and deserialized before applying.
-     * Otherwise, the event is applied using the passed value as payload without additional metadata.
+     * Events may be {@link Message}, serialized {@link Data}, or POJOs.
+     * Data will be upcasted and deserialized before applying.
      */
     default Then<?> whenEventsAreApplied(Id<?> aggregateId, Object... events) {
         return whenEventsAreApplied(aggregateId.toString(), aggregateId.getType(), events);
     }
 
     /**
-     * Test expected behavior of applying the given events on the given aggregate and Then<?> publishing those events,
-     * including any side effects.
+     * Applies events to a specific aggregate instance and publishes them.
      * <p>
-     * The event may be an instance of {@link Message} in which case it will be applied as is. An event may also be an
-     * instance of serialized {@link Data}, which will automatically be upcasted and deserialized before applying.
-     * Otherwise, the event is applied using the passed value as payload without additional metadata.
+     * Events may be {@link Message}, serialized {@link Data}, or POJOs.
+     * Data will be upcasted and deserialized before applying.
      */
     Then<?> whenEventsAreApplied(String aggregateId, Class<?> aggregateClass, Object... events);
 
     /**
-     * Test expected result of the given search in given collection.
+     * Executes a search query on the specified collection and returns the expected result.
+     *
+     * @param collection   the collection to search in
+     * @param searchQuery  the search query operator
+     * @param <R>          the result type
      */
     <R> Then<List<R>> whenSearching(Object collection, UnaryOperator<Search> searchQuery);
 
     /**
-     * Test expected result of a search with given constraints in given collection.
+     * Executes a search query with constraints on the specified collection and returns the expected result.
+     *
+     * @param collection  the collection to search in
+     * @param constraints one or more constraints to apply
+     * @param <R>         the result type
      */
     default <R> Then<List<R>> whenSearching(Object collection, Constraint... constraints) {
         return whenSearching(collection, s -> s.constraint(constraints));
     }
 
     /**
-     * Test expected result of the given search in given collection.
+     * Executes a search query on the collection inferred from the class and returns the expected result.
+     *
+     * @param collection   the collection class
+     * @param searchQuery  the search query operator
+     * @param <R>          the result type
      */
     default <R> Then<List<R>> whenSearching(Class<R> collection, UnaryOperator<Search> searchQuery) {
         return this.whenSearching((Object) collection, searchQuery);
     }
 
     /**
-     * Test expected result of a search with given constraints in given collection.
+     * Executes a search query with constraints on the collection inferred from the class and returns the expected result.
+     *
+     * @param collection   the collection class
+     * @param constraints  the search constraints
+     * @param <R>          the result type
      */
     default <R> Then<List<R>> whenSearching(Class<R> collection, Constraint... constraints) {
         return whenSearching(collection, s -> s.constraint(constraints));
     }
 
     /**
-     * Test expected behavior of handling the given web request, including any side effects.
+     * Executes the specified {@link WebRequest} and returns expectations for side effects or response.
      */
     Then<Object> whenWebRequest(WebRequest request);
 
     /**
-     * Test expected behavior of handling the given POST request, including any side effects.
+     * Simulates a POST request to the specified path with the given payload.
      */
     default Then<Object> whenPost(String path, Object payload) {
         return whenWebRequest(WebRequest.builder().method(HttpRequestMethod.POST).url(path).payload(payload).build());
     }
 
     /**
-     * Test expected behavior of handling the given PUT request, including any side effects.
+     * Simulates a PUT request to the specified path with the given payload.
      */
     default Then<Object> whenPut(String path, Object payload) {
         return whenWebRequest(WebRequest.builder().method(HttpRequestMethod.PUT).url(path).payload(payload).build());
     }
 
     /**
-     * Test expected behavior of handling the given PUT request, including any side effects.
+     * Simulates a PATCH request to the specified path with the given payload.
      */
     default Then<Object> whenPatch(String path, Object payload) {
         return whenWebRequest(WebRequest.builder().method(HttpRequestMethod.PATCH).url(path).payload(payload).build());
     }
 
     /**
-     * Test expected behavior of handling the given GET request, including any side effects.
+     * Simulates a GET request to the specified path.
      */
     default Then<Object> whenGet(String path) {
         return whenWebRequest(WebRequest.builder().method(HttpRequestMethod.GET).url(path).build());
     }
 
     /**
-     * Test expected behavior of handling the given expired schedule.
-     * <p>
-     * The schedule may be an instance of {@link Message} if you need to include metadata. Otherwise, the schedule is
-     * issued using the passed value as payload without additional metadata.
+     * Simulates the expiration of a schedule and returns expectations for the triggered behavior.
      */
     Then<?> whenScheduleExpires(Object schedule);
 
     /**
-     * Test expected behavior after simulating a time advance to the given timestamp.
+     * Simulates advancing the test clock to the specified timestamp.
+     * <p>
+     * Any schedule that expires as a result will be triggered.
      */
     Then<?> whenTimeAdvancesTo(Instant timestamp);
 
     /**
-     * Test expected behavior after simulating a time advance by the given duration.
+     * Simulates advancing the test clock by the specified duration.
+     * <p>
+     * Any schedule that expires as a result will be triggered.
      */
     Then<?> whenTimeElapses(Duration duration);
 
     /**
-     * Test upcasting the given value.
+     * Tests the behavior of upcasting the given value.
      * <p>
-     * The value may be a {@link Data} or string referring to a serialized Data resource.
+     * The value may be a {@link Data} instance or a {@link String} referencing a serialized Data resource.
+     * If the value is a .json file reference, it will be loaded and deserialized accordingly.
+     *
+     * @param value the data to upcast
+     * @param <R>   the resulting type
+     * @return expectation for the upcast result
      */
     <R> Then<R> whenUpcasting(Object value);
 
     /**
-     * Test expected (side) effect of the given action.
+     * Executes the provided action using the {@link FluxCapacitor} instance and validates its side effects.
+     * <p>
+     * Use this to simulate effects that bypass standard message types.
+     *
+     * @param action action to execute
+     * @return expectation for the resulting behavior
      */
     default Then<?> whenExecuting(ThrowingConsumer<FluxCapacitor> action) {
         return whenApplying(fc -> {
@@ -301,15 +321,22 @@ public interface When {
     }
 
     /**
-     * Test expected result and/or (side) effects of the given action.
+     * Executes the provided function using the {@link FluxCapacitor} instance and validates its result and/or side effects.
+     *
+     * @param action action to execute
+     * @param <R>    result type
+     * @return expectation for result and/or side effects
      */
     <R> Then<R> whenApplying(ThrowingFunction<FluxCapacitor, R> action);
 
     /**
-     * Test for state after the given phase.
+     * Simulates a no-op phase to assert on the current state without invoking any behavior.
+     * <p>
+     * This is useful to assert on effects of the {@code given} phase alone or confirm that no further behavior occurs.
+     *
+     * @return expectation for the result (typically asserting nothing has changed)
      */
     default Then<?> whenNothingHappens() {
-        return whenExecuting(fc -> {
-        });
+        return whenExecuting(fc -> {});
     }
 }

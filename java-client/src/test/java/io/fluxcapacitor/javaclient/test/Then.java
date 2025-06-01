@@ -34,8 +34,40 @@ import static io.fluxcapacitor.common.ObjectUtils.run;
 import static java.lang.String.format;
 
 /**
- * Interface of the `then` phase of a behavioral given-when-Then<R> test. Here you specify the expected behavior of your
- * `when` phase.
+ * Defines the {@code then} phase of a behavioral Given-When-Then test using a {@link TestFixture}.
+ * <p>
+ * Use this interface to assert and validate the outcomes of the {@code when} phase, such as:
+ * <ul>
+ *     <li>Which messages were published (commands, events, queries, web requests/responses, etc.)</li>
+ *     <li>The result or exception returned from executing the behavior</li>
+ *     <li>Side effects such as errors, metrics, or schedules</li>
+ *     <li>Arbitrary conditions or state in the {@link FluxCapacitor} runtime</li>
+ * </ul>
+ * <p>
+ * This interface provides fluent, expressive assertions that support a wide range of matchers:
+ * <ul>
+ *     <li>Plain objects (compared via {@link java.util.Objects#equals})</li>
+ *     <li>{@link java.util.function.Predicate} and Hamcrest matchers</li>
+ *     <li>{@link Class} instances (type matching)</li>
+ *     <li>Strings ending in {@code .json}, which are interpreted as resource files to load and compare</li>
+ * </ul>
+ * <p>
+ * Resource-based comparisons support rich object declarations with {@code @class} and {@code @extends} for type resolution
+ * and inheritance. See {@link io.fluxcapacitor.common.serialization.JsonUtils} for details.
+ * <p>
+ * Method groups include:
+ * <ul>
+ *     <li>{@code expectXxx(...)} — asserts that one or more messages/results/errors did occur</li>
+ *     <li>{@code expectOnlyXxx(...)} — asserts that only the specified items occurred</li>
+ *     <li>{@code expectNoXxxLike(...)} — asserts that none of the specified items occurred</li>
+ *     <li>{@code expectNoXxx()} — shorthand to assert that nothing was published in a category</li>
+ *     <li>{@code expectResult(...)} / {@code expectExceptionalResult(...)} — asserts outcomes</li>
+ *     <li>{@code verifyXxx(...)} — alternative form using imperative assertions</li>
+ *     <li>{@code expectThat(...)} — free-form assertion on FluxCapacitor state</li>
+ *     <li>{@code andThen()} — continue to the next scenario phase</li>
+ * </ul>
+ *
+ * @param <R> The type of result expected from the {@code when} phase.
  */
 public interface Then<R> {
 
@@ -44,53 +76,46 @@ public interface Then<R> {
      */
 
     /**
-     * Test if the given events got published.
+     * Asserts that one or more events were published during the {@code when} phase.
      * <p>
-     * An event may be an instance of {@link Message} in which case it will be tested against published events including
-     * any of the Message's metadata. Otherwise, the event is tested against published events using the passed value as
-     * payload without additional metadata.
-     * <p>
-     * An event may also be an instance of {@link Predicate}, hamcrest matcher, or Class. An event may also refer to a
-     * json resource in the class path of the unit test by passing a string ending in `.json`, e.g.
-     * "expected/create-user.json".
+     * Events can be specified as:
+     * <ul>
+     *   <li>{@link Message} instances — compared with metadata</li>
+     *   <li>POJOs — compared by payload only</li>
+     *   <li>{@link Predicate}, Hamcrest matchers, or {@link Class} — matched against published payloads</li>
+     *   <li>{@code .json} file paths — deserialized and matched via {@link io.fluxcapacitor.common.serialization.JsonUtils}</li>
+     * </ul>
+     * Matching is performed using equals or matcher logic depending on the type.
      */
     Then<R> expectEvents(Object... events);
 
     /**
-     * Test if an event got published that matches the given predicate.
+     * Shorthand for asserting that at least one event was published that matches the given {@link Predicate}.
+     *
+     * @param predicate matcher to apply to published event payloads
      */
     default <T> Then<R> expectEvent(Predicate<T> predicate) {
         return expectEvents(predicate);
     }
 
     /**
-     * Test if the given events are the *only* events that got published.
+     * Asserts that the specified events are the only ones published during the {@code when} phase.
      * <p>
-     * An event may be an instance of {@link Message} in which case it will be tested against published events including
-     * any of the Message's metadata. Otherwise, the event is tested against published events using the passed value as
-     * payload without additional metadata.
-     * <p>
-     * An event may also be an instance of {@link Predicate}, hamcrest matcher, or Class. An event may also refer to a
-     * json resource in the class path of the unit test by passing a string ending in `.json`, e.g.
-     * "expected/create-user.json".
+     * Equivalent to {@code expectEvents(...)} followed by asserting that no other events were published.
      */
     Then<R> expectOnlyEvents(Object... events);
 
     /**
-     * Assert that the given events did *not* get published.
+     * Asserts that none of the specified events were published.
      * <p>
-     * An event may be an instance of {@link Message} in which case it will be tested against published events including
-     * any of the Message's metadata. Otherwise, the event is tested against published events using the passed value as
-     * payload without additional metadata.
-     * <p>
-     * An event may also be an instance of {@link Predicate}, hamcrest matcher, or Class. An event may also refer to a
-     * json resource in the class path of the unit test by passing a string ending in `.json`, e.g.
-     * "expected/create-user.json".
+     * This is a negative matcher that verifies exclusion.
      */
     Then<R> expectNoEventsLike(Object... events);
 
     /**
-     * Assert that no events got published.
+     * Asserts that no events were published during the {@code when} phase.
+     * <p>
+     * Equivalent to {@code expectOnlyEvents()}.
      */
     default Then<R> expectNoEvents() {
         return expectOnlyEvents();
@@ -101,110 +126,106 @@ public interface Then<R> {
      */
 
     /**
-     * Test if the given commands got published.
+     * Asserts that one or more commands were published during the {@code when} phase.
      * <p>
-     * A command may be an instance of {@link Message} in which case it will be tested against published commands
-     * including any of the Message's metadata. Otherwise, the command is tested against published commands using the
-     * passed value as payload without additional metadata.
-     * <p>
-     * A command may also be an instance of {@link Predicate}, hamcrest matcher, or Class. A command may also refer to a
-     * json resource in the class path of the unit test by passing a string ending in `.json`, e.g.
-     * "expected/create-user.json".
+     * Supported values for each command include:
+     * <ul>
+     *   <li>{@link Message} instances — matched including metadata</li>
+     *   <li>Plain objects — matched by payload only</li>
+     *   <li>{@link Predicate}, Hamcrest matchers, or {@link Class} — type or condition-based matching</li>
+     *   <li>Paths ending in {@code .json} — matched by deserializing a JSON resource file</li>
+     * </ul>
+     * See {@link io.fluxcapacitor.common.serialization.JsonUtils} for details about JSON file resolution and inheritance.
      */
     Then<R> expectCommands(Object... commands);
 
     /**
-     * Test if a command got published that matches the given predicate.
+     * Shorthand for asserting that at least one published command matches the given {@link Predicate}.
+     *
+     * @param predicate Predicate to apply to the published command payloads
      */
     default <T> Then<R> expectCommand(Predicate<T> predicate) {
         return expectCommands(predicate);
     }
 
     /**
-     * Test if the given commands are the *only* commands that got published.
+     * Asserts that the given commands are the only commands published during the {@code when} phase.
      * <p>
-     * A command may be an instance of {@link Message} in which case it will be tested against published commands
-     * including any of the Message's metadata. Otherwise, the command is tested against published commands using the
-     * passed value as payload without additional metadata.
-     * <p>
-     * A command may also be an instance of {@link Predicate}, hamcrest matcher, or Class. A command may also refer to a
-     * json resource in the class path of the unit test by passing a string ending in `.json`, e.g.
-     * "expected/create-user.json".
+     * Combines {@link #expectCommands(Object...)} with a check that no other commands were published.
      */
     Then<R> expectOnlyCommands(Object... commands);
 
     /**
-     * Assert that the given commands did *not* get published.
+     * Asserts that none of the specified commands were published.
      * <p>
-     * A command may be an instance of {@link Message} in which case it will be tested against published commands
-     * including any of the Message's metadata. Otherwise, the command is tested against published commands using the
-     * passed value as payload without additional metadata.
-     * <p>
-     * A command may also be an instance of {@link Predicate}, hamcrest matcher, or Class. A command may also refer to a
-     * json resource in the class path of the unit test by passing a string ending in `.json`, e.g.
-     * "expected/create-user.json".
+     * Useful for excluding specific commands by payload, type, or match condition.
      */
     Then<R> expectNoCommandsLike(Object... commands);
 
     /**
-     * Assert that no commands got published.
+     * Asserts that no commands were published during the {@code when} phase.
+     * <p>
+     * Equivalent to {@code expectOnlyCommands()}.
      */
     default Then<R> expectNoCommands() {
         return expectOnlyCommands();
     }
     
     /*
-        Custom topics
+        Custom Topics
      */
 
     /**
-     * Test if the given requests got published on given custom topic.
+     * Asserts that one or more messages were published to the specified custom {@code topic}.
      * <p>
-     * A request may be an instance of {@link Message} in which case it will be tested against published requests
-     * including any of the Message's metadata. Otherwise, the request is tested against published requests using the
-     * passed value as payload without additional metadata.
-     * <p>
-     * A request may also be an instance of {@link Predicate}, hamcrest matcher, or Class. A request may also refer to a
-     * json resource in the class path of the unit test by passing a string ending in `.json`, e.g.
-     * "expected/create-user.json".
+     * Each request may be:
+     * <ul>
+     *   <li>A {@link Message} — matched including metadata</li>
+     *   <li>A POJO — matched by payload only</li>
+     *   <li>A {@link Predicate}, Hamcrest matcher, or {@link Class} — used to match payloads dynamically</li>
+     *   <li>A {@code .json} resource path — loaded and deserialized via {@link io.fluxcapacitor.common.serialization.JsonUtils}</li>
+     * </ul>
+     *
+     * @param topic    the topic to check for published messages
+     * @param requests the expected messages published to the topic
      */
     Then<R> expectCustom(String topic, Object... requests);
 
     /**
-     * Test if a request got published on given custom topic that matches the given predicate.
+     * Asserts that a message was published to the specified custom {@code topic} and that it matches the given
+     * predicate.
+     *
+     * @param topic     the topic to check
+     * @param predicate a predicate to apply to published payloads
      */
     default <T> Then<R> expectCustom(String topic, Predicate<T> predicate) {
         return expectCustom(topic, (Object) predicate);
     }
 
     /**
-     * Test if the given requests are the *only* requests that got published on given custom topic.
+     * Asserts that the specified requests are the only messages published to the given custom {@code topic}.
      * <p>
-     * A request may be an instance of {@link Message} in which case it will be tested against published requests
-     * including any of the Message's metadata. Otherwise, the request is tested against published requests using the
-     * passed value as payload without additional metadata.
-     * <p>
-     * A request may also be an instance of {@link Predicate}, hamcrest matcher, or Class. A request may also refer to a
-     * json resource in the class path of the unit test by passing a string ending in `.json`, e.g.
-     * "expected/create-user.json".
+     * No additional messages should be published on the topic beyond those provided.
+     *
+     * @param topic    the topic to check
+     * @param requests the expected messages
      */
     Then<R> expectOnlyCustom(String topic, Object... requests);
 
     /**
-     * Assert that the given requests did *not* get published on given custom topic.
-     * <p>
-     * A request may be an instance of {@link Message} in which case it will be tested against published requests
-     * including any of the Message's metadata. Otherwise, the request is tested against published requests using the
-     * passed value as payload without additional metadata.
-     * <p>
-     * A request may also be an instance of {@link Predicate}, hamcrest matcher, or Class. A request may also refer to a
-     * json resource in the class path of the unit test by passing a string ending in `.json`, e.g.
-     * "expected/create-user.json".
+     * Asserts that none of the given requests were published to the specified custom {@code topic}.
+     *
+     * @param topic    the topic to check
+     * @param requests the messages that must not appear on the topic
      */
     Then<R> expectNoCustomLike(String topic, Object... requests);
 
     /**
-     * Assert that no requests got published on given custom topic.
+     * Asserts that no messages were published to the specified custom {@code topic}.
+     * <p>
+     * Equivalent to {@code expectOnlyCustom(topic)}.
+     *
+     * @param topic the topic to check
      */
     default Then<R> expectNoCustom(String topic) {
         return expectOnlyCustom(topic);
@@ -215,167 +236,151 @@ public interface Then<R> {
      */
 
     /**
-     * Test if the given queries got published.
+     * Asserts that one or more queries were published during the {@code when} phase.
      * <p>
-     * A query may be an instance of {@link Message} in which case it will be tested against published queries including
-     * any of the Message's metadata. Otherwise, the query is tested against published queries using the passed value as
-     * payload without additional metadata.
-     * <p>
-     * A query may also be an instance of {@link Predicate}, hamcrest matcher, or Class. A query may also refer to a
-     * json resource in the class path of the unit test by passing a string ending in `.json`, e.g.
-     * "expected/create-user.json".
+     * Each query can be:
+     * <ul>
+     *   <li>A {@link Message} — matched including metadata</li>
+     *   <li>A POJO — matched by payload only</li>
+     *   <li>A {@link Predicate}, Hamcrest matcher, or {@link Class} — for type or condition matching</li>
+     *   <li>A {@code .json} file path — matched via deserialized JSON resource using {@link io.fluxcapacitor.common.serialization.JsonUtils}</li>
+     * </ul>
+     *
+     * @param queries the expected queries
      */
     Then<R> expectQueries(Object... queries);
 
     /**
-     * Test if a query got published that matches the given predicate.
+     * Shorthand for asserting that at least one published query matches the given predicate.
+     *
+     * @param predicate matcher to apply to query payloads
      */
     default <T> Then<R> expectQuery(Predicate<T> predicate) {
         return expectQueries(predicate);
     }
 
     /**
-     * Test if the given queries are the *only* queries that got published.
+     * Asserts that only the specified queries were published during the {@code when} phase.
      * <p>
-     * A query may be an instance of {@link Message} in which case it will be tested against published queries including
-     * any of the Message's metadata. Otherwise, the query is tested against published queries using the passed value as
-     * payload without additional metadata.
-     * <p>
-     * A query may also be an instance of {@link Predicate}, hamcrest matcher, or Class. A query may also refer to a
-     * json resource in the class path of the unit test by passing a string ending in `.json`, e.g.
-     * "expected/create-user.json".
+     * Combines {@link #expectQueries(Object...)} with a check that no additional queries were published.
+     *
+     * @param queries the only queries that should have been published
      */
     Then<R> expectOnlyQueries(Object... queries);
 
     /**
-     * Assert that the given queries did *not* get published.
-     * <p>
-     * A query may be an instance of {@link Message} in which case it will be tested against published queries including
-     * any of the Message's metadata. Otherwise, the query is tested against published queries using the passed value as
-     * payload without additional metadata.
-     * <p>
-     * A query may also be an instance of {@link Predicate}, hamcrest matcher, or Class. A query may also refer to a
-     * json resource in the class path of the unit test by passing a string ending in `.json`, e.g.
-     * "expected/create-user.json".
+     * Asserts that none of the specified queries were published.
+     *
+     * @param queries queries that must not have been published
      */
     Then<R> expectNoQueriesLike(Object... queries);
 
     /**
-     * Assert that no queries got published.
+     * Asserts that no queries were published during the {@code when} phase.
+     * <p>
+     * Equivalent to {@code expectOnlyQueries()}.
      */
     default Then<R> expectNoQueries() {
         return expectOnlyQueries();
     }
 
     /*
-        Web requests
+        Web Requests
      */
 
     /**
-     * Assert that the given web requests got published.
+     * Asserts that one or more {@link WebRequest}s were published during the {@code when} phase.
      * <p>
-     * A given web request may be an instance of {@link Message} or {@link WebRequest} in which case it will be tested
-     * against published web requests including any of the Message's metadata. Otherwise, the request is tested against
-     * published web requests using the passed value as payload without additional metadata.
-     * <p>
-     * A web request may also be an instance of {@link Predicate}, hamcrest matcher, or Class. A web request may also
-     * refer to a json resource in the class path of the unit test by passing a string ending in `.json`, e.g.
-     * "expected/send-mail-request.json".
+     * Each request can be:
+     * <ul>
+     *   <li>A {@link WebRequest} or {@link Message} — matched including metadata</li>
+     *   <li>A POJO — matched by payload only</li>
+     *   <li>A {@link Predicate}, Hamcrest matcher, or {@link Class} — for dynamic matching</li>
+     *   <li>A {@code .json} resource path — deserialized and matched using {@link io.fluxcapacitor.common.serialization.JsonUtils}</li>
+     * </ul>
+     *
+     * @param webRequests the expected web requests
      */
     Then<R> expectWebRequests(Object... webRequests);
 
     /**
-     * Test if a web request got published that matches the given predicate.
+     * Shorthand for asserting that at least one published web request matches the given predicate.
+     *
+     * @param predicate predicate to apply to web request payloads
      */
     default Then<R> expectWebRequest(Predicate<WebRequest> predicate) {
         return expectWebRequests(predicate);
     }
 
     /**
-     * Assert that the given values are the *only* web requests that got published.
-     * <p>
-     * A web request may be an instance of {@link Message} or {@link WebRequest} in which case it will be tested against
-     * published web requests including any of the Message's metadata. Otherwise, the web request is tested against
-     * published web requests using the passed value as payload without additional metadata.
-     * <p>
-     * A web request may also be an instance of {@link Predicate}, hamcrest matcher, or Class. A request may also refer
-     * to a json resource in the class path of the unit test by passing a string ending in `.json`, e.g.
-     * "send-email-request.json".
+     * Asserts that only the specified {@link WebRequest}s were published during the {@code when} phase.
+     *
+     * @param webRequests the only expected web requests
      */
     Then<R> expectOnlyWebRequests(Object... webRequests);
 
     /**
-     * Assert that the given web requests did *not* get published.
-     * <p>
-     * A web request may be an instance of {@link Message} in which case it will be tested against published web
-     * requests including any of the Message's metadata. Otherwise, the value is tested against published web requests
-     * using the passed value as payload without additional metadata.
-     * <p>
-     * A web request may also be an instance of {@link Predicate}, hamcrest matcher, or Class. A web request may also
-     * refer to a json resource in the class path of the unit test by passing a string ending in `.json`, e.g.
-     * "send-email-request.json".
+     * Asserts that none of the specified {@link WebRequest}s were published.
+     *
+     * @param webRequests the disallowed web requests
      */
     Then<R> expectNoWebRequestsLike(Object... webRequests);
 
     /**
-     * Assert that no web requests got published.
+     * Asserts that no {@link WebRequest}s were published during the {@code when} phase.
+     * <p>
+     * Equivalent to {@code expectOnlyWebRequests()}.
      */
     default Then<R> expectNoWebRequests() {
         return expectOnlyWebRequests();
     }
 
     /*
-        Web responses
+        Web Responses
      */
 
     /**
-     * Assert that the given web responses got published.
+     * Asserts that one or more {@link WebResponse}s were published during the {@code when} phase.
      * <p>
-     * A given web response may be an instance of {@link Message} or {@link WebResponse} in which case it will be tested
-     * against published web responses including any of the Message's metadata. Otherwise, the command is tested against
-     * published web responses using the passed value as payload without additional metadata.
-     * <p>
-     * A web response may also be an instance of {@link Predicate}, hamcrest matcher, or Class. A web response may also
-     * refer to a json resource in the class path of the unit test by passing a string ending in `.json`, e.g.
-     * "expected/new-user-response.json".
+     * Each web response can be:
+     * <ul>
+     *   <li>A {@link WebResponse} or {@link Message} — matched including metadata</li>
+     *   <li>A POJO — matched by payload only</li>
+     *   <li>A {@link Predicate}, Hamcrest matcher, or {@link Class} — used to match dynamically</li>
+     *   <li>A {@code .json} resource path — deserialized via {@link io.fluxcapacitor.common.serialization.JsonUtils}</li>
+     * </ul>
+     *
+     * @param webResponses the expected responses
      */
     Then<R> expectWebResponses(Object... webResponses);
 
     /**
-     * Test if a web response got published that matches the given predicate.
+     * Shorthand for asserting that at least one published web response matches the given predicate.
+     *
+     * @param predicate matcher to apply to web response payloads
      */
     default Then<R> expectWebResponse(Predicate<WebResponse> predicate) {
         return expectWebResponses(predicate);
     }
 
     /**
-     * Assert that the given values are the *only* web responses that got published.
-     * <p>
-     * A web response may be an instance of {@link Message} or {@link WebResponse} in which case it will be tested
-     * against published web responses including any of the Message's metadata. Otherwise, the web response is tested
-     * against published web responses using the passed value as payload without additional metadata.
-     * <p>
-     * A web response may also be an instance of {@link Predicate}, hamcrest matcher, or Class. A command may also refer
-     * to a json resource in the class path of the unit test by passing a string ending in `.json`, e.g.
-     * "new-user-response.json".
+     * Asserts that only the specified web responses were published.
+     *
+     * @param webResponses the only allowed web responses
      */
     Then<R> expectOnlyWebResponses(Object... webResponses);
 
     /**
-     * Assert that the given web responses did *not* get published.
-     * <p>
-     * A web response may be an instance of {@link Message} in which case it will be tested against published web
-     * responses including any of the Message's metadata. Otherwise, the value is tested against published web responses
-     * using the passed value as payload without additional metadata.
-     * <p>
-     * A web response may also be an instance of {@link Predicate}, hamcrest matcher, or Class. A web response may also
-     * refer to a json resource in the class path of the unit test by passing a string ending in `.json`, e.g.
-     * "new-user-response.json".
+     * Asserts that none of the specified web responses were published.
+     *
+     * @param webResponses the disallowed web responses
      */
     Then<R> expectNoWebResponsesLike(Object... webResponses);
 
     /**
-     * Assert that no web responses got published.
+     * Asserts that no web responses were published during the {@code when} phase.
+     * <p>
+     * Equivalent to {@code expectOnlyWebResponses()}.
      */
     default Then<R> expectNoWebResponses() {
         return expectOnlyWebResponses();
@@ -386,133 +391,104 @@ public interface Then<R> {
      */
 
     /**
-     * Test if the given schedules got published.
+     * Asserts that one or more new schedules were published during the {@code when} phase.
      * <p>
-     * A schedule may be an instance of {@link Message} in which case it will be tested against published schedules
-     * including any of the Message's metadata. Otherwise, the schedule is tested against published schedules using the
-     * passed value as payload without additional metadata. If the schedule is an instance of a {@link Schedule} the
-     * deadline of the expected schedule will also be tested against published schedules.
-     * <p>
-     * A schedule may also be an instance of {@link Predicate}, hamcrest matcher, or Class. A schedule may also refer to
-     * a json resource in the class path of the unit test by passing a string ending in `.json`, e.g.
-     * "expected/create-user.json".
+     * Each schedule can be:
+     * <ul>
+     *   <li>A {@link Schedule} or {@link Message} — matched by payload and (if applicable) deadline</li>
+     *   <li>A POJO — matched by payload only</li>
+     *   <li>A {@link Predicate}, Hamcrest matcher, or {@link Class} — for flexible payload matching</li>
+     *   <li>A {@code .json} file — loaded and deserialized using {@link io.fluxcapacitor.common.serialization.JsonUtils}</li>
+     * </ul>
      */
     Then<R> expectNewSchedules(Object... schedules);
 
     /**
-     * Test if a schedule got published that matches the given predicate.
+     * Shorthand for asserting that at least one new schedule was published and matches the given predicate.
+     *
+     * @param predicate a condition to apply to the published {@link Schedule}
      */
     default Then<R> expectNewSchedule(Predicate<Schedule> predicate) {
         return expectNewSchedules(predicate);
     }
 
     /**
-     * Test if the given schedules are the *only* new schedules that got published.
+     * Asserts that only the specified schedules were newly published during the {@code when} phase.
      * <p>
-     * A schedule may be an instance of {@link Message} in which case it will be tested against published schedules
-     * including any of the Message's metadata. Otherwise, the schedule is tested against published schedules using the
-     * passed value as payload without additional metadata. If the schedule is an instance of a {@link Schedule} the
-     * deadline of the expected schedule will also be tested against published schedules.
-     * <p>
-     * A schedule may also be an instance of {@link Predicate}, hamcrest matcher, or Class. A schedule may also refer to
-     * a json resource in the class path of the unit test by passing a string ending in `.json`, e.g.
-     * "expected/create-user.json".
+     * No additional schedules should have been created.
      */
     Then<R> expectOnlyNewSchedules(Object... schedules);
 
     /**
-     * Assert that the given schedules did not get published.
-     * <p>
-     * A schedule may be an instance of {@link Message} in which case it will be tested against published schedules
-     * including any of the Message's metadata. Otherwise, the schedule is tested against published schedules using the
-     * passed value as payload without additional metadata. If the schedule is an instance of a {@link Schedule} the
-     * deadline of the expected schedule will also be tested against published schedules.
-     * <p>
-     * A schedule may also be an instance of {@link Predicate}, hamcrest matcher, or Class. A schedule may also refer to
-     * a json resource in the class path of the unit test by passing a string ending in `.json`, e.g.
-     * "expected/create-user.json".
+     * Asserts that none of the specified new schedules were published.
+     *
+     * @param schedules the disallowed schedules
      */
     Then<R> expectNoNewSchedulesLike(Object... schedules);
 
     /**
-     * Assert that no new schedules got published.
+     * Asserts that no new schedules were published.
+     * <p>
+     * Equivalent to {@code expectOnlyNewSchedules()}.
      */
     default Then<R> expectNoNewSchedules() {
         return expectOnlyNewSchedules();
     }
 
     /**
-     * Assert that the given schedules are still active.
+     * Asserts that the given schedules are currently still active.
      * <p>
-     * A schedule may be an instance of {@link Message} in which case it will be tested against published schedules
-     * including any of the Message's metadata. Otherwise, the schedule is tested against published schedules using the
-     * passed value as payload without additional metadata. If the schedule is an instance of a {@link Schedule} the
-     * deadline of the expected schedule will also be tested against published schedules.
-     * <p>
-     * A schedule may also be an instance of {@link Predicate}, hamcrest matcher, or Class. A schedule may also refer to
-     * a json resource in the class path of the unit test by passing a string ending in `.json`, e.g.
-     * "expected/create-user.json".
+     * This checks the system's internal state after the {@code when} phase.
      */
     Then<R> expectSchedules(Object... schedules);
 
     /**
-     * Test if a schedule is still active that matches the given predicate.
+     * Shorthand for asserting that an active schedule matches the given predicate.
+     *
+     * @param predicate matcher to apply to active schedules
      */
     default Then<R> expectSchedule(Predicate<Schedule> predicate) {
         return expectSchedules(predicate);
     }
 
     /**
-     * Test if the given schedules are the *only* schedules that are still active.
-     * <p>
-     * A schedule may be an instance of {@link Message} in which case it will be tested against published schedules
-     * including any of the Message's metadata. Otherwise, the schedule is tested against published schedules using the
-     * passed value as payload without additional metadata. If the schedule is an instance of a {@link Schedule} the
-     * deadline of the expected schedule will also be tested against published schedules.
-     * <p>
-     * A schedule may also be an instance of {@link Predicate}, hamcrest matcher, or Class. A schedule may also refer to
-     * a json resource in the class path of the unit test by passing a string ending in `.json`, e.g.
-     * "expected/create-user.json".
+     * Asserts that only the given schedules are currently active.
      */
     Then<R> expectOnlySchedules(Object... schedules);
 
     /**
-     * Assert that the given schedules are not active.
-     * <p>
-     * A schedule may be an instance of {@link Message} in which case it will be tested against published schedules
-     * including any of the Message's metadata. Otherwise, the schedule is tested against published schedules using the
-     * passed value as payload without additional metadata. If the schedule is an instance of a {@link Schedule} the
-     * deadline of the expected schedule will also be tested against published schedules.
-     * <p>
-     * A schedule may also be an instance of {@link Predicate}, hamcrest matcher, or Class. A schedule may also refer to
-     * a json resource in the class path of the unit test by passing a string ending in `.json`, e.g.
-     * "expected/create-user.json".
+     * Asserts that none of the specified schedules are currently active.
      */
     Then<R> expectNoSchedulesLike(Object... schedules);
 
     /**
-     * Assert that there are no running schedules.
+     * Asserts that there are no schedules currently active.
+     * <p>
+     * Equivalent to {@code expectOnlySchedules()}.
      */
     default Then<R> expectNoSchedules() {
         return expectOnlySchedules();
     }
 
     /*
-        Normal result
+        Normal Result
      */
 
     /**
-     * Test if the actual result of the test fixture matches the given result.
+     * Asserts that the result produced during the {@code when} phase matches the given value.
      * <p>
-     * The given result may be a {@link Predicate}, hamcrest matcher, or Class. The result may also refer to a json
-     * resource in the class path of the unit test by passing a string ending in `.json`, e.g.
-     * "expected/create-user.json". In all other cases, the test fixture result will be compared to the given result by
-     * checking if the results are equal via {@link Objects#equals(Object, Object)}.
+     * The expected value may be:
+     * <ul>
+     *   <li>A POJO — matched using {@link Objects#equals(Object, Object)}</li>
+     *   <li>A {@link Predicate}, Hamcrest matcher, or {@link Class} — used for dynamic or type-based checks</li>
+     *   <li>A path to a {@code .json} resource — deserialized and matched using {@link io.fluxcapacitor.common.serialization.JsonUtils}</li>
+     * </ul>
      */
     Then<R> expectResult(Object result);
 
     /**
-     * Test if the actual result of the test fixture is an instance of the given class.
+     * Asserts that the result is an instance of the specified class. Also casts the result to that class in the
+     * returned {@code Then} step.
      */
     default <R2 extends R> Then<R2> expectResult(@NonNull Class<? extends R2> resultClass) {
         return this.expectResult(r -> r instanceof Class<?> ? r.equals(resultClass) : resultClass.isInstance(r),
@@ -520,15 +496,16 @@ public interface Then<R> {
     }
 
     /**
-     * Test if the actual result of the test fixture matches the given predicate.
+     * Asserts that the result matches the provided predicate.
      */
     default <R2 extends R> Then<R2> expectResult(Predicate<R2> predicate) {
         return expectResult(predicate, "Predicate matcher");
     }
 
     /**
-     * Verify if the actual result of the test fixture matches using the given verifier. If the verifier yields an
-     * exception, the test will fail.
+     * Executes an imperative check against the result using a verifier function.
+     * <p>
+     * If the verifier throws an exception, the test fails.
      */
     default <R2 extends R> Then<R2> verifyResult(ThrowingConsumer<R2> verifier) {
         return expectResult(r -> {
@@ -545,26 +522,26 @@ public interface Then<R> {
     }
 
     /**
-     * Assert that the actual result of the test fixture matches the given predicate summarized by given description.
+     * Asserts that the result matches the given predicate and provides a descriptive label for failures.
      */
     <R2 extends R> Then<R2> expectResult(Predicate<R2> predicate, String description);
 
     /**
-     * Assert that the actual result of the test fixture is a {@link Message} and matches the given predicate.
+     * Asserts that the result is a {@link Message} that matches the given predicate.
      */
     default <M extends Message> Then<R> expectResultMessage(Predicate<M> messagePredicate) {
         return expectResultMessage(messagePredicate, "Predicate matcher");
     }
 
     /**
-     * ssert that the actual result of the test fixture is a {@link Message} and matches the given predicate summarized
-     * by given description.
+     * Asserts that the result is a {@link Message} and matches the given predicate and label.
      */
     <M extends Message> Then<R> expectResultMessage(Predicate<M> messagePredicate, String description);
 
     /**
-     * Verify if the actual result of the test fixture matches using the given verifier. If the verifier yields an
-     * exception, the test will fail.
+     * Verifies the result as a {@link Message} using an imperative assertion.
+     * <p>
+     * Throws an exception if the verifier fails.
      */
     @SuppressWarnings("unchecked")
     default <M extends Message> Then<R> verifyResultMessage(ThrowingConsumer<M> verifier) {
@@ -582,44 +559,34 @@ public interface Then<R> {
     }
 
     /**
-     * Assert that the result of the test fixture is non-null.
+     * Asserts that the result is not {@code null}.
      */
     default Then<R> expectNonNullResult() {
         return expectResult(Objects::nonNull);
     }
 
     /**
-     * Assert that the test fixture did not yield a result or exception (i.e. actual result is {@code null}).
+     * Asserts that no result was produced (i.e. {@code null}).
      */
     default Then<R> expectNoResult() {
         return expectResult((Object) null);
     }
 
     /**
-     * Assert that the test fixture did *not* yield a result matching the given result.
+     * Asserts that the result is not equal to the given value.
      * <p>
-     * The given result may be a {@link Predicate}, hamcrest matcher, or Class. The result may also refer to a json
-     * resource in the class path of the unit test by passing a string ending in `.json`, e.g.
-     * "expected/create-user.json". In all other cases, the test fixture result will be compared to the given result by
-     * checking if the results are equal via {@link Objects#equals(Object, Object)}.
+     * Useful for exclusion-based testing or negative assertions.
      */
     Then<R> expectNoResultLike(Object result);
 
     /**
-     * Assert that the actual result of the test fixture is a {@link Collection} or {@link Map} with containing values
-     * that match the given results.
-     * <p>
-     * A given result may be a {@link Predicate}, hamcrest matcher, or Class. The result may also refer to a json
-     * resource in the class path of the unit test by passing a string ending in `.json`, e.g.
-     * "expected/create-user.json". In all other cases, the test fixture result will be compared to the given result by
-     * checking if the results are equal via {@link Objects#equals(Object, Object)}.
+     * Asserts that the result is a {@link Collection} or {@link Map} and contains values matching the given inputs.
      */
     @SuppressWarnings("unchecked")
     <T> Then<R> expectResultContaining(T... results);
 
     /**
-     * Maps the expected result of the test fixture to something else using the given {@code resultMapper}. This is
-     * typically used to simplify result checks.
+     * Transforms the result using the provided {@code resultMapper} function for continued assertions.
      */
     <MR> Then<MR> mapResult(Function<? super R, ? extends MR> resultMapper);
 
@@ -628,24 +595,30 @@ public interface Then<R> {
      */
 
     /**
-     * Assert that the test fixture completed exceptionally and that the exception matches the given result.
+     * Asserts that the behavior under test completed exceptionally, and that the thrown exception matches the given
+     * value.
      * <p>
-     * The given result may be a {@link Predicate}, hamcrest matcher, or Class. The result may also refer to a json
-     * resource in the class path of the unit test by passing a string ending in `.json`, e.g.
-     * "expected/create-user.json". In all other cases, the test fixture result will be compared to the given result by
-     * checking if the results are equal via {@link Objects#equals(Object, Object)}.
+     * Supported formats for the expected exception:
+     * <ul>
+     *   <li>A {@link Class} — checks if the exception is an instance of the class</li>
+     *   <li>A {@link Predicate}, Hamcrest matcher — applied to the exception</li>
+     *   <li>A {@code .json} path — deserialized and matched using {@link io.fluxcapacitor.common.serialization.JsonUtils}</li>
+     *   <li>Any object — compared via {@link Objects#equals(Object, Object)}</li>
+     * </ul>
      */
     Then<R> expectExceptionalResult(Object expectedException);
 
     /**
-     * Assert that the test fixture completed exceptionally.
+     * Asserts that the behavior under test completed exceptionally (with any non-null exception).
      */
     default Then<R> expectExceptionalResult() {
         return expectExceptionalResult(Objects::nonNull);
     }
 
     /**
-     * Assert that the test fixture completed exceptionally and that the exception is an instance of the given class.
+     * Asserts that the behavior under test threw an exception that is an instance of the specified class.
+     *
+     * @param exceptionClass the expected exception type
      */
     default Then<R> expectExceptionalResult(@NonNull Class<? extends Throwable> exceptionClass) {
         return expectExceptionalResult(exceptionClass::isInstance,
@@ -653,15 +626,27 @@ public interface Then<R> {
     }
 
     /**
-     * Assert that the test fixture completed exceptionally and that the exception matches the given predicate.
+     * Asserts that the thrown exception matches the given {@link Predicate}.
+     *
+     * @param predicate condition to apply to the thrown exception
      */
     default <T extends Throwable> Then<R> expectExceptionalResult(Predicate<T> predicate) {
         return expectExceptionalResult(predicate, "Predicate matcher");
     }
 
     /**
-     * Assert that the test fixture completed exceptionally and verify the exception using the given verifier. Only if
-     * the verifier yields an exception, the test fails.
+     * Asserts that the thrown exception matches the given {@link Predicate} and includes a description for error
+     * messages.
+     *
+     * @param predicate    a matcher to apply
+     * @param errorMessage a description used in case of failure
+     */
+    <T extends Throwable> Then<R> expectExceptionalResult(Predicate<T> predicate, String errorMessage);
+
+    /**
+     * Verifies the thrown exception using the given {@link ThrowingConsumer}. The test fails if the consumer throws.
+     *
+     * @param verifier assertion logic to apply to the exception
      */
     @SuppressWarnings("unchecked")
     default <T extends Throwable> Then<R> verifyExceptionalResult(ThrowingConsumer<T> verifier) {
@@ -679,21 +664,16 @@ public interface Then<R> {
     }
 
     /**
-     * Assert that the test fixture completed exceptionally and that the exception matches the given predicate described
-     * by the given error message.
-     */
-    <T extends Throwable> Then<R> expectExceptionalResult(Predicate<T> predicate, String errorMessage);
-
-    /**
-     * Assert that the test fixture completed without exceptional result.
+     * Asserts that the behavior under test completed successfully (i.e. no exception thrown).
      */
     default Then<R> expectSuccessfulResult() {
         return expectResult(r -> !(r instanceof Throwable));
     }
 
     /**
-     * Assert that the test fixture completed without exceptional result and also provides a quick way to cast the
-     * fixture result to have the type of the given argument {@link R2}.
+     * Shortcut for asserting a successful result and casting it to a specific type.
+     *
+     * @param <R2> the expected result subtype
      */
     @SuppressWarnings("unchecked")
     default <R2 extends R> Then<R2> expectResult() {
@@ -705,29 +685,33 @@ public interface Then<R> {
      */
 
     /**
-     * Assert that the test fixture handler yielded an exception anywhere. This error does not need to be the returned
-     * result of the action in the `when` phase. To assert that use methods that test for exceptional results.
+     * Asserts that an error occurred anywhere in a handler during the {@code when} phase.
      * <p>
-     * The error may be a {@link Predicate}, hamcrest matcher, or Class. The error may also refer to a json resource in
-     * the class path of the unit test by passing a string ending in `.json`, e.g. "expected/create-user.json". In all
-     * other cases, the actual error will be compared to the given error by checking if the errors are equal via
-     * {@link Objects#equals(Object, Object)}.
+     * This is distinct from {@link #expectExceptionalResult(Object)}: it catches thrown handler errors
+     * that did not become the actual result (e.g. logged or swallowed exceptions).
+     * <p>
+     * You may pass:
+     * <ul>
+     *   <li>A {@link Predicate}, Hamcrest matcher, or {@link Class}</li>
+     *   <li>A {@code .json} resource string</li>
+     *   <li>Any object for {@link Objects#equals} comparison</li>
+     * </ul>
      */
     Then<R> expectError(Object expectedError);
 
     /**
-     * Assert that the test fixture handler yielded an exception anywhere and that the exception matches the given
-     * predicate. This error does not need to be the returned result of the action in the `when` phase. To assert that
-     * use methods that test for exceptional results.
+     * Asserts that a handler error occurred matching the given predicate.
+     *
+     * @param predicate matcher to apply to the error
      */
     default <T extends Throwable> Then<R> expectError(Predicate<T> predicate) {
         return expectError(predicate, "Predicate matcher");
     }
 
     /**
-     * Verify that the test fixture handler yielded an exception anywhere and test the exception using the given
-     * verifier. If the verifier yields an  exception, the test will fail. This error does not need to be the returned
-     * result of the action in the `when` phase. To assert that use methods that test for exceptional results.
+     * Verifies the handler error using a {@link ThrowingConsumer}.
+     * <p>
+     * The test fails if the verifier throws an exception.
      */
     @SuppressWarnings("unchecked")
     @SneakyThrows
@@ -746,31 +730,29 @@ public interface Then<R> {
     }
 
     /**
-     * Assert that the test fixture handler yielded an exception anywhere. This error does not need to be the returned
-     * result of the action in the `when` phase. To assert that use methods that test for exceptional results.
+     * Asserts that any handler error occurred during the {@code when} phase.
      */
     default Then<R> expectError() {
         return expectError(Objects::nonNull);
     }
 
     /**
-     * Assert that the test fixture handler yielded an exception anywhere and that the exception is an instance of given
-     * error class. This error does not need to be the returned result of the action in the `when` phase. To assert that
-     * use methods that test for exceptional results.
+     * Asserts that an error occurred and it is an instance of the given class.
      */
     default Then<R> expectError(@NonNull Class<? extends Throwable> errorClass) {
         return expectError(errorClass::isInstance, format("an instance of %s", errorClass.getSimpleName()));
     }
 
     /**
-     * Assert that the test fixture handler yielded an exception anywhere and that the exception matches the given
-     * predicate described by given error message. This error does not need to be the returned result of the action in
-     * the `when` phase. To assert that use methods that test for exceptional results.
+     * Asserts that a handler error occurred matching the given predicate and includes a message on failure.
+     *
+     * @param predicate matcher for the error
+     * @param errorMessage description for assertion failure
      */
     <T extends Throwable> Then<R> expectError(Predicate<T> predicate, String errorMessage);
 
     /**
-     * Assert that there has not been any error produced by any handler.
+     * Asserts that no errors were raised by any handler during the {@code when} phase.
      */
     Then<R> expectNoErrors();
 
@@ -779,53 +761,45 @@ public interface Then<R> {
      */
 
     /**
-     * Test if the given metrics got published.
+     * Asserts that one or more metrics were published during the {@code when} phase.
      * <p>
-     * An metric may be an instance of {@link Message} in which case it will be tested against published metrics
-     * including any of the Message's metadata. Otherwise, the metric is tested against published metrics using the
-     * passed value as payload without additional metadata.
-     * <p>
-     * A metric may also be an instance of {@link Predicate}, hamcrest matcher, or Class. A metric may also refer to a
-     * json resource in the class path of the unit test by passing a string ending in `.json`, e.g.
-     * "expected/create-user.json".
+     * Each metric can be:
+     * <ul>
+     *   <li>A {@link Message} — matched including metadata</li>
+     *   <li>A POJO — matched by payload only</li>
+     *   <li>A {@link Predicate}, Hamcrest matcher, or {@link Class}</li>
+     *   <li>A {@code .json} path — deserialized using {@link io.fluxcapacitor.common.serialization.JsonUtils}</li>
+     * </ul>
      */
     Then<R> expectMetrics(Object... metrics);
 
     /**
-     * Test if a metric got published that matches the given predicate.
+     * Shorthand for asserting that at least one published metric matches the given predicate.
+     *
+     * @param predicate matcher applied to metric payloads
      */
     default <T> Then<R> expectMetric(Predicate<T> predicate) {
         return expectMetrics(predicate);
     }
 
     /**
-     * Test if the given metrics are the *only* events that got published.
+     * Asserts that only the specified metrics were published during the {@code when} phase.
      * <p>
-     * An event may be an instance of {@link Message} in which case it will be tested against published metrics
-     * including any of the Message's metadata. Otherwise, the metric is tested against published events using the
-     * passed value as payload without additional metadata.
-     * <p>
-     * A metric may also be an instance of {@link Predicate}, hamcrest matcher, or Class. A metric may also refer to a
-     * json resource in the class path of the unit test by passing a string ending in `.json`, e.g.
-     * "expected/create-user.json".
+     * Equivalent to {@code expectMetrics(...)} combined with an assertion that no other metrics occurred.
      */
     Then<R> expectOnlyMetrics(Object... metrics);
 
     /**
-     * Assert that the given metrics did *not* get published.
-     * <p>
-     * A metric may be an instance of {@link Message} in which case it will be tested against published metrics
-     * including any of the Message's metadata. Otherwise, the metric is tested against published metrics using the
-     * passed value as payload without additional metadata.
-     * <p>
-     * A metric may also be an instance of {@link Predicate}, hamcrest matcher, or Class. A metric may also refer to a
-     * json resource in the class path of the unit test by passing a string ending in `.json`, e.g.
-     * "expected/create-user.json".
+     * Asserts that none of the specified metrics were published.
+     *
+     * @param metrics the disallowed metrics
      */
     Then<R> expectNoMetricsLike(Object... metrics);
 
     /**
-     * Assert that no metrics got published.
+     * Asserts that no metrics were published.
+     * <p>
+     * Equivalent to {@code expectOnlyMetrics()}.
      */
     default Then<R> expectNoMetrics() {
         return expectOnlyMetrics();
@@ -836,19 +810,27 @@ public interface Then<R> {
      */
 
     /**
-     * Assert that the test fixture is in the correct state after the `when` phase. You can e.g. use this to verify that
-     * mocked methods were invoked correctly.
+     * Asserts an arbitrary condition against the current state of the {@link FluxCapacitor} instance.
+     * <p>
+     * Useful for validating system state, mock interactions, or side effects not covered by message assertions.
+     *
+     * @param check a consumer that performs assertions using the FluxCapacitor instance
      */
     Then<R> expectThat(Consumer<FluxCapacitor> check);
 
     /**
-     * Assert that the test fixture is in the correct state after the `when` phase using the given predicate.
+     * Asserts that the provided {@link Predicate} evaluates to {@code true} when applied to the current FluxCapacitor instance.
+     *
+     * @param check predicate to evaluate
      */
     Then<R> expectTrue(Predicate<FluxCapacitor> check);
 
     /**
-     * Assert that the test fixture is in the correct state after the `when` phase by checking that the given predicate
-     * returns false.
+     * Asserts that the provided {@link Predicate} evaluates to {@code false} when applied to the current FluxCapacitor instance.
+     * <p>
+     * Equivalent to {@code expectTrue(check.negate())}.
+     *
+     * @param check predicate to evaluate
      */
     default Then<R> expectFalse(Predicate<FluxCapacitor> check) {
         return expectTrue(check.negate());
@@ -858,6 +840,11 @@ public interface Then<R> {
         And then
      */
 
+    /**
+     * Begins a new {@code given} phase from the current state, allowing chained scenario construction.
+     * <p>
+     * This is useful for multi-step flows: e.g. {@code given(...).when(...).then(...).andThen().when(...).then(...)}.
+     */
     Given andThen();
 
 }

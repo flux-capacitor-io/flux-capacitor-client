@@ -48,6 +48,28 @@ import static io.fluxcapacitor.javaclient.common.Message.asMessage;
 import static java.lang.String.format;
 import static java.util.stream.Collectors.toList;
 
+/**
+ * Default implementation of {@link Then} used to validate the outcome of a {@code when} phase in a behavioral test
+ * using {@link TestFixture}.
+ * <p>
+ * This class is created internally by the test fixture after executing a {@code whenXyz(...)} method and provides
+ * fluent assertions for validating published messages (commands, events, etc.), test results, errors, schedules, and
+ * more.
+ * <p>
+ * Assertions in this class support rich matching:
+ * <ul>
+ *   <li>Direct object equality</li>
+ *   <li>{@link java.util.function.Predicate} for custom logic</li>
+ *   <li>{@code .json} resources loaded via {@link io.fluxcapacitor.common.serialization.JsonUtils}</li>
+ *   <li>Type-based and matcher-based comparisons</li>
+ * </ul>
+ * <p>
+ * Most assertions delegate to helper methods such as {@code expect()}, {@code expectOnly()}, or {@code expectNo()}.
+ * Result comparison supports both normal and exceptional outcomes.
+ * <p>
+ * This class is typically not used directly by users, but it powers the fluent API exposed by {@link Then} after the
+ * {@code when} phase.
+ */
 @Slf4j
 @AllArgsConstructor
 public class ResultValidator<R> implements Then<R> {
@@ -64,6 +86,24 @@ public class ResultValidator<R> implements Then<R> {
     private final List<Throwable> errors;
     private final Map<String, List<Message>> customMessages;
 
+    /**
+     * Constructs a {@code ResultValidator} based on the given {@link TestFixture}.
+     * <p>
+     * This constructor captures all messages and results from the most recent {@code when} phase execution of the fixture.
+     * These are used internally by this class to perform assertions in subsequent {@code then} phase validations.
+     * <p>
+     * Captured state includes:
+     * <ul>
+     *   <li>The result (or exception) returned by the {@code when} phase</li>
+     *   <li>All messages published during execution (commands, events, web requests/responses, etc.)</li>
+     *   <li>New and active schedules</li>
+     *   <li>Errors raised by message handlers</li>
+     * </ul>
+     * <p>
+     * This constructor is typically invoked internally by the fixture and not directly by users.
+     *
+     * @param testFixture the fixture from which to derive captured state for validation
+     */
     public ResultValidator(TestFixture testFixture) {
         this.testFixture = testFixture;
         fluxCapacitor = testFixture.getFluxCapacitor();

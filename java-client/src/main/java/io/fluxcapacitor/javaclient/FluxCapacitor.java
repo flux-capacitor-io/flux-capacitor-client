@@ -57,6 +57,7 @@ import io.fluxcapacitor.javaclient.publishing.WebRequestGateway;
 import io.fluxcapacitor.javaclient.publishing.correlation.CorrelationDataProvider;
 import io.fluxcapacitor.javaclient.publishing.correlation.DefaultCorrelationDataProvider;
 import io.fluxcapacitor.javaclient.scheduling.MessageScheduler;
+import io.fluxcapacitor.javaclient.scheduling.Schedule;
 import io.fluxcapacitor.javaclient.tracking.Tracker;
 import io.fluxcapacitor.javaclient.tracking.Tracking;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
@@ -200,7 +201,8 @@ public interface FluxCapacitor extends AutoCloseable {
      * Publishes the given application event. The event may be an instance of a {@link Message} in which case it will be
      * published as is. Otherwise the event is published using the passed value as payload without additional metadata.
      *
-     * <p><strong>Note:</strong> These events are <em>not</em> persisted for event sourcing. To publish domain events as
+     * <p><strong>Note:</strong> These events are <em>not</em> persisted for event sourcing. To publish domain events
+     * as
      * part of an aggregate lifecycle, apply the events using {@link Entity#apply} after loading an entity.</p>
      *
      * @see #aggregateRepository() if you're interested in publishing events that belong to an aggregate.
@@ -212,7 +214,8 @@ public interface FluxCapacitor extends AutoCloseable {
     /**
      * Publishes an event with given payload and metadata.
      *
-     * <p><strong>Note:</strong> These events are <em>not</em> persisted for event sourcing. To publish domain events as
+     * <p><strong>Note:</strong> These events are <em>not</em> persisted for event sourcing. To publish domain events
+     * as
      * part of an aggregate lifecycle, apply the events using {@link Entity#apply} after loading an entity.</p>
      *
      * @see #publishEvent(Object) for more info
@@ -225,7 +228,8 @@ public interface FluxCapacitor extends AutoCloseable {
      * Publishes given application events. The events may be instances of {@link Message} in which case they will be
      * published as is. Otherwise, the events are published using the passed value as payload without additional
      * metadata.
-     * <p><strong>Note:</strong> These events are <em>not</em> persisted for event sourcing. To publish domain events as
+     * <p><strong>Note:</strong> These events are <em>not</em> persisted for event sourcing. To publish domain events
+     * as
      * part of an aggregate lifecycle, apply the events using {@link Entity#apply} after loading an entity.</p>
      *
      * @see #aggregateRepository() if you're interested in publishing events that belong to an aggregate.
@@ -491,6 +495,15 @@ public interface FluxCapacitor extends AutoCloseable {
      */
     static void schedule(Object schedule, String scheduleId, Duration delay) {
         get().messageScheduler().schedule(schedule, scheduleId, delay);
+    }
+
+    /**
+     * Schedule a message object (of type {@link Schedule}) for execution, using the {@link Guarantee#SENT} guarantee.
+     *
+     * @param schedule the message to schedule
+     */
+    static void schedule(Schedule schedule) {
+        get().messageScheduler().schedule(schedule);
     }
 
     /**

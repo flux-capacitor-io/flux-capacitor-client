@@ -36,6 +36,8 @@ import io.fluxcapacitor.javaclient.common.ClientUtils;
 import io.fluxcapacitor.javaclient.common.IdentityProvider;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
+import io.fluxcapacitor.javaclient.common.serialization.casting.Downcast;
+import io.fluxcapacitor.javaclient.common.serialization.casting.Upcast;
 import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
 import io.fluxcapacitor.javaclient.configuration.FluxCapacitorBuilder;
 import io.fluxcapacitor.javaclient.configuration.client.Client;
@@ -119,51 +121,194 @@ import static java.util.stream.Collectors.toMap;
 import static java.util.stream.Collectors.toSet;
 import static java.util.stream.Stream.empty;
 
+/**
+ * A test harness for simulating and verifying message-driven behavior using the Flux Capacitor framework.
+ * <p>
+ * A {@code TestFixture} enables writing tests in the Given-When-Then format. It allows simulating messages, time
+ * travel, and verifying resulting effects such as commands, events, errors, web requests, and system state.
+ * <p>
+ * The fixture operates in one of two modes:
+ * <ul>
+ *   <li>{@link #create(Object...)} — synchronous mode: all handlers are treated as local, executed on the calling thread</li>
+ *   <li>{@link #createAsync(Object...)} — asynchronous mode: messages are dispatched and consumed across threads, closely simulating production runtime behavior</li>
+ * </ul>
+ * In async mode, handlers behave as they would in real deployments. This means:
+ * <ul>
+ *   <li>Tracked messages are processed via trackers</li>
+ *   <li>Non-local handlers are scheduled and dispatched asynchronously</li>
+ *   <li>Handlers annotated with {@code @LocalHandler} still execute locally (on the calling thread)</li>
+ * </ul>
+ *
+ * <p>
+ * Handlers may be registered by class or by instance. In general:
+ * <ul>
+ *   <li>Stateless singleton handlers may be registered either by instance or class</li>
+ *   <li>Handlers annotated with {@code @Stateful}, {@code @TrackSelf}, or {@code @SocketEndpoint} must be registered by <strong>class</strong> only</li>
+ * </ul>
+ *
+ * <p>
+ * JSON files may be used in any {@code givenXyz(...)} or {@code whenXyz(...)} methods. Any string argument ending in {@code ".json"}
+ * will be resolved as a resource, loaded and deserialized using {@link JsonUtils}.
+ * <br> The JSON must include an {@code @class} declaration to indicate the object type to deserialize.
+ * <br> JSON resources may also {@code @extends} another file to support inheritance and override behavior.
+ *
+ * <h2>Example 1: Issue a command and expect a result and event</h2>
+ *
+ * <pre>{@code
+ * TestFixture fixture = TestFixture.create(new UserHandler());
+ *
+ * fixture.givenCommands("input/create-user.json")
+ *        .whenCommand("input/update-user.json")
+ *        .expectResult("expected/update-user-response.json")
+ *        .expectEvents(UpdateUser.class);
+ * }</pre>
+ *
+ * <h2>Example 2: Using predicates and class-based matchers</h2>
+ *
+ * <pre>{@code
+ * fixture.whenCommand(new DeleteUser("userId-123"))
+ *        .expectResult(r -> r instanceof SuccessResponse)
+ *        .expectEvent(DeleteUser.class);
+ * }</pre>
+ *
+ * <h2>Example 3: Asserting no side effects occurred</h2>
+ *
+ * <pre>{@code
+ * fixture.whenCommand("input/no-op-command.json")
+ *        .expectNoEvents()
+ *        .expectNoResult()
+ *        .expectNoErrors();
+ * }</pre>
+ *
+ * <h2>Continuing to the next phase</h2>
+ *
+ * <pre>{@code
+ * fixture.whenCommand("input/command-a.json")
+ *        .expectResult("expected/result-a.json")
+ *        .andThen()
+ *        .whenCommand("input/command-b.json")
+ *        .expectResult("expected/result-b.json");
+ * }</pre>
+ *
+ * @see Given
+ * @see When
+ * @see Then
+ * @see #create(Object...)
+ * @see #createAsync(Object...)
+ * @see JsonUtils
+ */
 @Slf4j
 @Getter(AccessLevel.PACKAGE)
 public class TestFixture implements Given, When {
-    /*
-        Synchronous test fixture: Messages are dispatched and consumed in the same thread (i.e. all handlers are registered as local handlers)
+    /**
+     * Creates a synchronous {@code TestFixture} with the given handlers.
+     * <p>
+     * In synchronous mode, all messages are dispatched and handled in the same thread. Handlers are automatically
+     * registered as local handlers.
+     *
+     * @param handlers one or more handler instances or handler classes to register
+     * @return a new {@code TestFixture} instance
      */
-
     public static TestFixture create(Object... handlers) {
         return create(DefaultFluxCapacitor.builder(), handlers);
     }
 
+    /**
+     * Creates a synchronous {@code TestFixture} using a custom {@link FluxCapacitorBuilder} and handlers.
+     *
+     * @param fluxCapacitorBuilder a builder for configuring the test FluxCapacitor instance
+     * @param handlers             one or more handler instances or classes
+     * @return a new {@code TestFixture}
+     */
     public static TestFixture create(FluxCapacitorBuilder fluxCapacitorBuilder, Object... handlers) {
         return create(fluxCapacitorBuilder, fc -> Arrays.asList(handlers));
     }
 
+    /**
+     * Creates a synchronous {@code TestFixture} using a factory function to produce handlers after the
+     * {@link FluxCapacitor} is built.
+     *
+     * @param handlersFactory a function that takes a {@link FluxCapacitor} and returns a list of handler instances
+     * @return a new {@code TestFixture}
+     */
     public static TestFixture create(Function<FluxCapacitor, List<?>> handlersFactory) {
         return create(DefaultFluxCapacitor.builder(), handlersFactory);
     }
 
+    /**
+     * Creates a synchronous {@code TestFixture} using a custom {@link FluxCapacitorBuilder} and a handler factory.
+     *
+     * @param fluxCapacitorBuilder a builder for configuring the FluxCapacitor instance
+     * @param handlersFactory      a function that takes a {@link FluxCapacitor} and returns a list of handler
+     *                             instances
+     * @return a new {@code TestFixture}
+     */
     public static TestFixture create(FluxCapacitorBuilder fluxCapacitorBuilder,
                                      Function<FluxCapacitor, List<?>> handlersFactory) {
         return new TestFixture(fluxCapacitorBuilder, handlersFactory, LocalClient.newInstance(null), true);
     }
 
-    /*
-        Async test fixture: Messages are dispatched and consumed in different threads (unless a handler is a local handler).
+    /**
+     * Creates an asynchronous {@code TestFixture} with the given handlers.
+     * <p>
+     * In async mode, messages are dispatched to handlers in separate threads unless they are marked with
+     * {@code @LocalHandler}.
+     *
+     * @param handlers one or more handler instances or classes
+     * @return a new {@code TestFixture}
      */
-
     public static TestFixture createAsync(Object... handlers) {
         return createAsync(DefaultFluxCapacitor.builder(), handlers);
     }
 
+    /**
+     * Creates an asynchronous {@code TestFixture} using a custom {@link FluxCapacitorBuilder} and handlers.
+     *
+     * @param fluxCapacitorBuilder a builder for configuring the FluxCapacitor instance
+     * @param handlers             one or more handler instances or classes
+     * @return a new {@code TestFixture}
+     */
     public static TestFixture createAsync(FluxCapacitorBuilder fluxCapacitorBuilder, Object... handlers) {
         return createAsync(fluxCapacitorBuilder, fc -> Arrays.asList(handlers));
     }
 
+    /**
+     * Creates an asynchronous {@code TestFixture} using a factory function to produce handlers after the
+     * {@link FluxCapacitor} is built.
+     *
+     * @param handlersFactory a function that takes a {@link FluxCapacitor} and returns a list of handler instances
+     * @return a new {@code TestFixture}
+     */
     public static TestFixture createAsync(Function<FluxCapacitor, List<?>> handlersFactory) {
         return createAsync(DefaultFluxCapacitor.builder(), handlersFactory);
     }
 
+    /**
+     * Creates an asynchronous {@code TestFixture} using a custom {@link FluxCapacitorBuilder} and a factory function to
+     * produce handlers after the {@link FluxCapacitor} is built.
+     *
+     * @param fluxCapacitorBuilder a builder for configuring the FluxCapacitor instance
+     * @param handlersFactory      a function that takes a {@link FluxCapacitor} and returns a list of handler
+     *                             instances
+     * @return a new {@code TestFixture}
+     */
     public static TestFixture createAsync(FluxCapacitorBuilder fluxCapacitorBuilder,
                                           Function<FluxCapacitor, List<?>> handlersFactory) {
         return new TestFixture(fluxCapacitorBuilder, handlersFactory, LocalClient.newInstance(null), false);
     }
 
+    /**
+     * Creates an asynchronous {@code TestFixture} using a custom {@link FluxCapacitorBuilder}, a handler factory, and a
+     * preconfigured {@link Client}.
+     * <p>
+     * This variant allows more control over the test environment—for example, injecting a customized local or remote
+     * client implementation.
+     *
+     * @param fluxCapacitorBuilder builder for configuring the FluxCapacitor instance
+     * @param client               the client to use in the test fixture
+     * @param handlers             one or more handler instances or classes
+     * @return a new {@code TestFixture}
+     */
     public static TestFixture createAsync(FluxCapacitorBuilder fluxCapacitorBuilder, Client client,
                                           Object... handlers) {
         return new TestFixture(fluxCapacitorBuilder, fc -> Arrays.asList(handlers), client, false);
@@ -180,7 +325,7 @@ public class TestFixture implements Given, When {
     private Duration consumerTimeout = defaultConsumerTimeout;
     private final boolean synchronous;
     private final boolean spying;
-    private final boolean defaultUserProvider;
+    private final boolean productionUserProvider;
     private Registration registration = Registration.noOp();
 
     private final Map<ActiveConsumer, List<Message>> consumers = new ConcurrentHashMap<>();
@@ -213,7 +358,7 @@ public class TestFixture implements Given, When {
         activeFixtures.get().add(this);
         this.synchronous = synchronous;
         this.spying = false;
-        this.defaultUserProvider = false;
+        this.productionUserProvider = false;
         Optional<TestUserProvider> userProvider =
                 Optional.ofNullable(UserProvider.defaultUserProvider).map(TestUserProvider::new);
         if (userProvider.isPresent()) {
@@ -258,15 +403,15 @@ public class TestFixture implements Given, When {
     }
 
     protected TestFixture(TestFixture currentFixture, boolean synchronous, boolean spying,
-                          boolean defaultUserProvider) {
+                          boolean productionUserProvider) {
         activeFixtures.get().add(this);
         this.synchronous = synchronous;
         this.spying = spying;
-        this.defaultUserProvider = defaultUserProvider;
+        this.productionUserProvider = productionUserProvider;
 
         this.fluxCapacitorBuilder = currentFixture.fluxCapacitorBuilder;
         Optional.ofNullable(UserProvider.defaultUserProvider)
-                .map(provider -> defaultUserProvider ? provider : new TestUserProvider(provider))
+                .map(provider -> productionUserProvider ? provider : new TestUserProvider(provider))
                 .ifPresent(this.fluxCapacitorBuilder::registerUserProvider);
         (this.interceptor = currentFixture.interceptor).testFixture = this;
         var currentClient = currentFixture.fluxCapacitor.client().unwrap();
@@ -287,78 +432,67 @@ public class TestFixture implements Given, When {
      */
 
     /**
-     * Sets the maximum duration this test fixture will wait for a response of a request passed in the given- or
-     * when-phase.
+     * Sets the maximum time to wait for a response to a request in the {@code given} and {@code when} phase.
      * <p>
-     * This is only relevant if the test fixture is asynchronous.
+     * Relevant only in asynchronous mode. Defaults to 2 seconds.
      */
     public TestFixture resultTimeout(Duration resultTimeout) {
         return modifyFixture(fixture -> fixture.resultTimeout = resultTimeout);
     }
 
     /**
-     * Sets the maximum duration this test fixture will wait for a consumer to finish handling messages dispatched
-     * during the given- or when-phase.
+     * Sets the maximum time to wait for message consumers to finish processing during {@code given} and {@code when}.
      * <p>
-     * This is only relevant if the test fixture is asynchronous.
+     * Relevant only in asynchronous mode. Defaults to 5 seconds.
      */
     public TestFixture consumerTimeout(Duration consumerTimeout) {
         return modifyFixture(fixture -> fixture.consumerTimeout = consumerTimeout);
     }
 
     /**
-     * Returns an asynchronous version of this test fixture. If the current fixture is asynchronous already, it is
-     * returned unmodified.
-     * <p>
-     * The returned test fixture will have a nearly identical state, i.e. it will have the same handlers, clock,
-     * properties and 'given' conditions as the source fixture.
+     * Returns an asynchronous version of this fixture with the same state.
      */
     public TestFixture async() {
         return synchronous ? new TestFixture(this, false, spying, false) : this;
     }
 
     /**
-     * Returns a synchronous version of this test fixture. If the current fixture is synchronous already, it is returned
-     * unmodified.
-     * <p>
-     * The returned test fixture will have a nearly identical state, i.e. it will have the same handlers, clock,
-     * properties and 'given' conditions as the source fixture.
+     * Returns a synchronous version of this fixture with the same state.
      */
     public TestFixture sync() {
         return !synchronous ? new TestFixture(this, true, spying, false) : this;
     }
 
     /**
-     * Returns a version of this test fixture in which Flux components like e.g.
-     * {@link io.fluxcapacitor.javaclient.publishing.EventGateway} and
-     * {@link io.fluxcapacitor.javaclient.persisting.eventsourcing.client.EventStoreClient} are Mockito spies.
+     * Returns a new test fixture with Mockito spies on all major Flux Capacitor components.
      * <p>
-     * The returned test fixture will have a nearly identical state, i.e. it will have the same handlers, clock,
-     * properties and 'given' conditions as the source fixture.
-     *
-     * @see org.mockito.Mockito#spy(Object[])
+     * Useful for verifying internal interactions, e.g. gateway or repository usage.
      */
     public TestFixture spy() {
         return spying ? this : new TestFixture(this, synchronous, true, false);
     }
 
     /**
-     * Returns a new test fixture in which the application's default UserProvider is used, see
-     * {@link UserProvider#defaultUserProvider}. This allows for testing of the behavior of unauthenticated web users.
+     * Configures the test fixture to use the production default {@link UserProvider} instead of the test one.
      * <p>
-     * The returned test fixture will have a nearly identical state, i.e. it will have the same handlers, clock,
-     * properties and 'given' conditions as the source fixture.
+     * By default, test fixtures use a {@link TestUserProvider}, which ensures an active user is always present (falling
+     * back to the system user if no authenticated user is set).
+     * <p>
+     * Calling this method disables that fallback behavior and restores the actual default user provider used in
+     * production (i.e., {@link UserProvider#defaultUserProvider}).
+     *
+     * <p>This is useful when testing unauthenticated user flows.
+     *
+     * @return a new test fixture instance with the production user provider active
      */
-    public TestFixture withDefaultUserProvider() {
-        return defaultUserProvider ? this : new TestFixture(this, synchronous, spying, true);
+    public TestFixture withProductionUserProvider() {
+        return productionUserProvider ? this : new TestFixture(this, synchronous, spying, true);
     }
 
     /**
-     * Register additional handlers with the test fixture.
+     * Registers one or more message handlers with the fixture.
      * <p>
-     * For async test fixtures, make sure all handlers of the same consumer are registered together, i.e. either via one
-     * of the test fixture creator methods, or all at the same time via registerHandlers. If handlers that share the
-     * same consumer are registered separately, an exception will be raised.
+     * In async mode, all handlers for the same consumer must be registered together.
      */
     @SuppressWarnings("ResultOfMethodCallIgnored")
     public TestFixture registerHandlers(List<?> handlers) {
@@ -415,10 +549,7 @@ public class TestFixture implements Given, When {
     }
 
     /**
-     * Registers objects containing methods for up or down casting with the serializer used by the test fixture.
-     *
-     * @see io.fluxcapacitor.javaclient.common.serialization.casting.Upcast for information on upcasting.
-     * @see io.fluxcapacitor.javaclient.common.serialization.casting.Downcast for information on downcasting.
+     * Registers {@link Upcast}/{@link Downcast} handlers for the test fixture's serializer.
      */
     public TestFixture registerCasters(Object... casterCandidates) {
         return modifyFixture(fixture -> fixture.getFluxCapacitor().serializer().registerCasters(casterCandidates));
@@ -552,7 +683,8 @@ public class TestFixture implements Given, When {
     public TestFixture givenSchedules(Schedule... schedules) {
         Class<?> callerClass = getCallerClass();
         givenModification(fixture -> fixture.asMessages(callerClass, (Object[]) schedules).forEach(
-                s -> run(() -> fluxCapacitor.messageScheduler().schedule((Schedule) s, false, Guarantee.STORED).get())));
+                s -> run(
+                        () -> fluxCapacitor.messageScheduler().schedule((Schedule) s, false, Guarantee.STORED).get())));
         return this;
     }
 
@@ -561,7 +693,8 @@ public class TestFixture implements Given, When {
         Class<?> callerClass = getCallerClass();
         givenModification(fixture -> fixture.asMessages(callerClass, (Object[]) commands).forEach(
                 s -> run(
-                        () -> fluxCapacitor.messageScheduler().scheduleCommand((Schedule) s, false, Guarantee.STORED).get())));
+                        () -> fluxCapacitor.messageScheduler().scheduleCommand((Schedule) s, false, Guarantee.STORED)
+                                .get())));
         return this;
     }
 

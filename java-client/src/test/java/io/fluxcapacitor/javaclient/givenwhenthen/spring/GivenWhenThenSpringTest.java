@@ -42,6 +42,7 @@ import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ContextConfiguration;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 
 import java.util.concurrent.CompletableFuture;
@@ -107,6 +108,27 @@ class GivenWhenThenSpringTest {
     }
 
     @Nested
+    @TestPropertySource(properties = "fluxcapacitor.test.sync=true")
+    class SyncTests {
+
+        @Autowired
+        private TestFixture testFixture;
+
+        @Test
+        void testSyncEnabled() {
+            testFixture.registerHandlers(new Object() {
+                @HandleCommand
+                void handle(DoSomething command) {
+                    if (Tracker.current().isPresent()) {
+                        throw new MockException("this should not happen");
+                    }
+                    FluxCapacitor.publishEvent("sync");
+                }
+            }).whenCommand(new DoSomething()).expectEvents("sync").expectNoErrors();
+        }
+    }
+
+    @Nested
     class StatefulHandlerTest {
         @Test
         void staticHandlerIsCreated() {
@@ -124,7 +146,7 @@ class GivenWhenThenSpringTest {
         @Test
         void createAndUpdateInSameBatch() {
             testFixture.whenExecuting(
-                    fc -> FluxCapacitor.publishEvents(new StaticEvent("bla"), new StaticEvent("bla")))
+                            fc -> FluxCapacitor.publishEvents(new StaticEvent("bla"), new StaticEvent("bla")))
                     .expectCommands(1, 2);
         }
 
@@ -143,13 +165,13 @@ class GivenWhenThenSpringTest {
         }
 
 
-
         @Stateful(commitInBatch = true)
         @SearchExclude
         @Value
         @Builder(toBuilder = true)
         public static class StaticHandler {
-            @Association String someId;
+            @Association
+            String someId;
             int eventCount;
 
             @HandleEvent
@@ -171,7 +193,8 @@ class GivenWhenThenSpringTest {
         @Builder(toBuilder = true)
         @ConditionalOnMissingProperty("stateful-disabled")
         public static class DisabledStaticHandler {
-            @Association String someId;
+            @Association
+            String someId;
 
             @HandleEvent
             static StaticHandler create(StaticEvent event) {
@@ -184,7 +207,8 @@ class GivenWhenThenSpringTest {
         @Builder(toBuilder = true)
         @AllArgsConstructor
         public static class ConstructorHandler {
-            @Association String someId;
+            @Association
+            String someId;
             int eventCount;
 
             @HandleEvent
@@ -229,7 +253,7 @@ class GivenWhenThenSpringTest {
 
         @HandleCommand
         public CompletableFuture<?> handle(SlowCommand command) {
-           return CompletableFuture.runAsync(() -> sleepAWhile(500));
+            return CompletableFuture.runAsync(() -> sleepAWhile(500));
         }
     }
 
