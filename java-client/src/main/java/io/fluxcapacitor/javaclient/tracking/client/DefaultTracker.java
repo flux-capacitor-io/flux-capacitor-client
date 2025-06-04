@@ -259,7 +259,12 @@ public class DefaultTracker implements Runnable, Registration {
         } finally {
             processing = false;
             if (isMaxIndexReached(lastIndex)) {
-                cancel();
+                try {
+                    cancel();
+                } finally {
+                    trackingClient.disconnectTracker(
+                            tracker.getName(), tracker.getTrackerId(), false);
+                }
             }
         }
     }
