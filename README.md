@@ -414,12 +414,11 @@ class MyHandler {
 }
 ```
 
-- threads = 2: Two threads per application instance will fetch and dispatch commands.
+- threads = 2: Two threads per application instance will fetch commands.
 - maxFetchSize = 100: Up to 100 messages fetched per request, helping apply backpressure.
 
 Each thread runs a **tracker**. If you deploy the app multiple times, Flux automatically load-balances messages across
-all
-available trackers.
+all available trackers.
 
 ### Default Consumer Settings
 
@@ -429,6 +428,213 @@ available trackers.
 |maxFetchSize|1024|
 
 These defaults are sufficient for most scenarios. You can always override them for improved performance or control.
+
+---
+
+### Message Replays
+
+Flux Capacitor allows you to **replay past messages** by tracking from an earlier index in the message log.  
+This is useful for:
+
+- Rebuilding projections or read models
+- Repairing missed or failed messages
+- Retrospectively introducing new functionality
+
+Since message logs — including **commands**, **events**, **errors**, etc. — are durably stored (with **events** retained
+indefinitely by default), replays are usually available.
+
+#### Replaying from the Past
+
+The most common way to initiate a replay is to define a **new consumer** using the `@Consumer` annotation with a
+`minIndex`.
+
+```java
+
+@Consumer(name = "auditReplay", minIndex = 111677748019200000L)
+public class AuditReplayHandler {
+
+    @HandleEvent
+    void on(CreateUser event) {
+        ...
+    }
+}
+```
+
+In this example, the consumer `auditReplay` will process all events starting from **January 1st, 2024**.
+
+> ℹ️ The `minIndex` value specifies the *inclusive* starting point for the message log.  
+> Index values are based on time and can be derived using `IndexUtils`:
+
+```java
+long index = IndexUtils.indexFromTimestamp(Instant.parse("2024-01-01T00:00:00Z"));
+// returns: 111677748019200000L
+```
+
+This approach is perfect for:
+
+- Starting **fresh consumers** for replays
+- Bootstrapping projections without interfering with live handlers
+- Keeping logic encapsulated and isolated
+
+#### Resetting Existing Consumers
+
+If you want to reset an existing consumer to an earlier point in the log:
+
+[//]: # (@formatter:off)
+```java
+long replayIndex = 111677748019200000L;
+FluxCapacitor.client()
+    .getTrackingClient(MessageType.EVENT)
+    .resetPosition("myConsumer", replayIndex, Guarantee.STORED);
+```
+[//]: # (@formatter:on)
+
+This restarts the consumer from the given index and causes old messages to be redelivered and reprocessed.
+
+> ⚠️ Replaying over existing handlers may require extra caution (e.g. to avoid duplicating side effects).
+
+#### 🔁 Parallel Replays with `exclusive = false`
+
+Sometimes you want to **re-use the same handler class** for both:
+
+- **Live processing** (e.g. default consumer)
+- **Replaying past messages** (e.g. rebuilding projections)
+
+To achieve this, annotate the handler with `exclusive = false`. This tells Flux that the handler may participate in
+**multiple consumers simultaneously**:
+
+```java
+
+@Consumer(name = "live", exclusive = false)
+public class OrderProcessor {
+    @HandleCommand
+    void handle(SendOrder command) {
+        //submit an order
+    }
+}
+```
+
+Now, register a **second consumer** at runtime for the **same handler** using a different tracking position:
+
+[//]: # (@formatter:off)
+```java
+fluxCapacitorBuilder.addConsumerConfiguration(
+    ConsumerConfiguration.builder()
+        .name("replay") // A new consumer
+        .handlerFilter(handler -> handler instanceof OrderProcessor) // same class
+        .minIndex(111677748019200000L) // Start of replay window
+        .maxIndex(111853279641600000L) // End of replay window
+        .build(),
+    MessageType.COMMAND
+);
+```
+[//]: # (@formatter:on)
+
+This will spin up a **parallel tracker** that replays all commands since **2024-01-01T00:00:00Z**
+until **2024-02-01T00:00:00Z**, while the original `live` consumer continues uninterrupted. In this example, orders
+sent during the month of January 2024 will be resubmitted.
+
+> ✅ This is ideal for **bootstrapping read models** or **running repair jobs** without affecting production flow
+> or duplicating a handler class.
+
+---
+
+### Handling Failures by Replaying from the Error Log
+
+Flux Capacitor automatically logs **all message handling errors** to a dedicated **error log**. This includes failures
+for:
+
+- Commands
+- Queries
+- WebRequests
+- Schedule messages
+- Events (if a handler throws)
+- And more
+
+Each error message includes detailed **stack traces**, **metadata**, and most importantly, a **reference to the original
+message** that caused the failure.
+
+### Error Handling with `@HandleError`
+
+To react to failures programmatically, define a handler method with the `@HandleError` annotation:
+
+```java
+
+@HandleError
+void onError(Throwable error) {
+    log.warn("Something went wrong!", error);
+}
+```
+
+You can inject the **failed message** using the `@Trigger` annotation:
+
+```java
+
+@HandleError
+void onError(Throwable error, @Trigger SomeCommand failedCommand) {
+    log.warn("Failed to process {}: {}", failedCommand, error.getMessage());
+}
+```
+
+> ℹ️ The trigger can be the payload, or a full `Message` or `DeserializingMessage`.
+
+You can also **filter** error handlers by trigger type, message type, or originating consumer:
+
+```java
+
+@HandleError
+@Trigger(messageType = MessageType.COMMAND, consumer = "my-app")
+void retryFailedCommand(MyCommand failed) {
+    FluxCapacitor.sendCommand(failed);
+}
+```
+
+### Dynamic Dead Letter Queue (DLQ)
+
+The **error log is durable** and **replayable**, which means you can treat it as a **powerful, dynamic DLQ**.
+
+Here’s how:
+
+1. **Deploy a special consumer** that tracks the error log.
+2. Use `@Trigger` to access and inspect failed messages.
+3. Filter and replay failures based on time, payload type, or originating app.
+
+### Example: Retrying Failed Commands from the Past
+
+Let’s assume a bug caused command processing to fail in January 2024. The following setup reprocesses those failed
+commands:
+
+```java
+
+@Consumer(name = "command-dlq", minIndex = 111677748019200000L, maxIndexExclusive = 111853279641600000L) // 2024-01-01 to 2024-02-01 
+class CommandReplayHandler {
+
+    @HandleError
+    @Trigger(messageType = MessageType.COMMAND)
+    void retry(MyCommand failed) {
+        FluxCapacitor.sendCommand(failed);
+    }
+}
+```
+
+> ✅ The original `MyCommand` payload is restored and retried transparently.
+
+> 🧠 You can combine this with logic that deduplicates, transforms, or **selectively suppresses** retries.
+
+
+### When to Use the Error Log
+
+| Use Case                   | How the Error Log Helps                        |
+|----------------------------|------------------------------------------------|
+| 🛠 Fix a bug retroactively | Replay failed commands from the past           |
+| 🚧 Validate new handler logic | Test it against real-world errors          |
+| 🔁 Retry transient failures | Re-issue requests with retry logic            |
+| 🧹 Clean up or suppress errors | Filter out known false-positives         |
+
+The error log acts as a **time-travel debugger** — it gives you full control over how and when to address failures, now
+or in the future.
+
+---
 
 ### Routing with `@RoutingKey`
 
@@ -509,6 +715,8 @@ This will first try to extract `userId` from metadata, and fall back to the payl
 | Field/getter   | Use the property's value as routing key                               |
 | Class-level    | Use the named property in metadata or payload                         |
 | Handler method | Overrides routing key used during handling (requires `ignoreSegment`) |
+
+---
 
 ### Local handlers
 
@@ -1065,12 +1273,13 @@ Each of these annotations supports the same rules:
 - If no name is given, the method parameter name is used
 - Values are automatically converted to the target parameter type
 
-
 ### Handling WebSocket Messages
 
-Flux Capacitor provides first-class support for **WebSocket communication**, enabling stateful or stateless message handling using the same annotation-based model as other requests.
+Flux Capacitor provides first-class support for **WebSocket communication**, enabling stateful or stateless message
+handling using the same annotation-based model as other requests.
 
-WebSocket requests are published to the **WebRequest** log after being reverse-forwarded from the Flux platform, and can be consumed and responded to like any other request type.
+WebSocket requests are published to the **WebRequest** log after being reverse-forwarded from the Flux platform, and can
+be consumed and responded to like any other request type.
 
 ---
 
@@ -1078,9 +1287,11 @@ WebSocket requests are published to the **WebRequest** log after being reverse-f
 
 #### 1. **Stateless Handlers** (Singleton Style)
 
-Use annotations like `@HandleSocketOpen`, `@HandleSocketMessage`, and `@HandleSocketClose` directly on singleton handler classes:
+Use annotations like `@HandleSocketOpen`, `@HandleSocketMessage`, and `@HandleSocketClose` directly on singleton handler
+classes:
 
 ```java
+
 @HandleSocketOpen("/chat")
 public String onOpen() {
     return "Welcome!";
@@ -1097,7 +1308,8 @@ public void onClose(SocketSession session) {
 }
 ```
 
-Responses can be returned directly from `@HandleSocketMessage` and `@HandleSocketOpen` methods. For more control, you can inject the `SocketSession` parameter and send messages manually.
+Responses can be returned directly from `@HandleSocketMessage` and `@HandleSocketOpen` methods. For more control, you
+can inject the `SocketSession` parameter and send messages manually.
 
 Other available annotations:
 
@@ -1106,9 +1318,11 @@ Other available annotations:
 
 #### 2. **Stateful Sessions with `@SocketEndpoint`**
 
-If you need to maintain per-session state, use `@SocketEndpoint`. Each WebSocket session will instantiate a fresh handler object:
+If you need to maintain per-session state, use `@SocketEndpoint`. Each WebSocket session will instantiate a fresh
+handler object:
 
 ```java
+
 @SocketEndpoint
 @Path("/chat")
 public class ChatSession {
@@ -1133,7 +1347,8 @@ public class ChatSession {
 }
 ```
 
-Stateful sessions are useful for flows involving authentication, message accumulation, or temporal context (e.g. cursor, buffer, sequence).
+Stateful sessions are useful for flows involving authentication, message accumulation, or temporal context (e.g. cursor,
+buffer, sequence).
 
 > ✅ `@SocketEndpoint` handlers are prototype-scoped, meaning they're constructed once per session.
 
@@ -1148,8 +1363,10 @@ When using `@SocketEndpoint`, Flux Capacitor automatically manages **keep-alive 
 - You can customize this behavior via the `aliveCheck` attribute on `@SocketEndpoint`
 
 ```java
+
 @SocketEndpoint(aliveCheck = @SocketEndpoint.AliveCheck(pingDelay = 30, pingTimeout = 15))
-public class MySession { ... }
+public class MySession { ...
+}
 ```
 
 ---
@@ -1166,8 +1383,8 @@ public class MySession { ... }
 | `@SocketEndpoint`          | Declares a per-session WebSocket handler class     |
 | `SocketSession` (injected) | Controls sending messages, pinging, and closing    |
 
-Flux Capacitor makes WebSocket communication secure, observable, and composable—integrated seamlessly into your distributed, event-driven architecture.
-
+Flux Capacitor makes WebSocket communication secure, observable, and composable—integrated seamlessly into your
+distributed, event-driven architecture.
 
 ## Testing your handlers
 
