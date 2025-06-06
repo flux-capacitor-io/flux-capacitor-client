@@ -606,7 +606,8 @@ commands:
 
 ```java
 
-@Consumer(name = "command-dlq", minIndex = 111677748019200000L, maxIndexExclusive = 111853279641600000L) // 2024-01-01 to 2024-02-01 
+@Consumer(name = "command-dlq",
+        minIndex = 111677748019200000L, maxIndexExclusive = 111853279641600000L) // 2024-01-01 to 2024-02-01 
 class CommandReplayHandler {
 
     @HandleError
@@ -620,7 +621,6 @@ class CommandReplayHandler {
 > ✅ The original `MyCommand` payload is restored and retried transparently.
 
 > 🧠 You can combine this with logic that deduplicates, transforms, or **selectively suppresses** retries.
-
 
 ### When to Use the Error Log
 
@@ -2679,6 +2679,68 @@ All casting occurs **in your application**, not in the Flux platform. Stored mes
 
 > **Note:** Upcasting is essential when using event sourcing or durable message storage — these messages may live for
 > years.
+
+## Tracking and Updating Documents with `@HandleDocument`
+
+Flux Capacitor allows you to react to changes in your document store using the `@HandleDocument` annotation.  
+This enables you to subscribe to updates within a specific collection—similar to how you might handle events.
+
+```java
+
+@HandleDocument(documentClass = User.class)
+void handle(User user) {
+    log.info("User {} was added or updated", user.getUserId());
+}
+```
+
+### How It Works
+
+Every time a document is (re)indexed, it is assigned a new message index based on the timestamp of the change.  
+Handlers using `@HandleDocument` will receive these updates as they stream through the document log.
+
+> ⚠️ During a replay or when processing from behind, only the **latest version** of a document for a given index is
+> retained.
+> If a document was overwritten multiple times, only the final version is tracked.
+
+This makes `@HandleDocument` ideal for live tracking or applying **latest-known state** in projections or cache
+rebuilds.
+
+### Transforming Documents via Handler Return Value
+
+A powerful feature of `@HandleDocument` is its support for **automatic updates**.
+
+You can **return a new version of the document** from your handler, and it will be stored in the same collection:
+
+```java
+
+@HandleDocument
+User upgrade(User oldUser) {
+    return new User(oldUser.getId(), normalizeEmail(oldUser.getEmail()));
+}
+```
+
+Flux will reindex the returned object **only if** it has a **higher `@Revision`** than the original. The document 
+will be stored under the same ID.
+
+This creates a self-healing upgrade path: you can apply schema fixes, fill in missing data, or migrate legacy documents
+seamlessly.
+
+> These updates are reliable—even across restarts—and make it easy to evolve your stored data over time.
+
+### 🧰 Use Cases
+
+- Automatically upcast old documents
+- Normalize or validate incoming data
+- Migrate schema fields in-place
+- Populate new derived fields based on older models
+- Monitor live updates for analytics or logging
+
+You can subscribe to a collection by:
+
+- Setting `@HandleDocument(documentClass = MyModel.class)`
+- Or `@HandleDocument("myCollection")` to bind by collection name
+
+> Combine this with replays to retroactively transform your entire document store.
 
 ## Filtering Object Content
 
