@@ -49,13 +49,13 @@ compile(group: 'io.flux-capacitor', name: 'java-client', version: '${flux-capaci
 testCompile(group: 'io.flux-capacitor', name: 'java-client', version: '${flux-capacitor.version}', classifier: 'tests')
 ```
 
+---
+
 ## Basic example
 
 Create a new project and add an event class:
 
 ```java
-package com.example;
-
 class HelloWorld {
 }
 ```
@@ -63,10 +63,6 @@ class HelloWorld {
 Create a handler for the event:
 
 ```java
-package com.example;
-
-import io.fluxcapacitor.javaclient.tracking.handling.HandleEvent;
-
 class HelloWorldEventHandler {
     @HandleEvent
     void handle(HelloWorld event) {
@@ -78,16 +74,9 @@ class HelloWorldEventHandler {
 Publish the event:
 
 ```java
-package com.example;
-
-import io.fluxcapacitor.javaclient.FluxCapacitor;
-import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
-import io.fluxcapacitor.javaclient.configuration.client.LocalClient;
-
 public class ExampleMain {
     public static void main(final String[] args) {
-        FluxCapacitor fluxCapacitor
-                = DefaultFluxCapacitor.builder().build(LocalClient.newInstance());
+        FluxCapacitor fluxCapacitor = DefaultFluxCapacitor.builder().build(LocalClient.newInstance());
         fluxCapacitor.registerHandlers(new HelloWorldEventHandler());
         fluxCapacitor.eventGateway().publish(new HelloWorld());
     }
@@ -105,7 +94,6 @@ Hello World!
 Flux Capacitor integrates seamlessly with Spring. Here’s how the above example looks with Spring Boot:
 
 ```java
-
 @SpringBootApplication
 @Import(FluxCapacitorSpringConfig.class)
 public class ExampleMain {
@@ -119,7 +107,6 @@ public class ExampleMain {
 And annotate your handler with `@Component`:
 
 ```java
-
 @Component
 public class HelloWorldEventHandler {
     @HandleEvent
