@@ -294,33 +294,8 @@ public class QueryMetricsHandler {
 
 ➡️ In this case:
 
-- The `record(...)` method logs the query,
 - The `handle(...)` method produces the result.
-
-#### WebRequest Matching Uses URI Path
-
-While the above rules apply to all message types, **WebRequests** differ slightly: their handler resolution is based on
-**URL path matching**, not payload type.
-
-Still, the principle of "most specific handler wins" applies — e.g., a method matching `/users/{id}` is more specific
-than one matching `/users/**`.
-
-You can define multiple WebRequest handlers with different paths or HTTP methods in the same class:
-
-```java
-
-@HandleGet(path = "/users/{id}")
-User getUser(@Path("id") String userId) {
-    return userRepository.find(userId);
-}
-
-@HandleGet(path = "/users/**")
-List<User> listUsers() {
-    return userRepository.findAll();
-}
-```
-
----
+- The `record(...)` method logs the query,
 
 By combining **handler specificity**, **class-level isolation**, and the `passive` flag, Flux Capacitor gives you
 precise control over how messages are processed — even across mixed concerns like logging, read models, business logic,
@@ -1043,6 +1018,8 @@ authentication tokens, headers, etc.). By default, Flux Capacitor uses a pluggab
 > Flux automatically maintains correlation metadata between the original request and any errors, logs, or events that
 > follow.
 
+---
+
 ## Scheduling
 
 Flux Capacitor allows scheduling messages for future delivery using the `MessageScheduler`.
@@ -1161,7 +1138,442 @@ In this case:
 - If it fails, it retries after 10 minutes.
 - It resumes the original schedule if the next invocation succeeds.
 
-### Handling Web Requests
+## User-defined message logs
+
+Flux Capacitor supports **custom message logs** in addition to built-in ones like commands, events, and queries.
+
+Most applications won't need custom message logs — but they can be very useful in advanced scenarios:
+
+- To **track external systems or integrations**, while keeping the main event log clean.
+- To **store batches of updates** for external consumers that poll infrequently.
+- To **segment logic** or apply different retention guarantees per topic.
+
+Flux Capacitor lets you publish and handle custom messages by assigning them to **user-defined topics**. These messages
+are written to their own durable logs and can be tracked just like commands or events.
+
+### Custom Handlers
+
+To receive messages from a custom log, annotate your method with `@HandleCustom` and specify the topic name:
+
+```java
+
+@HandleCustom("metering-points")
+void on(MeteringPoint event) {
+    log.info("Metering point: {}", event);
+}
+```
+
+Like other handlers, this can be:
+
+- **Stateless or stateful**
+- Attached to a **custom consumer**
+- Used to **return a result** if the message is a request
+- **Passive**, meaning it won’t emit result messages
+
+> ✅ Custom logs are fully integrated with Flux tracking and delivery infrastructure.
+
+### 📬 Publishing to a Custom Log
+
+You can publish messages manually to any custom topic:
+
+[//]: # (@formatter:off)
+```java
+FluxCapacitor.get()
+    .customGateway("third-party-events")
+    .sendAndForget(new AuditEntry("User login"));
+```
+[//]: # (@formatter:on)
+
+This makes it easy to introduce new asynchronous workflows, specialized event types, or low-frequency control signals.
+
+### 🧹 Setting Retention Time
+
+Each message log in Flux retains messages independently. You can configure how long messages in your **custom log**
+should be retained:
+
+[//]: # (@formatter:off)
+```java
+FluxCapacitor.get()
+    .customGateway("third-party-events")
+    .setRetentionTime(Duration.ofDays(90));
+```
+[//]: # (@formatter:on)
+
+Retention can also be set for built-in logs like commands or results — though it's advisable to configure it only
+for custom topics.
+
+---
+
+## Testing your handlers
+
+Flux Capacitor comes with a flexible, expressive testing framework based on the given-when-then pattern. This enables
+writing behavioral tests for your handlers without needing to mock the infrastructure.
+
+Here’s a basic example:
+
+```java
+TestFixture testFixture = TestFixture.create(new UserEventHandler());
+
+@Test
+void newUserGetsWelcomeEmail() {
+    testFixture.whenEvent(new UserCreated(myUserProfile))
+            .expectCommands(new SendWelcomeEmail(myUserProfile));
+}
+```
+
+This test ensures that when a `UserCreated` event occurs, a `SendWelcomeEmail` command is issued by the handler.
+
+### Testing complete workflows
+
+You can test full workflows across multiple handlers:
+
+```java
+TestFixture fixture = TestFixture.create(new UserCommandHandler(), new UserEventHandler());
+
+@Test
+void creatingUserTriggersEmail() {
+    fixture.whenCommand(new CreateUser(userProfile))
+            .expectCommands(new SendWelcomeEmail(userProfile));
+}
+```
+
+Use `expectOnlyCommands()` to assert that **only** the expected command was issued:
+
+[//]: # (@formatter:off)
+```java
+fixture.whenCommand(new CreateUser(userProfile))
+       .expectOnlyCommands(new SendWelcomeEmail(userProfile));
+```
+[//]: # (@formatter:on)
+
+You can also match by class, predicate, or Hamcrest matcher:
+
+[//]: # (@formatter:off)
+```java
+fixture.whenCommand(new CreateUser(userProfile))
+       .expectCommands(SendWelcomeEmail.class, isA(AddUserToOrganization.class));
+```
+[//]: # (@formatter:on)
+
+### Chained expectations
+
+Multiple expectations can be chained to test the full sequence of events and commands:
+
+[//]: # (@formatter:off)
+```java
+fixture.whenCommand(new CreateUser(userProfile))
+       .expectCommands(new SendWelcomeEmail(userProfile))
+       .expectEvents(new UserStatsUpdated(...));
+```
+[//]: # (@formatter:on)
+
+You can also chain multiple **inputs** using `.andThen()` to simulate a sequence of events, commands, or queries:
+
+[//]: # (@formatter:off)
+```java
+fixture.whenCommand(new CreateUser(userProfile))
+       .expectCommands(new SendWelcomeEmail(userProfile))
+       .andThen()
+       .whenQuery(new GetUser(userId))
+       .expectResult(userProfile);
+```
+[//]: # (@formatter:on)
+
+This example first triggers a `CreateUser` command, expects a `UserCreated` event, and then issues a `GetUser` query,
+asserting that it returns the expected result.
+
+### Using givenXxx() for preconditions
+
+Use `givenCommands`, `givenEvents`, etc., to simulate preconditions:
+
+[//]: # (@formatter:off)
+```java
+fixture.givenCommands(new CreateUser(userProfile), new ResetPassword(...))
+       .whenCommand(new UpdatePassword(...))
+       .expectEvents(UpdatePassword.class);
+```
+[//]: # (@formatter:on)
+
+### Providing External JSON Files
+
+Test fixtures support loading inputs from external JSON resources. This allows you to keep your tests clean and reuse
+structured input data.
+
+Any `givenXyz(...)`, `whenXzy(...)`, or `expectXyz(...)` method argument that is a `String` ending with `.json` will be
+interpreted as a **classpath resource path**, and deserialized accordingly.
+
+For example:
+
+```java
+fixture.givenCommands("create-user.json")
+    .
+
+whenQuery(new GetUser(userId))
+        .
+
+expectResult("user-profile.json");
+```
+
+If your test class is in the `org.example` package, this will resolve to `/org/example/create-user.json` in the
+classpath, unless the JSON path is absolute (starts with `/`), e.g.:
+
+```java
+fixture.givenCommands("/users/create-user.json");
+```
+
+#### Class Resolution with `@class`
+
+Each JSON file must include a `@class` property to enable deserialization:
+
+```json
+{
+  "@class": "org.example.CreateUser",
+  "userId": "3290328",
+  "email": "foo.bar@example.com"
+}
+```
+
+If your classes or packages are annotated with `@RegisterType`, you can use **simple class names**:
+
+```json
+{
+  "@class": "CreateUser"
+}
+```
+
+Or partial paths:
+
+```json
+{
+  "@class": "example.CreateUser"
+}
+```
+
+> This enables readable and concise references while still resolving to the correct type.
+
+#### Inheriting from Other JSON Files
+
+JSON resources can **extend** other resources using the `@extends` keyword:
+
+```json
+{
+  "@extends": "create-user.json",
+  "details": {
+    "lastName": "Johnson"
+  }
+}
+```
+
+This will recursively merge the referenced file (`/org/example/create-user.json`) with the current one, allowing you
+to override or augment deeply nested structures.
+
+> 🧠 This is especially useful for composing test scenarios with shared defaults or inheritance-like setups.
+
+---
+
+### Adding or asserting metadata
+
+Wrap your payload in a Message to add or assert metadata:
+
+```java
+
+@Test
+void newAdminGetsAdditionalEmail() {
+    testFixture.whenCommand(new Message(new CreateUser(...),Metadata.of("roles", Arrays.asList("Customer", "Admin"))))
+        .expectCommands(new SendWelcomeEmail(...),new SendAdminEmail(...));
+}
+```
+
+### Result and exception assertions
+
+You can assert the result returned by a command or query:
+
+[//]: # (@formatter:off)
+```java
+fixture.givenCommands(new CreateUser(userProfile))
+       .whenQuery(new GetUser(userId))
+       .expectResult(userProfile);
+```
+[//]: # (@formatter:on)
+
+To assert an exception:
+
+[//]: # (@formatter:off)
+```java
+fixture.givenCommands(new CreateUser(userProfile))
+        .whenCommand(new CreateUser(userProfile))
+        .expectExceptionalResult(IllegalCommandException.class);
+```
+[//]: # (@formatter:on)
+
+### User-aware tests
+
+You can also simulate a command from a specific user:
+
+[//]: # (@formatter:off)
+```java
+var user = new MyUser("pete");
+
+fixture.whenCommandByUser(user, "confirm-user.json")
+       .expectExceptionalResult(UnauthorizedException.class);
+```
+[//]: # (@formatter:on)
+
+You can also pass a user ID string directly instead of a full User object. The test fixture will resolve it using the
+configured `UserProvider` (by default loaded via Java's `ServiceLoader`):
+
+[//]: # (@formatter:off)
+```java
+fixture
+    .givenCommands("create-user-pete.json")
+    .whenCommandByUser("pete", "confirm-user.json")
+    .expectExceptionalResult(UnauthorizedException.class);
+```
+[//]: # (@formatter:on)
+
+In this example, the string "pete" is resolved to a `User` instance using the active `UserProvider`, and the test
+asserts
+that the confirmation is unauthorized.
+
+### Verifying side effects
+
+Use `expectThat()` or `expectTrue()` to assert custom logic or verify interactions (e.g., using Mockito):
+
+[//]: # (@formatter:off)
+```java
+fixture.whenCommand(new CreateUser(userProfile))
+       .expectThat(fc -> Mockito.verify(emailService).sendEmail(...));
+```
+[//]: # (@formatter:on)
+
+### Triggering side effects manually
+
+Use `whenExecuting()` to test code outside of message dispatching, like HTTP calls:
+
+[//]: # (@formatter:off)
+```java
+fixture.whenExecuting(fc -> httpClient.put("/user", userProfile))
+       .expectEvents(new UserCreated(...));
+```
+[//]: # (@formatter:on)
+
+### Asynchronous tests
+
+By default, `TestFixture.create(...)` creates synchronous fixtures where handlers are executed locally in the same
+thread
+that publishes the message. This provides fast, deterministic behavior ideal for most unit tests.
+
+However, in production your handlers are typically dispatched asynchronously by consumers running on separate threads.
+To better simulate this behavior in tests — especially when testing event-driven flows or stateful consumers — you can
+use an asynchronous fixture instead.
+
+```java
+TestFixture fixture = TestFixture.createAsync(new MyHandler(), MyStatefulHandler.class);
+```
+
+This ensures that:
+
+- Handlers are tracked via the same consumer infrastructure used in production.
+- Behavior involving asynchronous dispatch, retries, or stateful models is tested realistically.
+- Eventual consistency is respected (e.g., expect...() calls will wait for outcomes to materialize).
+
+> **Note:** Handlers annotated with `@LocalHandler` are executed synchronously, even in async fixtures, just as they
+> would
+> in production. Handlers annotated with `@TrackSelf`, `@Stateful`, or `@SocketEndpoint` — also behave as they would in
+> a production runtime: they are tracked and dispatched asynchronously when registered by class.
+
+### Using test fixtures in Spring
+
+When using Spring, simply inject the test fixture via `FluxCapacitorTestConfig`:
+
+```java
+
+@SpringBootTest(classes = {App.class, FluxCapacitorTestConfig.class})
+class AsyncAppTest {
+
+    @Autowired
+    TestFixture fixture;
+
+    @Test
+    void testSomething() {
+        fixture.whenCommand("commands/my-command.json")
+                .expectEvents("events/expected-event.json");
+    }
+}
+```
+
+By default, this will inject an **async** test fixture. You can override this by setting the property:
+
+```properties
+fluxcapacitor.test.sync=true
+```
+
+Or selectively enable sync mode via per-test configuration using:
+
+```java
+
+@TestPropertySource(properties = "fluxcapacitor.test.sync=true")
+@SpringBootTest(classes = {App.class, FluxCapacitorTestConfig.class})
+class SyncAppTest {
+
+    @Autowired
+    TestFixture fixture;
+  
+  ...
+}
+```
+
+### Testing schedules
+
+Flux Capacitor’s scheduling engine makes it easy to test time-based workflows. Scheduled messages are handled just
+like any other message, except they are delayed until their due time.
+
+Use the `TestFixture` to simulate the passage of time and trigger scheduled actions. Here’s a typical example:
+
+```java
+TestFixture testFixture = TestFixture.create(new UserCommandHandler(), new UserLifecycleHandler());
+
+@Test
+void accountIsTerminatedAfterClosing() {
+    testFixture
+            .givenCommands(new CreateUser(myUserProfile), new CloseAccount(userId))
+            .whenTimeElapses(Duration.ofDays(30))
+            .expectEvents(new AccountTerminated(userId));
+}
+```
+
+In this test:
+
+- We schedule the AccountTerminated message as a result of the CloseAccount command.
+- Then we simulate that 30 days have passed using whenTimeElapses(...).
+- Finally, we verify that the expected AccountTerminated event was published.
+
+You can also test cancellation logic:
+
+```java
+
+@Test
+void accountReopeningCancelsTermination() {
+    testFixture
+            .givenCommands(new CreateUser(myUserProfile), new CloseAccount(userId), new ReopenAccount(userId))
+            .whenTimeElapses(Duration.ofDays(30))
+            .expectNoEventsLike(AccountTerminated.class);
+}
+```
+
+If needed, you can advance time to an absolute timestamp using:
+
+[//]: # (@formatter:off)
+```java
+fixture.whenTimeAdvancesTo(Instant.parse("2050-12-31T00:00:00Z"));
+```
+[//]: # (@formatter:on)
+
+This is especially useful for workflows tied to specific deadlines or calendar dates.
+
+---
+
+## Handling Web Requests
 
 Flux Capacitor supports first-class **WebRequest handling** via the `@HandleWeb` annotation and its HTTP-specific
 variants such as `@HandleGet`, `@HandlePost`, `@HandleDelete`, etc.
@@ -1386,320 +1798,126 @@ public class MySession { ...
 Flux Capacitor makes WebSocket communication secure, observable, and composable—integrated seamlessly into your
 distributed, event-driven architecture.
 
-## Testing your handlers
+---
 
-Flux Capacitor comes with a flexible, expressive testing framework based on the given-when-then pattern. This enables
-writing behavioral tests for your handlers without needing to mock the infrastructure.
+## Outbound Web Requests
 
-Here’s a basic example:
+Flux Capacitor provides a unified API for sending HTTP requests through the `WebRequestGateway`.
 
-```java
-TestFixture testFixture = TestFixture.create(new UserEventHandler());
+Unlike traditional HTTP clients, Flux logs outbound requests as `WebRequest` messages. These are then handled by:
 
-@Test
-void newUserGetsWelcomeEmail() {
-    testFixture.whenEvent(new UserCreated(myUserProfile))
-            .expectCommands(new SendWelcomeEmail(myUserProfile));
-}
-```
+- A **local handler** that tracks requests if the URL is **relative**, or
+- A **connected remote client or proxy**, if the URL is **absolute**.
 
-This test ensures that when a `UserCreated` event occurs, a `SendWelcomeEmail` command is issued by the handler.
-
-### Testing complete workflows
-
-You can test full workflows across multiple handlers:
+### Sending a Request
 
 ```java
-TestFixture fixture = TestFixture.create(new UserCommandHandler(), new UserEventHandler());
+WebRequest request = WebRequest.get("https://api.example.com/data")
+        .header("Authorization", "Bearer token123")
+        .build();
 
-@Test
-void creatingUserTriggersEmail() {
-    fixture.whenCommand(new CreateUser(userProfile))
-            .expectCommands(new SendWelcomeEmail(userProfile));
-}
+WebResponse response = FluxCapacitor.get().webRequestGateway().sendAndWait(request);
+
+String body = response.getBodyString();
 ```
 
-Use `expectOnlyCommands()` to assert that **only** the expected command was issued:
+> ✅ All outbound traffic is logged and traceable in the Flux platform.
+
+### Asynchronous and Fire-and-Forget
+
+You can send requests asynchronously:
+
+```java
+FluxCapacitor.get().
+
+webRequestGateway()
+        .
+
+send(request)
+        .
+
+thenAccept(response ->log.
+
+info("Received: {}",response.getBodyString()));
+```
+
+Or fire-and-forget:
 
 [//]: # (@formatter:off)
 ```java
-fixture.whenCommand(new CreateUser(userProfile))
-       .expectOnlyCommands(new SendWelcomeEmail(userProfile));
+FluxCapacitor.get().webRequestGateway()
+        .sendAndForget(Guarantee.STORED, request);
 ```
 [//]: # (@formatter:on)
 
-You can also match by class, predicate, or Hamcrest matcher:
+### Relative vs Absolute URLs
 
-[//]: # (@formatter:off)
-```java
-fixture.whenCommand(new CreateUser(userProfile))
-       .expectCommands(SendWelcomeEmail.class, isA(AddUserToOrganization.class));
-```
-[//]: # (@formatter:on)
+Flux supports both local and remote handling:
 
-### Chained expectations
+- **Absolute URLs** (e.g., `https://...`): The request is forwarded via the Flux **Web Proxy** and executed externally.
+- **Relative URLs** (e.g., `/internal/doSomething`): The request is routed to a handler within another connected Flux
+  application.
 
-Multiple expectations can be chained to test the full sequence of events and commands:
+This allows decoupled request-response workflows across services and environments.
 
-[//]: # (@formatter:off)
-```java
-fixture.whenCommand(new CreateUser(userProfile))
-       .expectCommands(new SendWelcomeEmail(userProfile))
-       .expectEvents(new UserStatsUpdated(...));
-```
-[//]: # (@formatter:on)
+### Isolating Traffic with `consumer`
 
-You can also chain multiple **inputs** using `.andThen()` to simulate a sequence of events, commands, or queries:
-
-[//]: # (@formatter:off)
-```java
-fixture.whenCommand(new CreateUser(userProfile))
-       .expectCommands(new SendWelcomeEmail(userProfile))
-       .andThen()
-       .whenQuery(new GetUser(userId))
-       .expectResult(userProfile);
-```
-[//]: # (@formatter:on)
-
-This example first triggers a `CreateUser` command, expects a `UserCreated` event, and then issues a `GetUser` query,
-asserting that it returns the expected result.
-
-### Using givenXxx() for preconditions
-
-Use `givenCommands`, `givenEvents`, etc., to simulate preconditions:
-
-[//]: # (@formatter:off)
-```java
-fixture.givenCommands(new CreateUser(userProfile), new ResetPassword(...))
-       .whenCommand(new UpdatePassword(...))
-       .expectEvents(UpdatePassword.class);
-```
-[//]: # (@formatter:on)
-
-### JSON-based input and output
-
-To use serialized JSON for inputs or expected outputs, provide a `.json` path:
-
-[//]: # (@formatter:off)
-```java
-fixture.givenCommands("create-user.json")
-       .whenQuery(new GetUser(userId))
-       .expectResult("user-profile.json");
-```
-[//]: # (@formatter:on)
-
-The file is resolved relative to the test class’s package in the classpath (e.g., `/org/example/create-user.json`),
-unless you provide an absolute path (starting with `/`).
-
-Make sure your JSON includes the @class attribute to enable deserialization:
-
-```json
-{
-  "@class": "com.example.UserProfile",
-  "userId": "3290328",
-  "email": "foo.bar@example.com"
-}
-```
-
-### Adding or asserting metadata
-
-Wrap your payload in a Message to add or assert metadata:
+You can specify a `consumer` in the request settings:
 
 ```java
-
-@Test
-void newAdminGetsAdditionalEmail() {
-    testFixture.whenCommand(new Message(new CreateUser(...),Metadata.of("roles", Arrays.asList("Customer", "Admin"))))
-        .expectCommands(new SendWelcomeEmail(...),new SendAdminEmail(...));
-}
+WebRequestSettings settings = WebRequestSettings.builder()
+        .consumer("external-api-xyz")
+        .timeout(Duration.ofSeconds(5))
+        .build();
 ```
 
-### Result and exception assertions
+When set, the Flux Web Proxy will isolate this request in its own internal processing pipeline. This is useful when you:
 
-You can assert the result returned by a command or query:
+- Want to isolate third-party integrations (e.g., API rate limits)
+- Need different retry or error handling strategies per destination
+- Want fault isolation between outgoing endpoints
 
-[//]: # (@formatter:off)
-```java
-fixture.givenCommands(new CreateUser(userProfile))
-       .whenQuery(new GetUser(userId))
-       .expectResult(userProfile);
-```
-[//]: # (@formatter:on)
+### Mocking External Endpoints in Tests
 
-To assert an exception:
-
-[//]: # (@formatter:off)
-```java
-fixture.givenCommands(new CreateUser(userProfile))
-        .whenCommand(new CreateUser(userProfile))
-        .expectExceptionalResult(IllegalCommandException.class);
-```
-[//]: # (@formatter:on)
-
-### User-aware tests
-
-You can also simulate a command from a specific user:
-
-[//]: # (@formatter:off)
-```java
-var user = new MyUser("pete");
-
-fixture.whenCommandByUser(user, "confirm-user.json")
-       .expectExceptionalResult(UnauthorizedException.class);
-```
-[//]: # (@formatter:on)
-
-You can also pass a user ID string directly instead of a full User object. The test fixture will resolve it using the
-configured `UserProvider` (by default loaded via Java's `ServiceLoader`):
-
-[//]: # (@formatter:off)
-```java
-fixture
-    .givenCommands("create-user-pete.json")
-    .whenCommandByUser("pete", "confirm-user.json")
-    .expectExceptionalResult(UnauthorizedException.class);
-```
-[//]: # (@formatter:on)
-
-In this example, the string "pete" is resolved to a `User` instance using the active `UserProvider`, and the test
-asserts
-that the confirmation is unauthorized.
-
-### Verifying side effects
-
-Use `expectThat()` or `expectTrue()` to assert custom logic or verify interactions (e.g., using Mockito):
-
-[//]: # (@formatter:off)
-```java
-fixture.whenCommand(new CreateUser(userProfile))
-       .expectThat(fc -> Mockito.verify(emailService).sendEmail(...));
-```
-[//]: # (@formatter:on)
-
-### Triggering side effects manually
-
-Use `whenExecuting()` to test code outside of message dispatching, like HTTP calls:
-
-[//]: # (@formatter:off)
-```java
-fixture.whenExecuting(fc -> httpClient.put("/user", userProfile))
-       .expectEvents(new UserCreated(...));
-```
-[//]: # (@formatter:on)
-
-### Asynchronous tests
-
-By default, `TestFixture.create(...)` creates synchronous fixtures where handlers are executed locally in the same
-thread
-that publishes the message. This provides fast, deterministic behavior ideal for most unit tests.
-
-However, in production your handlers are typically dispatched asynchronously by consumers running on separate threads.
-To better simulate this behavior in tests — especially when testing event-driven flows or stateful consumers — you can
-use an asynchronous fixture instead.
+Flux makes it easy to test full workflows—including outbound `WebRequest` calls—by **mocking** the response during
+tests:
 
 ```java
-TestFixture fixture = TestFixture.createAsync(new MyHandler(), MyStatefulHandler.class);
-```
-
-This ensures that:
-
-- Handlers are tracked via the same consumer infrastructure used in production.
-- Behavior involving asynchronous dispatch, retries, or stateful models is tested realistically.
-- Eventual consistency is respected (e.g., expect...() calls will wait for outcomes to materialize).
-
-> **Note:** Handlers annotated with `@LocalHandler` are executed synchronously, even in async fixtures, just as they
-> would
-> in production. Handlers annotated with `@TrackSelf`, `@Stateful`, or `@SocketEndpoint` — also behave as they would in
-> a production runtime: they are tracked and dispatched asynchronously when registered by class.
-
-### Using test fixtures in Spring
-
-When using Spring, simply inject the test fixture via `FluxCapacitorTestConfig`:
-
-```java
-
-@SpringBootTest(classes = {App.class, FluxCapacitorTestConfig.class})
-class AsyncAppTest {
-
-    @Autowired
-    TestFixture fixture;
-
-    @Test
-    void testSomething() {
-        fixture.whenCommand("commands/my-command.json")
-                .expectEvents("events/expected-event.json");
+static class EndpointMock {
+    @HandleGet("https://api.example.com/1.1/locations")
+    WebResponse handleLocations() {
+        return WebResponse.builder()
+                .header("X-Limit", "100")
+                .payload("/example-api/get-locations.json")
+                .build();
     }
 }
-```
-
-By default, this will inject an **async** test fixture. You can override this by setting the property:
-
-```properties
-fluxcapacitor.test.sync=true
-```
-
-Or selectively enable sync mode via per-test configuration using:
-
-```java
-
-@TestPropertySource(properties = "fluxcapacitor.test.sync=true")
-@SpringBootTest(classes = {App.class, FluxCapacitorTestConfig.class})
-class SyncAppTest {
-
-    @Autowired
-    TestFixture fixture;
-  
-  ...
-}
-```
-
-### Testing schedules
-
-Flux Capacitor’s scheduling engine makes it easy to test time-based workflows. Scheduled messages are handled just
-like any other message, except they are delayed until their due time.
-
-Use the `TestFixture` to simulate the passage of time and trigger scheduled actions. Here’s a typical example:
-
-```java
-TestFixture testFixture = TestFixture.create(new UserCommandHandler(), new UserLifecycleHandler());
 
 @Test
-void accountIsTerminatedAfterClosing() {
-    testFixture
-            .givenCommands(new CreateUser(myUserProfile), new CloseAccount(userId))
-            .whenTimeElapses(Duration.ofDays(30))
-            .expectEvents(new AccountTerminated(userId));
+void testGetLocations() {
+    TestFixture.create(new EndpointMock())
+            .whenGet("https://api.example.com/1.1/locations")
+            .<List<ExampleLocation>>expectResult(r -> r.size() == 2);
 }
 ```
 
-In this test:
+You can match requests by:
 
-- We schedule the AccountTerminated message as a result of the CloseAccount command.
-- Then we simulate that 30 days have passed using whenTimeElapses(...).
-- Finally, we verify that the expected AccountTerminated event was published.
+- Method and URL
+- Headers, body, or any other property
 
-You can also test cancellation logic:
+> ✅ This gives you **full end-to-end test coverage**, even when integrating with external APIs.
 
-```java
+---
 
-@Test
-void accountReopeningCancelsTermination() {
-    testFixture
-            .givenCommands(new CreateUser(myUserProfile), new CloseAccount(userId), new ReopenAccount(userId))
-            .whenTimeElapses(Duration.ofDays(30))
-            .expectNoEventsLike(AccountTerminated.class);
-}
-```
+### 📦 Summary
 
-If needed, you can advance time to an absolute timestamp using:
+- ✅ Use `WebRequest` for centralized, traceable outbound HTTP calls.
+- ✅ Automatically routes to a proxy or local handler depending on URL.
+- ✅ Supports timeouts, consumers, and structured request settings.
+- ✅ Easily mock remote endpoints for testing full business flows.
 
-[//]: # (@formatter:off)
-```java
-fixture.whenTimeAdvancesTo(Instant.parse("2050-12-31T00:00:00Z"));
-```
-[//]: # (@formatter:on)
-
-This is especially useful for workflows tied to specific deadlines or calendar dates.
+---
 
 ## Domain Modeling
 
@@ -1733,12 +1951,12 @@ child entities (modeled via `@Member`), but represents a single unit of consiste
 
 ---
 
-### Applying Updates with @Apply and @AssertLegal
+### Applying Updates to entities
 
 Entities evolve in response to **updates** — typically the payload of a command. Updates define what change should
 happen and contain the logic to validate and apply those changes.
 
-Here's an example using two command classes: one to create a user, and another to update the profile.
+Here’s an example using two commands — one to create a user, and another to update their profile.
 
 ```java
 
@@ -1759,10 +1977,7 @@ public class CreateUser {
 }
 ```
 
-This command creates a new `User` entity after asserting that no user with the given ID exists.
-
-> **Note**: Handler method parameters (like `User current`) are only injected if non-null by default. Use `@Nullable` if
-> you need to allow null.
+This update creates a new `User` entity after checking that no user with the same ID currently exists.
 
 ```java
 
@@ -1792,11 +2007,94 @@ public class UpdateProfile {
 }
 ```
 
-This update first checks whether the user exists and if their account is still open before applying the update.
-Returning a new `User` object here reflects the recommended **immutable style**, but mutable updates are supported too.
+This update first ensures the user exists and their account isn’t closed before applying the change.
 
-> **Note**: Since parameters like `User current` are only injected when non-null, you can safely omit null checks
-> unless you annotate with `@Nullable`.
+> **Note**: Handler method parameters (like `User current`) are only injected if non-null. Use `@Nullable` to allow for
+> missing values.
+
+---
+
+### Intercepting and Transforming Updates with `@InterceptApply`
+
+In addition to applying and validating updates, you can also **intercept** them *before* they reach the legal or apply
+phase.
+
+Use `@InterceptApply` to:
+
+- Suppress updates that are irrelevant or no-ops
+- Rewrite updates that would otherwise be invalid
+- Split a single update into multiple smaller updates
+
+```java
+
+@InterceptApply
+Object ignoreNoChange(User current) {
+    if (current.getProfile().equals(profile)) {
+        return null; // suppress update, nothing to change
+    }
+    return this;
+}
+```
+
+You can even rewrite the update entirely:
+
+```java
+
+@InterceptApply
+UpdateProfile downgradeCommand(CreateUser command, User existingUser) {
+    //the existingUser could be injected, hence it already exists
+    return new UpdateProfile(command.getUserId(), command.getProfile());
+}
+```
+
+Or expand a bulk command into many atomic ones:
+
+```java
+
+@InterceptApply
+List<CreateTask> expandBulk(BulkCreateTasks bulk) {
+    return bulk.getTasks();
+}
+```
+
+> 🔁 Flux will apply interceptors **recursively** until the final update no longer changes.
+
+---
+
+### Invocation Order
+
+The update lifecycle flows as follows:
+
+1. **Intercept** using `@InterceptApply`
+2. **Assert legality** using `@AssertLegal`
+3. **Apply changes** using `@Apply`
+
+This allows you to rewrite or suppress updates *before* they’re validated or stored — a powerful tool for protecting
+data integrity and simplifying update logic.
+
+### Return Values
+
+`@InterceptApply` supports flexible return types:
+
+- `null` or `void` → suppress the update
+- `this` → no change
+- A **new update object** → rewrites the update
+- A **Collection**, `Stream`, or `Optional` → emits zero or more new updates
+
+> 📌 You typically don’t need to intercept just to avoid storing no-ops. Instead, annotate the `@Aggregate` or `@Apply`
+> method with `eventPublication = IF_MODIFIED` to avoid persisting unchanged state.
+
+---
+
+### Summary
+
+| Annotation        | Purpose                                        | Phase        |
+|-------------------|------------------------------------------------|--------------|
+| `@InterceptApply` | Rewrite, suppress, or expand updates           | Pre-check    |
+| `@AssertLegal`    | Validate preconditions                         | Validation   |
+| `@Apply`          | Apply state transformation                     | Execution    |
+
+Together, these annotations offer full control over your entity update lifecycle — with a clean, declarative style.
 
 ---
 
@@ -1879,6 +2177,8 @@ Flux Capacitor allows **mixed approaches**. You can define:
 
 Just keep in mind: logic that lives in updates is **easier to test, extend, and remove**.
 
+---
+
 ## Applying Updates in Handlers
 
 To change the state of an entity, use `FluxCapacitor.loadAggregate(...)` to retrieve the aggregate and apply updates to
@@ -1914,6 +2214,8 @@ This example used `assertAndApply()`, which combines two steps:
 [//]: # (@formatter:on)
 
 This style is recommended if you want to ensure validations happen before the entity changes state.
+
+---
 
 ## Nested Entities and Members
 
@@ -2012,6 +2314,8 @@ This model leads to extremely clean domain logic:
 - No need to manipulate collections in the aggregate
 - No need for boilerplate logic to find, update, or remove children
 - Nested updates stay localized to the child entity itself
+
+---
 
 ## Model Persistence
 
@@ -2169,6 +2473,8 @@ In this example:
 - It uses this to decide whether a significant balance change has occurred.
 - No external store or manual query is needed — this is pure, consistent, event-sourced state.
 
+---
+
 ## Stateful Handlers
 
 While aggregates represent domain entities, Flux also supports long-lived **stateful handlers** for modeling workflows,
@@ -2276,6 +2582,8 @@ Stateful handlers are ideal for:
 They complement aggregates without competing with them — and allow modeling temporal behavior in a clean, event-driven
 way.
 
+---
+
 ## Document Indexing and Search
 
 Flux Capacitor provides a powerful and flexible document store that lets you persist and query models using full-text
@@ -2375,9 +2683,10 @@ List<User> users = FluxCapacitor.search(User.class)
 
 Flux supports a rich set of constraints:
 
+- `lookAhead("cat", paths...)` – search-as-you-type lookups
+- `query("*text & (cat* | hat)", paths...)` – full-text search
 - `match(value, path)` – field match
 - `matchFacet(name, value)` – match field with `@Facet`
-- `query("text", paths...)` – full-text search
 - `between(min, max, path)` – numeric or time ranges
 - `since(...)`, `before(...)`, `inLast(...)` – temporal filters
 - `anyExist(...)` – match if *any* of the fields are present
@@ -2388,8 +2697,8 @@ Example:
 [//]: # (@formatter:off)
 ```java
 FluxCapacitor.search("payments")
-    .match("FAILED","status")
-    .inLast(Duration.ofHours(1))
+    .match("FAILED", "status")
+    .inLast(Duration.ofDays(1))
     .fetchAll();
 ```
 [//]: # (@formatter:on)
@@ -2425,9 +2734,9 @@ whereas `.match(...)` may involve resolving the path in memory and combining con
 
 ### Facet Statistics
 
-When a field is annotated with `@Facet`, you can also retrieve **facet statistics** — e.g., how many documents exist
-per value of a given field. This is useful for building **filters with counts**, such as product categories, user roles,
-or status indicators.
+When a field or getter is annotated with `@Facet`, you can also retrieve **facet statistics** — e.g., how many documents
+exist per value of a given property. This is useful for building **filters with counts**, such as product categories,
+user roles, or status indicators.
 
 #### Example: Product Breakdown by Category and Brand
 
@@ -2462,7 +2771,7 @@ This gives you document counts per facet value:
 [//]: # (@formatter:off)
 ```json
 [
-  { "name": "category", "value": "headphones", "count": 81 },
+  { "name": "category", "value": "headphones", "count": 55 },
   { "name": "brand", "value": "Acme", "count": 45 },
   { "name": "brand", "value": "NoName", "count": 10 }
 ]
@@ -2477,6 +2786,73 @@ Each `FacetStats` object will contain:
 - the facet name (e.g., `category`)
 - the distinct values (e.g., `"electronics"`, `"clothing"`)
 - the number of documents per value
+
+---
+
+### Rapid Sorting and Filtering
+
+To enable efficient **range filters** and **sorted results** in document searches, annotate properties with `@Sortable`:
+
+```java
+
+@Value
+public class Product {
+    @Sortable
+    BigDecimal price;
+
+    @Sortable("releaseDate")
+    Instant publishedAt;
+}
+```
+
+This tells Flux Capacitor to **pre-index** these fields in a lexicographically sortable format. When you issue a search
+with a `between()` constraint or `.sort(...)` clause, the Flux Platform can evaluate it **directly in the data store** —
+without needing to load and compare documents in memory.
+
+#### 🚀 Optimized Search Example
+
+```java
+List<Product> results = FluxCapacitor.search(Product.class)
+        .between("price", 10, 100)
+        .sort("releaseDate")
+        .fetch(100);
+```
+
+This performs a fast, index-backed range query across all products priced between €10 and €100, sorted by their
+`releaseDate`.
+
+> ⚠️ You can always sort by any field — even if it's not `@Sortable` — but performance will degrade because the sorting
+> happens **after** all matching documents are loaded.
+
+#### ⚙️ What Gets Indexed?
+
+Flux Capacitor normalizes and encodes sortable fields depending on their value type:
+
+| Type           | Behavior                                                                 |
+|----------------|--------------------------------------------------------------------------|
+| Numbers        | Padded base-10 string (preserves order, supports negatives)              |
+| Instants       | ISO-8601 timestamp format                                                |
+| Strings/Others | Normalized (lowercased, trimmed, diacritics removed)                     |
+
+This ensures that sorting is **consistent** and **correct** across types and locales.
+
+#### 🧠 Nested and Composite Values
+
+If the sortable field is:
+
+- A **collection** → Max element is indexed. Create a getter if you need sorting on the min element
+- A **map** → Values are indexed using `key/propertyName` path
+- A **nested object** annotated with `@Sortable` → Its `toString()` is used
+- A **POJO with `@Sortable` fields** → Those nested values are indexed with prefixed paths
+
+#### ⚠️ Important Notes
+
+- **No retroactive indexing**: Adding `@Sortable` to a field does **not** automatically reindex existing documents.
+- To apply sorting retroactively, trigger a reindex (e.g. with `@HandleDocument` and a bumped `@Revision`)
+- Sorting and filtering still happen **within the Flux Platform**, but *without* `@Sortable` the logic falls back
+  to **in-memory evaluation** — which is much slower.
+
+> ✅ Use `@Sortable` together with `@Facet` if you want both sorting and aggregation/filtering on a field.
 
 ---
 
@@ -2529,6 +2905,195 @@ FluxCapacitor.search("expiredTokens")
 - Use `@Searchable` to configure the collection name or time range for an object.
 - Use `@Aggregate(searchable = true)` or `@Stateful` for automatic indexing.
 - Use `FluxCapacitor.search(...)` to query, stream, sort, and aggregate your documents.
+
+---
+
+## Tracking and Updating Documents
+
+Flux Capacitor allows you to **track changes to your document store** using the `@HandleDocument` annotation.  
+This enables handlers to react to document updates in real time — much like handling events.
+
+```java
+
+@HandleDocument
+void handle(User user) {
+    log.info("User {} was added or updated", user.getUserId());
+}
+```
+
+### How It Works
+
+Every time a document is (re)indexed, it receives a new message index (based on the timestamp of the update).  
+Handlers annotated with `@HandleDocument` will observe these updates as they pass through the **document log**.
+
+> ⚠️ When catching up from behind (e.g. in a replay), only the **latest version** of a document is retained per key.
+> Earlier intermediate versions are not visible to late consumers.
+
+This makes `@HandleDocument` ideal for **live processing**, **projecting the latest known state**, or **cache rebuilds
+**.
+
+---
+
+### Transforming Stored Documents
+
+`@HandleDocument` can also be used to **update documents in place**.
+
+If the handler returns a **newer revision** of the document, Flux will reindex and persist the result:
+
+```java
+
+@HandleDocument("users")
+User upgrade(User oldUser) {
+    return new User(oldUser.getId(), normalizeEmail(oldUser.getEmail()));
+}
+```
+
+The returned value replaces the previous document (same ID), **only if** it has a **higher `@Revision`**.
+
+> ✅ This creates a powerful and durable upgrade path — ideal for data normalization, filling missing fields, or
+> applying business logic retroactively.
+
+To **delete** a document from the store, return `null`:
+
+```java
+
+@HandleDocument("users")
+User upgrade(User user) {
+    return user.isTestUser() ? null : user;
+}
+```
+
+> Transformations are persisted reliably — even across application restarts — making this a great way to evolve your
+> document model safely.
+
+---
+
+### Use Cases
+
+- Auto-upcasting legacy documents
+- Filling or correcting derived fields
+- Cleaning up invalid or deprecated data
+- Running background migrations or rehydration jobs
+- Real-time analytics and change logging
+
+---
+
+### Handler Configuration
+
+You can subscribe to a document collection using any of the following styles:
+
+- `@HandleDocument(documentClass = MyModel.class)` — resolves the collection via the model’s `@Searchable` annotation
+- `@HandleDocument("myCollection")` — binds directly to the named collection
+- `@HandleDocument` — infers the collection from the **first parameter** of the handler method
+
+---
+
+### Replay for Full Collection Migration
+
+Want to upgrade all existing documents in a collection? Combine `@HandleDocument` with replays:
+
+1. Create a handler method that returns upgraded documents
+2. Increment the `@Revision` on the model class
+3. Attach a custom consumer with `@Consumer(minIndex = 0, ...)`
+4. Deploy temporarily until migration completes
+
+This is a robust and rapid way to **reindex, clean, or refactor your stored documents** in-place.
+
+```java
+
+@Consumer(name = "reindex-users", minIndex = 0)
+class ReindexUsers {
+    @HandleDocument("users")
+    User upgrade(User legacyUser) {
+        return fixLegacyState(legacyUser);
+    }
+}
+```
+
+Once the transformation is complete, the handler can be safely removed.
+
+---
+
+## 🔐 Protecting Sensitive Data
+
+Flux Capacitor offers built-in support for handling sensitive information with care using the `@ProtectData` and
+`@DropProtectedData` annotations.
+
+These tools help prevent sensitive fields (e.g., passwords, SSNs, tokens) from being unnecessarily stored, logged, or
+retained—supporting compliance with data protection standards like **GDPR** and **ISO 27001**.
+
+---
+
+### `@ProtectData`: Mark Sensitive Fields
+
+To prevent a field from being stored with the rest of a message payload, annotate it with `@ProtectData`:
+
+```java
+
+@Value
+public class RegisterCitizen {
+    String name;
+
+    @ProtectData
+    String socialSecurityNumber;
+}
+```
+
+When this message is serialized (e.g., to the event store or document store), the `socialSecurityNumber` will be:
+
+- **Offloaded** to a separate data vault
+- **Redacted** from the main payload (not visible in logs or message inspectors)
+- **Re-injected** automatically when the message is handled
+
+This happens transparently—you can access the field as usual in handler methods.
+
+---
+
+### `@DropProtectedData`: Remove When Done
+
+If the protected data should only be retained **temporarily**, annotate the handler method with `@DropProtectedData`:
+
+```java
+
+@HandleCommand
+@DropProtectedData
+void handle(RegisterCitizen command) {
+    validate(command.getSocialSecurityNumber());
+    ...
+}
+```
+
+Once this handler completes:
+
+- The injected `socialSecurityNumber` is **permanently deleted** from storage.
+- Future replays will deserialize the message with that field **omitted**.
+
+> ⚠️ This mechanism ensures sensitive fields are **usable just-in-time** and **discarded thereafter**.
+
+---
+
+### Use Cases
+
+- Temporary use of sensitive tokens or credentials
+- Compliance with **data minimization** and **retention policies**
+- Preventing accidental exposure in logs or audits
+
+---
+
+### Replays and Protected Data
+
+During replays, if a message with protected fields is re-invoked **after** data has been dropped, those fields will be
+missing or set to `null`. Design your handlers to tolerate this by making such fields optional or guarding usage.
+
+---
+
+### Notes
+
+- Only **fields** can be annotated with `@ProtectData` (not method parameters).
+- Dropping data is **irreversible**. Make sure all processing is complete before it is removed.
+- Support for nested structures is currently limited — annotate each sensitive field explicitly.
+
+---
 
 ## Serialization, Upcasting, and Downcasting
 
@@ -2647,11 +3212,11 @@ serializer.
 
 Outside of Spring, register them manually:
 
+[//]: # (@formatter:off)
 ```java
-serializer.registerCasters(new CreateUserUpcaster(), new
-
-CreateUserDowncaster());
+serializer.registerCasters(new CreateUserUpcaster(), new CreateUserDowncaster());
 ```
+[//]: # (@formatter:on)
 
 ---
 
@@ -2680,67 +3245,7 @@ All casting occurs **in your application**, not in the Flux platform. Stored mes
 > **Note:** Upcasting is essential when using event sourcing or durable message storage — these messages may live for
 > years.
 
-## Tracking and Updating Documents with `@HandleDocument`
-
-Flux Capacitor allows you to react to changes in your document store using the `@HandleDocument` annotation.  
-This enables you to subscribe to updates within a specific collection—similar to how you might handle events.
-
-```java
-
-@HandleDocument(documentClass = User.class)
-void handle(User user) {
-    log.info("User {} was added or updated", user.getUserId());
-}
-```
-
-### How It Works
-
-Every time a document is (re)indexed, it is assigned a new message index based on the timestamp of the change.  
-Handlers using `@HandleDocument` will receive these updates as they stream through the document log.
-
-> ⚠️ During a replay or when processing from behind, only the **latest version** of a document for a given index is
-> retained.
-> If a document was overwritten multiple times, only the final version is tracked.
-
-This makes `@HandleDocument` ideal for live tracking or applying **latest-known state** in projections or cache
-rebuilds.
-
-### Transforming Documents via Handler Return Value
-
-A powerful feature of `@HandleDocument` is its support for **automatic updates**.
-
-You can **return a new version of the document** from your handler, and it will be stored in the same collection:
-
-```java
-
-@HandleDocument
-User upgrade(User oldUser) {
-    return new User(oldUser.getId(), normalizeEmail(oldUser.getEmail()));
-}
-```
-
-Flux will reindex the returned object **only if** it has a **higher `@Revision`** than the original. The document 
-will be stored under the same ID.
-
-This creates a self-healing upgrade path: you can apply schema fixes, fill in missing data, or migrate legacy documents
-seamlessly.
-
-> These updates are reliable—even across restarts—and make it easy to evolve your stored data over time.
-
-### 🧰 Use Cases
-
-- Automatically upcast old documents
-- Normalize or validate incoming data
-- Migrate schema fields in-place
-- Populate new derived fields based on older models
-- Monitor live updates for analytics or logging
-
-You can subscribe to a collection by:
-
-- Setting `@HandleDocument(documentClass = MyModel.class)`
-- Or `@HandleDocument("myCollection")` to bind by collection name
-
-> Combine this with replays to retroactively transform your entire document store.
+---
 
 ## Filtering Object Content
 
@@ -2762,9 +3267,11 @@ public Order filter(User user) {
 
 To invoke filtering:
 
+[//]: # (@formatter:off)
 ```java
 Order filtered = FluxCapacitor.filterContent(order, currentUser);
 ```
+[//]: # (@formatter:on)
 
 ### Recursive Filtering
 
@@ -2800,408 +3307,690 @@ public LineItem filter(User user, Order root) {
   document deserialization)
 - If no method is annotated with `@FilterContent`, the object is returned unmodified
 
-## Parameter resolvers
+---
 
-The parameters of annotated handler methods (e.g. a method annotated with `@HandleEvent`) are fully customizable
-using parameter resolvers. By default a couple of common parameter resolvers are registered to resolve the message
-payload, raw message or its metadata.
+## Metrics Messages
 
-By default, the first parameter of an annotated handler method is assumed to refer to the message payload.
-Here’s a method with parameters for the payload, metadata and raw serialized message:
+Flux Capacitor supports a built-in message type for metrics: `MessageType.METRICS`.  
+These messages provide a powerful way to observe and trace system behavior across clients, handlers, and infrastructure.
+
+Metrics messages are:
+
+- Lightweight, structured, and traceable
+- Logged like any other message
+- Routable to handlers (via `@HandleMetrics`)
+- Stored by default for **1 month** due to volume
+
+---
+
+### Publishing Metrics
+
+You can publish metrics manually using the `FluxCapacitor.publishMetrics(...)` method:
+
+```java
+FluxCapacitor.publishMetrics(new SystemMetrics("slowProjection", "thresholdExceeded"));
+```
+
+This emits a structured metrics message to the metrics topic.
+
+All metrics are wrapped in a regular `Message`, so you can include metadata or delivery guarantees:
+
+```java
+FluxCapacitor.get().
+
+metricsGateway()
+    .
+
+publish(new MyMetric("foo"),Metadata.
+
+of("critical","true"),Guarantee.STORED);
+```
+
+---
+
+### Automatic Metrics from Clients
+
+Many metrics are automatically emitted by the Flux Java client:
+
+- **Connect / Disconnect events** when clients (re)connect
+- **Tracking updates** (throughput, handler times, latency)
+- **Search / state / document store operations**
+- **Web request round-trip timings**
+
+These are particularly helpful in troubleshooting or auditing system performance.
+
+---
+
+### Consuming Metrics
+
+You can treat metrics like any other message type:
+
+```java
+
+@HandleMetrics
+void on(MetricEvent event) {
+    log.debug("Observed metric: {}", event);
+}
+```
+
+Use this to power custom dashboards, counters, diagnostics, or trigger alerts.
+
+---
+
+### Disabling Metrics
+
+To reduce noise or overhead, you can selectively disable automatic metrics:
+
+#### Disable per handler or batch using an interceptor
+
+```java
+
+@Consumer(handlerInterceptors = DisableMetrics.class)
+public class SilentHandler {
+    @HandleEvent
+    void on(MyEvent event) { ...}
+}
+```
+
+You can also use `batchInterceptors` to disable metrics for an entire consumer instance.
+
+#### Disable globally per client
+
+If you're instantiating a `WebSocketClient`, you can pass `disableMetrics = true` via the client config.
+
+#### Use programmatic interceptors
+
+If needed, you can suppress metric dispatch programmatically using:
+
+[//]: # (@formatter:off)
+```java
+AdhocDispatchInterceptor.runWithAdhocInterceptor(() -> {
+    // your code here
+}, (message, messageType, topic) -> null, MessageType.METRICS);
+```
+[//]: # (@formatter:on)
+
+---
+
+### Common Use Cases
+
+- **Audit debugging**: trace which handler caused a slowdown
+- **Observability**: track real-time stats like search throughput
+- **Dashboards**: expose per-entity or per-consumer metrics
+- **Trigger alerting**: when retries or handler delays exceed thresholds
+
+Metrics messages provide lightweight hooks into system behavior — use them for visibility without overhead.
+
+---
+
+## Application Properties
+
+Flux Capacitor provides a static utility, `ApplicationProperties`, for resolving configuration values across
+environments, tests, and production. It supports:
+
+- Layered resolution from environment variables, system properties, and `.properties` files
+- Placeholder substitution (e.g. `${my.env}`)
+- Encrypted values with automatic decryption
+- Typed access: `getBooleanProperty`, `getIntegerProperty`, etc.
+
+### Property Resolution Order
+
+Properties are resolved in the following order of precedence:
+
+1. `EnvironmentVariablesSource` – e.g. `export MY_SETTING=value`
+2. `SystemPropertiesSource` – e.g. `-Dmy.setting=value`
+3. `ApplicationEnvironmentPropertiesSource` – e.g. `application-dev.properties`
+4. `ApplicationPropertiesSource` – base fallback (`application.properties`)
+5. *(Optional)*: Spring’s `Environment` is added as a fallback source if Spring is active
+
+To specify the environment (`dev`, `prod`, etc.), define:
+
+```bash
+export ENVIRONMENT=dev
+```
+
+This allows `application-dev.properties` to override base properties.
+
+### Example Usage
+
+```java
+String name = ApplicationProperties.getProperty("app.name", "DefaultApp");
+boolean enabled = ApplicationProperties.getBooleanProperty("feature.toggle", true);
+int maxItems = ApplicationProperties.getIntegerProperty("limit.items", 100);
+```
+
+### Encrypted Values
+
+Flux Capacitor supports secure storage of secrets using its built-in encryption utility. To use encryption:
+
+1. **Generate a new key** with:
+
+```java
+String key = DefaultEncryption.generateNewEncryptionKey();
+System.out.
+
+println(key); // Save and use as ENCRYPTION_KEY
+```
+
+2. **Set an encryption key** via an environment variable or system property:
+
+```bash
+export ENCRYPTION_KEY=ChaCha20|KJh832h1f7shDFb...
+```
+
+3. **Encrypt values** at build/deploy time:
+
+[//]: # (@formatter:off)
+```java
+String encrypted = ApplicationProperties.encryptValue("secret-google-key");
+System.out.println(encrypted);
+// => encrypted|ChaCha20|mm8yeY8TXtNpdrwO:REdej56zvFXc:b7oQdmnpQpUzagKtma9JLQ==
+```
+[//]: # (@formatter:on)
+
+4. **Add encrypted values to your config**:
+
+```properties
+google.apikey=encrypted|ChaCha20|mm8yeY8TXtNpdrwO:REdej56zvFXc:b7oQdmnpQpUzagKtma9JLQ==
+```
+
+5. **Resolve them normally in code**:
+
+[//]: # (@formatter:off)
+```java
+String apiKey = ApplicationProperties.getProperty("google.apikey");
+// -> "secret-google-key"
+```
+[//]: # (@formatter:on)
+
+Decryption is transparent. Flux detects encrypted values and decrypts them automatically.
+
+### In Tests
+
+Properties can be defined in your `test/resources/application.properties` or overridden via system properties.
+
+```bash
+-Dmy.test.override=true
+```
+
+Or dynamically inject mock values:
+
+[//]: # (@formatter:off)
+```java
+TestFixture.create(MyHandler.class)
+    .withProperty("my.test.value", "stub")
+    .whenCommand("/users/create-job.json")
+    .expectSchedules(ScheduledJob.class);
+```
+[//]: # (@formatter:on)
+
+> This is especially useful in integration or fixture-based tests.
+
+---
+
+## Parameter Injection with Custom Resolvers
+
+Flux Capacitor allows fine-grained control over **handler method parameters** using the `ParameterResolver` interface.  
+This lets you inject **any value** into annotated handler methods — beyond just payload, metadata, etc.
+
+### How It Works
+
+When a message is dispatched to a handler (e.g. via `@HandleEvent`, `@HandleCommand`, etc.), the framework scans the
+method’s parameters and tries to resolve each one using the configured `ParameterResolvers`.
+
+By default, Flux Capacitor supports common parameters like:
+
+- The **message payload**
+- **Metadata**
+- The deserialized `Message`, `Schedule` or `WebRequest`
+- The raw `SerializedMessage`
+- **User** (if authenticated)
+- **Trigger message** (via `@Trigger`)
+
+Other contextual values like **message ID**, **timestamp**, etc. can be obtained from the `Message`.
+
+### Example: Default Resolution
 
 ```java
 
 @HandleEvent
-void handle(UserCreated event, Metadata metadata, SerializedMessage message) {
-    // do something special 
+void handle(CreateUser event, Metadata metadata, SerializedMessage message) {
+    log.info("User created at {}", Instant.ofEpochMilli(message.getTimestamp()));
 }
 ```
 
-You can easily create your own parameter resolver. For instance, here’s one that will inject the message timestamp
-to parameters of type `Instant`:
+### Writing Your Own Parameter Resolver
+
+You can register a custom parameter resolver to inject arbitrary values, such as headers, timestamps, or contextual
+objects:
 
 ```java
 public class TimestampParameterResolver implements ParameterResolver<DeserializingMessage> {
     @Override
-    public Function<DeserializingMessage, Object> resolve(Parameter p) {
-        if (p.getType().equals(Instant.class)) {
-            return message -> Instant.of(message.getTimestamp());
+    public Function<DeserializingMessage, Object> resolve(Parameter parameter, Annotation methodAnnotation) {
+        if (parameter.getType().equals(Instant.class)) {
+            return DeserializingMessage::getTimestamp;
         }
         return null;
     }
 }
 ```
 
-You can register your custom parameter resolver with the `FluxCapacitorBuilder` and then use it anywhere:
+Then register it via your builder:
+
+[//]: # (@formatter:off)
+```java
+DefaultFluxCapacitor.builder()
+    .addParameterResolver(new TimestampParameterResolver())
+    .build();
+```
+[//]: # (@formatter:on)
+
+And use it in your handler:
 
 ```java
 
-@HandleEvent
-void handle(UserCreated event, Instant timestamp) {
-    // use the message time
+@HandleCommand
+void handle(CreateOrder command, Instant timestamp) {
+    log.info("Command received at {}", timestamp);
 }
 ```
 
-### Message interceptors
+### Use Cases
 
-Flux Capacitor client allows messages to be intercepted before they are handled or dispatched.
-This can be useful in many situations. E.g. to check if a user is authorized to issue a command you can
-write following interceptor:
+- Injecting request-specific context (e.g. tracing info)
+- Supporting custom annotations (e.g. `@FromHeader`)
+- Enabling access to correlated data (e.g. parent entity)
+- Binding to environment or system values
+
+---
+
+Custom parameter injection is a powerful tool for modular, contextual logic. It works seamlessly with all handler
+annotations (`@HandleEvent`, `@HandleCommand`, `@HandleQuery`, `@HandleError`, etc.) and opens up a clean way to avoid
+boilerplate argument passing.
+
+---
+
+## Interceptors: Dispatching, Handling, and Batching
+
+Flux Capacitor offers a flexible and extensible **interceptor model** to hook into key stages of the message lifecycle:
+
+| Interceptor Type          | Target Phase                         | Typical Use Cases                                      |
+|---------------------------|--------------------------------------|--------------------------------------------------------|
+| `DispatchInterceptor`     | Before publishing/handling a message | Mutate, block, enrich, or observe outgoing messages    |
+| `HandlerInterceptor`      | Around handler execution             | Validation, logging, authentication, result decoration |
+| `BatchInterceptor`        | Around batch processing              | Tracing, retries, context injection, metrics           |
+| `MappingBatchInterceptor` | Batch transformation                 | Filtering or rewriting entire message batches          |
+
+All interceptors are **pluggable**, and can be configured via:
+
+- `FluxCapacitorBuilder` for global registration
+- `@Consumer(handlerInterceptors = ...)`
+- `@Consumer(batchInterceptors = ...)`
+
+---
+
+### DispatchInterceptor
+
+A `DispatchInterceptor` hooks into the **message dispatch phase**—just before the message is published to Flux or
+handled locally.
 
 ```java
-class AuthorizingInterceptor implements HandlerInterceptor {
+public class LoggingInterceptor implements DispatchInterceptor {
     @Override
-    public Function<DeserializingMessage, Object> interceptHandling(Function<DeserializingMessage,
-            Handler<DeserializingMessage> handler, String consumer) {
-        return m -> {
-            Sender sender = Sender.fromMetadata(m.getMetadata());
-            RequiresRole requiresRole = m.getPayloadClass().getAnnotation(RequiresRole.class);
-            if (requiresRole != null) {
-                if (sender == null) {
-                    throw new RequiresAuthenticationException(m.getPayload());
-                }
-                if (Arrays.stream(requiresRole.value()).noneMatch(sender::hasRole)) {
-                    throw new UnauthorizedException(sender.getUserName(), m.getPayload());
-                }
+    public Message interceptDispatch(Message message, MessageType type, String topic) {
+        log.info("Dispatching: {} to topic {}", type, topic);
+        return message;
+    }
+}
+```
+
+**Capabilities:**
+
+- `interceptDispatch(...)`: Modify, block, or inspect outgoing messages.
+- `modifySerializedMessage(...)`: Mutate message after serialization but before transmission.
+- `monitorDispatch(...)`: Observe the final message as it's sent.
+
+**Register globally:**
+
+```java
+FluxCapacitorBuilder.builder()
+    .
+
+addDispatchInterceptor(new LoggingInterceptor(),MessageType.COMMAND,MessageType.EVENT);
+```
+
+---
+
+### HandlerInterceptor
+
+A `HandlerInterceptor` allows wrapping the execution of handler methods, ideal for:
+
+- **Authorization & Access Control** — prevent unauthorized commands or queries based on the current user
+- **Auditing and Logging** — log incoming messages, handler invocations, or emitted results
+- **Validation Hooks** — perform extra validation before or after handler execution
+- **Result Transformation** — enrich or reformat results before they’re published or returned
+- **Thread Context Propagation** — populate thread-local state like correlation IDs or security principals
+
+```java
+public class AuthorizationInterceptor implements HandlerInterceptor {
+    @Override
+    public Function<DeserializingMessage, Object> interceptHandling(
+            Function<DeserializingMessage, Object> next, HandlerInvoker invoker) {
+        return message -> {
+            if (!isAuthorized(message)) {
+                throw new UnauthorizedException();
             }
-            return function.apply(m);
+            return next.apply(message);
         };
     }
 }
 ```
 
-Note that the `RequiresRole` annotation and `Sender` object in the above example are project specific and not
-included in the client.
+**Register via annotation or builder:**
 
-The next few sections discuss some supported functionalities that have been implemented using message interceptors.
-
-### Data protection
-
-Sometimes you are dealing with messages that contain sensitive information. This could be e.g. a credit card,
-or the entire profile of a user. Flux Capacitor client enables this part of a message to be removed from the message
-payload and stored inside the key-value store of the service where it can be easily encrypted or removed forever
-if needed.
-
-Here's an example of a command to create a user where the user profile is sensitive:
-
+[//]: # (@formatter:off)
 ```java
+@Consumer(handlerInterceptors = AuthorizationInterceptor.class)
+public class SecureCommandHandler { ... }
 
-@Value
-class CreateUser {
-    @ProtectData
-    UserProfile userProfile;
-    
-    ...
-}
+FluxCapacitorBuilder.builder()
+    .addHandlerInterceptor(new AuthorizationInterceptor(), true, MessageType.COMMAND);
 ```
+[//]: # (@formatter:on)
 
-Placing `@ProtectData` on a top level field of a message will place the user profile in the key value store under a
-randomly generated key. By placing the key in the metadata of the message the value will be automatically restored
-when the command is handled:
+Here, `true` for `highPriority` means your interceptor runs **before** other interceptors.
+
+---
+
+### BatchInterceptor
+
+Wraps around the processing of a **full message batch** by a single consumer, ideal for:
+
+- Structured logging
+- Performance instrumentation
+- Scoped resources (e.g. transactions)
 
 ```java
-class UserCommandHandler {
-    @HandleCommand
-    void handle(CreateUser command) {
-        // user profile will be automatically injected into the command before handling
+public class LoggingBatchInterceptor implements BatchInterceptor {
+    @Override
+    public Consumer<MessageBatch> intercept(Consumer<MessageBatch> consumer, Tracker tracker) {
+        return batch -> {
+            log.info("Start processing {} messages", batch.size());
+            consumer.accept(batch);
+        };
     }
 }
 ```
 
-When you no longer need the protected data you can have Flux Capacitor client delete it for you after handling
-the message:
+📌 **Global install:**
 
 ```java
-class UserCommandHandler {
-    @HandleCommand
-    @DropProtectedData
-    void handle(CreateUser command) {
-        // user profile will be automatically injected into the command before handling
+FluxCapacitorBuilder.builder()
+    .
+
+addBatchInterceptor(new LoggingBatchInterceptor(),MessageType.EVENT);
+```
+
+---
+
+### MappingBatchInterceptor
+
+This specialization of `BatchInterceptor` can rewrite or filter the batch itself:
+
+```java
+MappingBatchInterceptor filterTestMessages = (batch, tracker) -> {
+    var filtered = batch.getMessages().stream()
+            .filter(m -> !m.getMetadata().containsKey("testOnly"))
+            .toList();
+    return batch.withMessages(filtered);
+};
+```
+
+📌 Install it globally:
+
+[//]: # (@formatter:off)
+```java
+FluxCapacitorBuilder.builder()
+    .addBatchInterceptor(filterTestMessages, MessageType.QUERY);
+```
+[//]: # (@formatter:on)
+
+---
+
+Interceptors are a central way to add cross-cutting behavior across all stages of message flow, from dispatch to
+handling and batching—empowering modular, observable, and policy-driven systems.
+
+---
+
+## Configuring Flux Capacitor
+
+The `FluxCapacitorBuilder` interface is the primary entry point for configuring a `FluxCapacitor` instance. It allows
+fine-grained customization of all core behaviors, including message consumers, dispatch logic, interceptors, caching,
+serialization, metrics, and much more.
+
+Most applications use the default builder via:
+
+```java
+FluxCapacitorBuilder builder = DefaultFluxCapacitor.builder();
+```
+
+In Spring environments, it can be customized by implementing the `FluxCapacitorCustomizer` interface:
+
+```java
+
+@Component
+public class MyCustomizer implements FluxCapacitorCustomizer {
+    @Override
+    public FluxCapacitorBuilder customize(FluxCapacitorBuilder builder) {
+        return builder.addParameterResolver(new CustomResolver());
     }
 }
 ```
 
-This will drop the value from the key value store altogether without modifying the original message. Note that,
-even though the value cannot be recovered after dropping it, the message is still available for handling. After the
-data was dropped from the key-value store the field value will be `null`.
+---
 
-### Payload validation
+### Key Capabilities
 
-By default, Flux Capacitor client performs constraint JSR380 validations of commands and queries. Here's a sample of an
-annotated command:
+#### Consumer and Tracking Configuration
+
+- `configureDefaultConsumer(MessageType, UnaryOperator<ConsumerConfiguration>)` to adjust the default consumer behavior
+  per message type.
+- `addConsumerConfiguration(...)` to register additional consumers for selected message types.
+- `forwardWebRequestsToLocalServer(...)` to redirect incoming `@HandleWebRequest` calls to an existing local HTTP
+  server.
+
+#### Interceptors and Decorators
+
+- `addHandlerInterceptor(...)`, `addBatchInterceptor(...)`, and `addDispatchInterceptor(...)` to apply interceptors by
+  message type.
+- Interceptors may be prioritized (`highPriority = true`) or restricted to specific message types.
+- `replaceMessageRoutingInterceptor(...)` overrides the routing logic for outbound messages.
+- `addHandlerDecorator(...)` adds more generic handler-level logic.
+
+#### Data, Identity, and Correlation
+
+- `replaceIdentityProvider(...)` to control ID generation for messages or functional identifiers.
+- `replaceCorrelationDataProvider(...)` to define how correlation metadata is attached to outbound messages.
+- `registerUserProvider(...)` to integrate custom user authentication and inject `User` into handlers.
+
+#### Caching and Snapshotting
+
+- `replaceCache(...)` and `withAggregateCache(...)` to plug in custom caching backends.
+- `replaceRelationshipsCache(...)` for customizing the cache used in association-based message routing.
+- `replaceSnapshotSerializer(...)` if you want to store snapshots differently from events.
+
+#### Message Serialization
+
+- `replaceSerializer(...)` changes the default JSON serializer (e.g., for Jackson customizations).
+- `replaceDocumentSerializer(...)` lets you influence how document fields are indexed and stored for search.
+
+#### Parameter Injection and Handler Behavior
+
+- `addParameterResolver(...)` registers a `ParameterResolver` to inject custom arguments into handler methods.
+- `replaceDefaultResponseMapper(...)` and `replaceWebResponseMapper(...)` to change how handler return values are mapped
+  into responses.
+
+#### Application Configuration
+
+- `addPropertySource(...)` and `replacePropertySource(...)` control the configuration hierarchy (e.g., ENV > system
+  props > application.properties).
+- Integrates with `ApplicationProperties` for encrypted or templated config values.
+
+#### Task Scheduling and Execution
+
+- `replaceTaskScheduler(...)` to inject a custom scheduler for async or delayed task execution.
+
+---
+
+### ❌ Optional Behavior Toggles
+
+These methods disable internal features as needed:
+
+| Method                               | Disables                                                           |
+|--------------------------------------|--------------------------------------------------------------------|
+| `disableErrorReporting()`            | Suppresses error publishing to `ErrorGateway`                      |
+| `disableShutdownHook()`              | Prevents the JVM shutdown hook                                     |
+| `disableMessageCorrelation()`        | Skips automatic correlation ID injection                           |
+| `disablePayloadValidation()`         | Turns off payload type validation                                  |
+| `disableDataProtection()`            | Disables `@ProtectData` and `@DropProtectedData` filtering         |
+| `disableAutomaticAggregateCaching()` | Skips aggregate cache setup                                        |
+| `disableScheduledCommandHandler()`   | Removes default handler for scheduled commands                     |
+| `disableTrackingMetrics()`           | Prevents emitting metrics during message tracking                  |
+| `disableCacheEvictionMetrics()`      | Disables cache eviction telemetry                                  |
+| `disableWebResponseCompression()`    | Prevents gzip compression for web responses                        |
+| `disableAdhocDispatchInterceptor()`  | Disallows use of `AdhocDispatchInterceptor.runWith...()` utilities |
+
+---
+
+### Final Assembly
+
+Once the builder is configured, construct the `FluxCapacitor` instance by passing in a `Client` (usually a
+`WebSocketClient` or `LocalClient`):
+
+[//]: # (@formatter:off)
+```java
+FluxCapacitor flux = builder.build(myClient);
+```
+[//]: # (@formatter:on)
+
+To mark it as the global application-wide instance (i.e., accessible via `FluxCapacitor.get()`):
+
+[//]: # (@formatter:off)
+```java
+builder.makeApplicationInstance(true).build(myClient);
+```
+[//]: # (@formatter:on)
+
+This is the central instance that orchestrates message gateways, tracking, scheduling, and storage across your
+application.  
+If Spring is used, the application instance is automatically set by Spring and unset when the Spring context is closed.
+
+---
+
+## 🌐 WebSocketClient: Connect to the Flux Platform
+
+The `WebSocketClient` is the default client used to connect to the Flux Platform over WebSocket. It provides full access
+to the event store, message gateways, tracking, search, scheduling, and key-value storage subsystems via configurable,
+high-throughput sessions.
+
+### Creating a WebSocketClient
+
+To configure and instantiate a WebSocket-backed client:
 
 ```java
+WebSocketClient client = WebSocketClient.newInstance(
+        WebSocketClient.ClientConfig.builder()
+                .serviceBaseUrl("wss://my.flux.host")
+                .name("my-service")
+                .build());
 
-@Value
-class CreateUser {
-    @NotBlank
-    String userId;
-
-    @NotNull
-    @Valid
-    UserProfile userProfile;
-}
+FluxCapacitor flux = FluxCapacitor.builder().build(client);
 ```
 
-If you don't want automatic payload validation you can disable it
-using `FluxCapacitorBuilder.disablePayloadValidation()`.
+This is the most common setup for production and shared environments. It connects to a remote Flux runtime via the
+service base URL, which must point to the desired deployment.
 
-### Correlating messages
+---
 
-By default, Flux Capacitor client correlates related messages. For example, if an event is published as result of the
-handling of a command, then metadata is added to the event that allows you to correlate it to the original command.
+### Client Configuration (`ClientConfig`)
 
-Following this example the following metadata entries would be added to the event:
+The `ClientConfig` class defines all connection, routing, compression, and tracking parameters. It is fully immutable
+and can be created or extended using the `toBuilder()` pattern.
 
-* `$correlationId`: the index of the command
-* `$traceId`: the index of the message that triggered the command, or the index of the command if no other message
-  triggered that command
-* `$trigger`: the type of the command, e.g. `com.example.CreateUser`
-* `$triggerRoutingKey`: the value of the routing key of the command if any
+Key options include:
 
-### Message routing
+| Setting                     | Description                                                  | Default                          |
+|-----------------------------|--------------------------------------------------------------|----------------------------------|
+| `serviceBaseUrl`            | Base URL for all subsystems <br/>(e.g. `wss://my.flux.host`) | `FLUX_BASE_URL` property         |
+| `name`                      | Name of the application                                      | `FLUX_APPLICATION_NAME` property |
+| `applicationId`             | Optional app ID                                              | `FLUX_APPLICATION_ID` property   |
+| `id`                        | Unique client instance ID                                    | `FLUX_TASK_ID` property or UUID  |
+| `compression`               | Compression algorithm                                        | `LZ4`                            |
+| `pingDelay` / `pingTimeout` | Heartbeat intervals for WebSocket health                     | 10s / 5s                         |
+| `disableMetrics`            | Whether to suppress all outgoing metrics                     | `false`                          |
+| `typeFilter`                | Optional message type restriction                            | `null`                           |
 
-In case multiple clients of the same consumer are subscribed to the Flux Capacitor service, the service uses
-the `segment`
-of a message to route the message to one of the clients. This segment is automatically determined from the message id
-if the message segment was not provided by the client. However, Flux Capacitor client can automatically calculate
-a segment from the so-called routing key on a message.
+---
 
-Here's an example where the field `userId` is used to determine the routing key:
+### Subsystem Sessions
+
+Flux opens multiple WebSocket sessions to handle parallel workloads. You can tune the number of sessions per subsystem:
 
 ```java
-
-@Value
-class CreateUser {
-    @RoutingKey
-    String userId;
-
-    UserProfile userProfile;
-}
+ClientConfig config = ClientConfig.builder()
+        .eventSourcingSessions(2)
+        .searchSessions(3)
+        .gatewaySessions(Map.of(COMMAND, 2, EVENT, 1))
+        .build();
 ```
 
-By annotating the `userId` field with `@RoutingKey` the client will automatically calculate a segment using consistent
-hashing and pass it to the message. The advantage of this is that all
-commands pertaining to a given user will be handled by the same client. This prevents conflicts that would arise when
-multiple clients would modify the user aggregate simultaneously.
+Each session can multiplex multiple consumers or producers under the hood. Use more sessions to improve parallelism and
+isolation across critical workloads.
 
-When listening to events there are situations where you'll need to handle every event. In that case you should use
-the `@HandleNotification` annotation on your handler method instead of the default `@HandleEvent`.
+---
 
-### Metrics
+### Tracking Configuration
 
-Flux Capacitor service is automatically collecting metrics about connected clients. These metrics are stored as
-messages like any other and can hence be tracked like any other message. Here's an example of metrics handler:
-
- ```java
- class MetricsHandler {
-    @HandleMetrics
-    void handle(ConnectEvent event) {
-        ...
-    }
-
-    @HandleMetrics
-    void handle(AppendEvent event) {
-        ...
-    }
-}
- ```
-
-Clients can also choose to publish custom metrics events. Some useful metrics collected on the client can be
-enabled using `FluxCapacitorBuilder.collectTrackingMetrics()`. This will collect metrics about handler methods on the
-client including the time it took to handle the message. This enables you to easily detect badly performing handlers.
-
-### Miscellaneous
-
-#### Low-level APIs
-
-The `FluxCapacitor` interface provides a lower-level client API via `FluxCapacitor.client()` that allows
-you to muddle with messages and data in serialized form. There may be situations where this will come in handy,
-for instance when you want to handle messages in batch.
-
-#### Timeouts
-
-Queries and commands sent using send-and-wait will time out after some time. By default this timeout period is
-1 minute. You can change the default timeout by annotating the query or command class as follows:
+Tracking clients can use local caches to optimize polling performance when many consumers are tracking the same topic or
+message type.
 
 ```java
-
-@Timeout(300_000) //timeout of 5 minutes
-class VerySlowQuery {
-    ...
-}
+ClientConfig config = ClientConfig.builder()
+        .trackingConfigs(Map.of(
+                EVENT, TrackingClientConfig.builder()
+                        .sessions(2)
+                        .cacheSize(1000)
+                        .build()))
+        .build();
 ```
 
-#### Message identity
+The `cacheSize` determines how many messages are buffered in-memory per topic. This helps reduce round-trips to the
+platform and can significantly boost performance in high-fanout projections or handlers.
 
-All messages receive an identifier when they are created. By default new random UUID will be used as identifier. You
-can use a custom `IdentityProvider` to supply the id by changing `Message.identityProvider` to something else.
+---
 
-#### Error tracking
+### Integration with FluxCapacitorBuilder
 
-Whenever a handle method gives rise to an exception the error will be published to a dedicated error log.
-You can optionally these errors in a central location using `@HandleError`.
-
-#### Testing with time
-
-All messages receive a timestamp when they are published. That timestamp is determined using an internal clock
-located on `SerializedMessage`. While testing it is often beneficial to fix the time. You can do so as
-follows:
-
- ```java
- class SomeTest {
-    @Test
-    void testWithFixedTime() {
-        var clock = Clock.fixed(Instant.now(), ZoneId.systemDefault());
-        try {
-            SerializedMessage.useCustomClock(clock);
-            //test something
-        } finally {
-            SerializedMessage.useDefaultClock();
-        }
-    }
-}
- ```
-
-Configuration
-======================
-
-You can easily override the default client configuration, just have a look at `FluxCapacitorBuilder`. Here are some of
-the most important things you can do:
-
-### Configuring message consumers
-
-Consider the following configuration:
+Once created, the client is passed into the builder:
 
 ```java
-fluxCapacitorBuilder
-        .addConsumerConfiguration(MessageType.EVENT, ConsumerConfiguration.builder()
-            .
-
-name("webshop")
-            .
-
-handlerFilter(h ->h.
-
-getClass().
-
-getPackage().
-
-getName().
-
-startsWith("com.example.webshop"))
-        .
-
-trackingConfiguration(TrackingConfiguration.builder().
-
-threads(4).
-
-maxFetchBatchSize(128).
-
-build())
-        .
-
-build());
-``` 
-
-This will configure a custom consumer for events. It will only contain handlers in the `com.example.webshop` package
-or any of its sub-packages (handlers in other locations will use the default consumer). The consumer uses four threads
-to fetch events and pass them to its handlers. Each thread will fetch no more than 128 events at a time.
-
-This is just a sample of consumer settings that you can modify. For other settings check the Javadoc.
-
-### Registering interceptors
-
-Interceptors can be used to modify, block or record outgoing and incoming messages. They are the
-equivalent of a common web filter in a CRUD application. Here's how to register interceptors:
-
-```java
-fluxCapacitorBuilder
-        // registers an interceptor for outgoing messages
-        .registerDispatchInterceptor(new SomeDispatchInterceptor())
-
-        // registers an interceptor for incoming events
-        .
-
-registerHandlerInterceptor(new SomeEventHandlerInterceptor(),MessageType.EVENT);
+FluxCapacitor flux = FluxCapacitor.builder()
+        .makeApplicationInstance(true)
+        .build(webSocketClient);
 ```
 
-### Overriding common settings
+> ℹ️ Use `makeApplicationInstance(true)` to install the Flux instance as a global singleton (`FluxCapacitor.get()`). 
+> Default **true** in Spring setups.
 
-The client uses defaults that will be suitable for most applications.
-However, to squeeze every ounce of performance or obtain additional insights
-about your application you can disable or enable common settings:
+---
 
-```java
-fluxCapacitorBuilder
-        // don't perform a constraint validation check on incoming commands and queries 
-        .disablePayloadValidation()
+### Local Alternative
 
-// store metrics about the performance of handlers in your application
-   .
-
-collectTrackingMetrics();
-```
-
-Bootstrap with Spring
-======================
-
-You can easily configure and start your app with spring (or spring boot).
-All you need to do is import `FluxCapacitorSpringConfig` into your own configuration and
-you're good to go:
+For testing or lightweight local development, use the in-memory `LocalClient` instead:
 
 ```java
-
-@Configuration
-@Import(FluxCapacitorSpringConfig.class)
-@ComponentScan
-public class SampleSpringConfig {
-}
+FluxCapacitor flux = FluxCapacitor.builder().build(new LocalClient());
 ```
 
-To change the default config just inject and modify the `FluxCapacitorBuilder` instance:
-
-```java
-
-@Configuration
-@Import(FluxCapacitorSpringConfig.class)
-@ComponentScan
-public class SampleSpringConfig {
-    @Autowired
-    public void configure(FluxCapacitorBuilder builder) {
-        builder.collectTrackingMetrics()
-                .addHandlerInterceptor(new AuthenticationInterceptor(), MessageType.COMMAND, MessageType.QUERY);
-    }
-}
-```
-
-By default the spring config will use an in-memory version of Flux Capacitor which is useful for testing but not for
-anything else. To connect to a real Flux Capacitor service simply register a Client bean in your configuration:
-
-```java
-
-@Configuration
-@Import(FluxCapacitorSpringConfig.class)
-@ComponentScan
-public class SampleSpringConfig {
-    @Bean
-    public Client fluxCapacitorClient() {
-        return WebSocketClient.newInstance(new Properties("sample-app", System.getProperty("flux-capacitor-endpoint")));
-    }
-}
-```
-
-Spring beans with handler annotations like `@HandleEvent` are automatically registered for tracking.  
-If you want to send a message just inject the `FluxCapacitor` instance and send the message:
-
-```java
-public class SpringExample {
-    public static void main(final String[] args) {
-        ApplicationContext applicationContext = new AnnotationConfigApplicationContext(SampleSpringConfig.class);
-        applicationContext.getBean(FluxCapacitor.class).eventGateway().publish(new HelloWorld());
-    }
-}
-```
-
-Aside from detecting handlers Flux Capacitor also detects Upcasters automatically. If a spring bean has methods
-annotated with `@Upcast` it will be automatically registered with the Serializer. 
+This simulates the entire platform in-memory without external dependencies.

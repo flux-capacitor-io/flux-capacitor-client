@@ -163,6 +163,11 @@ public class DefaultGenericGateway implements GenericGateway {
         }).collect(Collectors.toList());
     }
 
+    @Override
+    public CompletableFuture<Void> setRetentionTime(Duration duration, Guarantee guarantee) {
+        return gatewayClient.setRetentionTime(duration, guarantee);
+    }
+
     protected CompletableFuture<Message> emptyReturnMessage() {
         CompletableFuture<Message> c = CompletableFuture.completedFuture(Message.asMessage(null));
         if (messageType == MessageType.WEBREQUEST) {

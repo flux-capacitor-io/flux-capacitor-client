@@ -69,12 +69,37 @@ import java.lang.annotation.Target;
 public @interface HandleDocument {
     /**
      * Optional name of the document collection. If provided, {@link #documentClass()} is ignored.
+     *
+     * <p>
+     * If neither documentClass nor value are specified, the first parameter of the method is used to determine the
+     * collection:
+     *
+     * <pre>{@code
+     * class OrganisationHandler {
+     *     @HandleDocument
+     *     void on(Organisation organisation, Metadata metadata) { ... }
+     * }
+     * }</pre>
+     *
+     * @see Searchable
      */
     String value() default "";
 
     /**
      * Optional class of the documents to handle. If annotated with {@link Searchable}, the annotation defines the
      * collection; otherwise the class name is used.
+     * <p>
+     * If neither documentClass nor value are specified, the first parameter of the method is used to determine the
+     * collection:
+     *
+     * <pre>{@code
+     * class OrganisationHandler {
+     *     @HandleDocument
+     *     void on(Organisation organisation, Metadata metadata) { ... }
+     * }
+     * }</pre>
+     *
+     * @see Searchable
      */
     Class<?> documentClass() default Void.class;
 

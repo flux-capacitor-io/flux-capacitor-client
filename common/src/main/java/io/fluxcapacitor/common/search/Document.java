@@ -17,9 +17,9 @@ package io.fluxcapacitor.common.search;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.fluxcapacitor.common.SearchUtils;
 import io.fluxcapacitor.common.api.search.FacetEntry;
-import io.fluxcapacitor.common.api.search.IndexedEntry;
 import io.fluxcapacitor.common.api.search.SearchDocuments;
 import io.fluxcapacitor.common.api.search.SerializedDocument;
+import io.fluxcapacitor.common.api.search.SortableEntry;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
@@ -70,7 +70,7 @@ import static java.util.stream.Collectors.joining;
  * @see Entry
  * @see Path
  * @see FacetEntry
- * @see IndexedEntry
+ * @see SortableEntry
  */
 @Value
 @Builder(toBuilder = true)
@@ -129,10 +129,10 @@ public class Document {
     Set<FacetEntry> facets = Collections.emptySet();
 
     /**
-     * Set of sortable/indexed values used for range queries and ordering.
+     * Set of sortable values used for range queries and ordering.
      */
     @Builder.Default
-    Set<IndexedEntry> indexes = Collections.emptySet();
+    Set<SortableEntry> sortables = Collections.emptySet();
 
     /**
      * Retrieves the first matching {@link Entry} for a given query path.
@@ -151,11 +151,11 @@ public class Document {
     }
 
     /**
-     * Retrieves a stream of {@link IndexedEntry} objects from the document's indexes that match the provided path
+     * Retrieves a stream of {@link SortableEntry} objects from the document's indexes that match the provided path
      * predicate.
      */
-    public Stream<IndexedEntry> getIndexedEntries(Predicate<Path> pathPredicate) {
-        return indexes.stream().filter(e -> pathPredicate.test(e.getPath()));
+    public Stream<SortableEntry> getSortableEntries(Predicate<Path> pathPredicate) {
+        return sortables.stream().filter(e -> pathPredicate.test(e.getPath()));
     }
 
     /**
@@ -197,7 +197,7 @@ public class Document {
                             Predicate<Path> pathPredicate = Path.pathPredicate(queryPath);
                             Comparator<Document> valueComparator =
                                     Comparator.nullsLast(Comparator.comparing(d -> {
-                                        Stream<IndexedEntry> matchingEntries = d.getIndexedEntries(pathPredicate);
+                                        Stream<SortableEntry> matchingEntries = d.getSortableEntries(pathPredicate);
                                         return (reversed ? matchingEntries.max(naturalOrder()) :
                                                 matchingEntries.min(naturalOrder())).orElse(null);
                                     }, Comparator.nullsLast(naturalOrder())));

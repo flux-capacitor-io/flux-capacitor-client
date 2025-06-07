@@ -32,10 +32,10 @@ import java.util.Comparator;
 import static io.fluxcapacitor.common.SearchUtils.ISO_FULL;
 
 /**
- * Represents an indexed and sortable entry in a {@link io.fluxcapacitor.common.search.Document} for use in search
+ * Represents a sortable entry in a {@link io.fluxcapacitor.common.search.Document} for use in search
  * operations.
  * <p>
- * {@code IndexedEntry} values are primarily used to support efficient sorting and range filtering in the document store
+ * {@code SortableEntry} values are primarily used to support efficient sorting and range filtering in the document store
  * (e.g., numeric or timestamp-based queries). Each entry consists of a name (field path) and a pre-normalized,
  * lexicographically sortable value as a {@code String}.
  *
@@ -59,7 +59,7 @@ import static io.fluxcapacitor.common.SearchUtils.ISO_FULL;
  */
 @Value
 @AllArgsConstructor
-public class IndexedEntry implements Comparable<IndexedEntry> {
+public class SortableEntry implements Comparable<SortableEntry> {
 
     /**
      * Number of decimal places for encoding numeric values.
@@ -81,8 +81,8 @@ public class IndexedEntry implements Comparable<IndexedEntry> {
     /**
      * Comparator used to lexicographically compare entries based on {@link #name} and {@link #value}.
      */
-    public static final Comparator<IndexedEntry> comparator = Comparator.comparing(IndexedEntry::getName)
-            .thenComparing(IndexedEntry::getValue, String::compareTo);
+    public static final Comparator<SortableEntry> comparator = Comparator.comparing(SortableEntry::getName)
+            .thenComparing(SortableEntry::getValue, String::compareTo);
 
     /**
      * The name or path of the field (e.g., {@code "price"}, {@code "timestamp"}).
@@ -96,12 +96,12 @@ public class IndexedEntry implements Comparable<IndexedEntry> {
     String value;
 
     /**
-     * Constructs a new {@code IndexedEntry} by formatting the given object into a normalized, sortable string.
+     * Constructs a new {@code SortableEntry} by formatting the given object into a normalized, sortable string.
      *
      * @param name  the field name or path
      * @param value the raw object value (e.g., {@link Number}, {@link Instant}, or {@code String})
      */
-    public IndexedEntry(String name, Object value) {
+    public SortableEntry(String name, Object value) {
         this(name, formatSortable(value));
     }
 
@@ -130,7 +130,7 @@ public class IndexedEntry implements Comparable<IndexedEntry> {
     Path path = new Path(name);
 
     @Override
-    public int compareTo(@NotNull IndexedEntry o) {
+    public int compareTo(@NotNull SortableEntry o) {
         return comparator.compare(this, o);
     }
 

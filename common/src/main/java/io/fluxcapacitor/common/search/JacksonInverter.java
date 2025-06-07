@@ -31,8 +31,8 @@ import io.fluxcapacitor.common.ThrowingFunction;
 import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.search.FacetEntry;
-import io.fluxcapacitor.common.api.search.IndexedEntry;
 import io.fluxcapacitor.common.api.search.SerializedDocument;
+import io.fluxcapacitor.common.api.search.SortableEntry;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.common.search.Document.Entry;
 import io.fluxcapacitor.common.search.Document.EntryType;
@@ -153,7 +153,7 @@ public class JacksonInverter implements Inverter<JsonNode> {
         return new SerializedDocument(new Document(id, type, revision, collection,
                                                    timestamp, end, invert(data), () -> summarize(value),
                                                    getFacets(value, metadata),
-                                                   getIndexed(value)));
+                                                   getSortables(value)));
     }
 
     /*
@@ -203,37 +203,37 @@ public class JacksonInverter implements Inverter<JsonNode> {
         Indexed entries
      */
 
-    protected Set<IndexedEntry> getIndexed(Object value) {
+    protected Set<SortableEntry> getSortables(Object value) {
         if (value == null) {
             return emptySet();
         }
-        return new TreeSet<>(getIndexedEntries(value).filter(e -> e.getValue() != null).collect(
+        return new TreeSet<>(getSortableEntries(value).filter(e -> e.getValue() != null).collect(
                 toMap(e -> e.getPath().getShortValue(), identity(), (a, b) -> b.compareTo(a) > 0 ? b : a)).values());
     }
 
-    protected Stream<IndexedEntry> getIndexedEntries(Object value) {
+    protected Stream<SortableEntry> getSortableEntries(Object value) {
         if (value == null) {
             return Stream.empty();
         }
-        var properties = ReflectionUtils.getAnnotatedProperties(value.getClass(), Indexed.class);
+        var properties = ReflectionUtils.getAnnotatedProperties(value.getClass(), Sortable.class);
         return properties.stream().flatMap(p -> ofNullable(ReflectionUtils.getValue(p, value)).stream()
-                .flatMap(o -> getIndexedEntries(p, o)));
+                .flatMap(o -> getSortableEntries(p, o)));
     }
 
-    protected Stream<IndexedEntry> getIndexedEntries(AccessibleObject holder, Object propertyValue) {
+    protected Stream<SortableEntry> getSortableEntries(AccessibleObject holder, Object propertyValue) {
         return switch (propertyValue) {
             case null -> Stream.empty();
-            case Collection<?> collection -> collection.stream().flatMap(v -> getIndexedEntries(holder, v));
-            case Map<?, ?> map -> map.entrySet().stream().flatMap(e -> getIndexedEntries(holder, e.getValue()).map(
+            case Collection<?> collection -> collection.stream().flatMap(v -> getSortableEntries(holder, v));
+            case Map<?, ?> map -> map.entrySet().stream().flatMap(e -> getSortableEntries(holder, e.getValue()).map(
                     f -> f.withName("%s/%s".formatted(f.getName(), String.valueOf(e.getKey())))));
             default -> {
-                String name = getAnnotation(holder, Indexed.class).map(Indexed::value).filter(s -> !s.isBlank())
+                String name = getAnnotation(holder, Sortable.class).map(Sortable::value).filter(s -> !s.isBlank())
                         .orElseGet(() -> getPropertyName(holder));
                 if (isConstant(propertyValue)
-                    || ReflectionUtils.getTypeAnnotation(propertyValue.getClass(), Indexed.class) != null) {
-                    yield Stream.of(new IndexedEntry(name, propertyValue));
+                    || ReflectionUtils.getTypeAnnotation(propertyValue.getClass(), Sortable.class) != null) {
+                    yield Stream.of(new SortableEntry(name, propertyValue));
                 }
-                yield getIndexedEntries(propertyValue).map(f -> f.withName("%s/%s".formatted(name, f.getName())));
+                yield getSortableEntries(propertyValue).map(f -> f.withName("%s/%s".formatted(name, f.getName())));
             }
         };
     }

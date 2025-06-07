@@ -21,6 +21,7 @@ import io.fluxcapacitor.javaclient.tracking.handling.HasLocalHandlers;
 import io.fluxcapacitor.javaclient.tracking.handling.Request;
 import lombok.SneakyThrows;
 
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -223,6 +224,30 @@ public interface GenericGateway extends HasLocalHandlers {
             throw e.getCause();
         }
     }
+
+    /**
+     * Set a new retention duration for the underlying gateway's message log.
+     * <p>
+     * The retention setting determines how long messages in this log are retained by the system, after which they may
+     * be evicted or deleted depending on the platform policy.
+     *
+     * @param duration  the new retention duration
+     */
+    default void setRetentionTime(Duration duration) {
+        setRetentionTime(duration, Guarantee.NONE);
+    }
+
+    /**
+     * Set a new retention duration for the underlying gateway's message log.
+     * <p>
+     * The retention setting determines how long messages in this log are retained by the system, after which they may
+     * be evicted or deleted depending on the platform policy.
+     *
+     * @param duration  the new retention duration
+     * @param guarantee the delivery guarantee to apply to the update operation
+     * @return a {@link CompletableFuture} that completes once the retention setting is updated
+     */
+    CompletableFuture<Void> setRetentionTime(Duration duration, Guarantee guarantee);
 
     /**
      * Closes this gateway and releases any underlying resources.

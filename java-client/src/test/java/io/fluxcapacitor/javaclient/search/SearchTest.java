@@ -30,7 +30,7 @@ import io.fluxcapacitor.common.api.search.bulkupdate.IndexDocument;
 import io.fluxcapacitor.common.api.search.constraints.FacetConstraint;
 import io.fluxcapacitor.common.api.tracking.Read;
 import io.fluxcapacitor.common.search.Facet;
-import io.fluxcapacitor.common.search.Indexed;
+import io.fluxcapacitor.common.search.Sortable;
 import io.fluxcapacitor.common.serialization.JsonUtils;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.serialization.jackson.JacksonSerializer;
@@ -768,14 +768,14 @@ public class SearchTest {
         private static final String ID = "123A45B67c";
 
         String someId;
-        @Indexed
+        @Sortable
         BigDecimal longNumber;
         String foo;
-        @Indexed
+        @Sortable
         BigDecimal someNumber;
         Map<String, Object> booleans;
         List<Map<String, Object>> mapList;
-        @Indexed
+        @Sortable
         String symbols;
         String weirdChars;
         Map<String, ?> status;
