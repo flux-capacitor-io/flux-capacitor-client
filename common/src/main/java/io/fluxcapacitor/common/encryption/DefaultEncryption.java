@@ -53,6 +53,13 @@ import lombok.extern.slf4j.Slf4j;
 @AllArgsConstructor
 public class DefaultEncryption implements Encryption {
 
+    /**
+     * Generates a new encryption key using the default encryption mechanism.
+     * The key is composed of the encryption algorithm identifier and the underlying encryption key,
+     * formatted as a concatenated string.
+     *
+     * @return a string representation of the newly generated encryption key
+     */
     public static String generateNewEncryptionKey() {
         return new DefaultEncryption().getEncryptionKey();
     }

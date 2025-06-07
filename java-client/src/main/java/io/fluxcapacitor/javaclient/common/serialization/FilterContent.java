@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.javaclient.common.serialization;
 
+import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.User;
 
 import java.lang.annotation.ElementType;
@@ -23,27 +24,36 @@ import java.lang.annotation.Target;
 
 
 /**
- * Indicates that a method should be invoked to filter a value before it is exposed to a specific {@link User}.
+ * Declares that a method should be invoked to filter the visibility of an object for a specific {@link User}.
  * <p>
- * This annotation is used in conjunction with {@link Serializer#filterContent(Object, User)} to dynamically
- * determine whether and how an object (or part of it) should be visible to the given user.
- * </p>
+ * Filtering allows objects to dynamically adjust their exposed content based on who is viewing them.
+ * This is especially useful in projections, document models, or search results that may be shared with different roles.
  *
- * <p>
- * The annotated method should return one of the following:
+ * <p><strong>Invocation:</strong> Filtering is applied by calling {@link FluxCapacitor#filterContent(Object, User)}.
+ * Filtering is <strong>not</strong> automatic; it must be triggered explicitly.</p>
+ *
+ * <p><strong>Injection:</strong> The annotated method may accept the following parameters:
  * <ul>
- *   <li>{@code this} – if the value is fully visible to the user</li>
- *   <li>a modified copy – if only a subset of the value should be shown</li>
- *   <li>{@code null} – if the value must be hidden entirely</li>
+ *   <li>{@link User} – the current user performing the access</li>
+ *   <li>Root object – the top-level object being filtered (useful for context when filtering nested values)</li>
  * </ul>
+ * Any other arguments will be ignored.</p>
  *
- * <p>
- * Filtering is applied recursively to nested structures, including fields in collections and arrays.
- * </p>
+ * <p><strong>Return value:</strong> The method should return:
+ * <ul>
+ *   <li>{@code this} – if the value is fully visible</li>
+ *   <li>a modified copy – if only a subset of the value should be shown</li>
+ *   <li>{@code null} – if the value should be completely hidden</li>
+ * </ul></p>
  *
- * <p><strong>Injection:</strong> The {@link User} instance will be automatically passed to the annotated method.</p>
+ * <p><strong>Recursive filtering:</strong> Filtering is automatically applied to nested objects, collections, and maps.
+ * When filtering results in {@code null} for an item inside a collection or map:
+ * <ul>
+ *   <li>The item is removed from a {@code List}</li>
+ *   <li>The key-value pair is removed from a {@code Map}</li>
+ * </ul></p>
  *
- * <h2>Example</h2>
+ * <p><strong>Example (filtering the object):</strong></p>
  * <pre>{@code
  * @FilterContent
  * public Order filter(User user) {
@@ -51,6 +61,15 @@ import java.lang.annotation.Target;
  * }
  * }</pre>
  *
+ * <p><strong>Example (filtering a nested item with root injection):</strong></p>
+ * <pre>{@code
+ * @FilterContent
+ * public LineItem filter(User user, Order root) {
+ *     return root.isPublic() ? this : null;
+ * }
+ * }</pre>
+ *
+ * @see FluxCapacitor#filterContent(Object, User)
  * @see Serializer#filterContent(Object, User)
  */
 @Target({ElementType.METHOD, ElementType.ANNOTATION_TYPE})

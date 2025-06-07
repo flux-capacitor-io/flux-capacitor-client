@@ -94,9 +94,9 @@ public class SerializedDocument {
     Set<FacetEntry> facets;
 
     /**
-     * Structured index entries used for sorting or filtering.
+     * Structured sortable entries used for sorting or filtering.
      */
-    Set<IndexedEntry> indexes;
+    Set<SortableEntry> indexes;
 
     /**
      * Constructs a new instance of the SerializedDocument class with the specified parameters.
@@ -108,11 +108,11 @@ public class SerializedDocument {
      * @param document    the serialized data representing the document
      * @param summary     a brief summary or description of the document
      * @param facets      a set of {@link FacetEntry} objects, representing facet fields and values for searchability
-     * @param indexes     a set of {@link IndexedEntry} objects, representing indexed fields for advanced querying
+     * @param indexes     a set of {@link SortableEntry} objects, representing fields for sorting and fast range querying
      */
     @ConstructorProperties({"id", "timestamp", "end", "collection", "document", "summary", "facets", "indexes"})
     public SerializedDocument(String id, Long timestamp, Long end, String collection, Data<byte[]> document,
-                              String summary, Set<FacetEntry> facets, Set<IndexedEntry> indexes) {
+                              String summary, Set<FacetEntry> facets, Set<SortableEntry> indexes) {
         this(id, timestamp, end, collection, () -> document, null, summary, facets, indexes);
     }
 
@@ -125,13 +125,13 @@ public class SerializedDocument {
              Optional.ofNullable(document.getEnd()).map(Instant::toEpochMilli).orElse(null),
              document.getCollection(), null, () -> document,
              Optional.ofNullable(document.getSummary()).map(Supplier::get).orElse(null), document.getFacets(),
-             document.getIndexes());
+             document.getSortables());
     }
 
     @SuppressWarnings("unused")
     private SerializedDocument(String id, Long timestamp, Long end, String collection, Supplier<Data<byte[]>> data,
                                Supplier<Document> document, String summary, Set<FacetEntry> facets,
-                               Set<IndexedEntry> indexes) {
+                               Set<SortableEntry> indexes) {
         if (data == null && document == null) {
             throw new IllegalStateException("Either the serialized data or deserialized document should be supplied");
         }
@@ -144,7 +144,7 @@ public class SerializedDocument {
                 ? memoize(() -> {
             Data<byte[]> d = data.get();
             return DefaultDocumentSerializer.INSTANCE.canDeserialize(d)
-                    ? DefaultDocumentSerializer.INSTANCE.deserialize(d).toBuilder().facets(facets).indexes(indexes).build()
+                    ? DefaultDocumentSerializer.INSTANCE.deserialize(d).toBuilder().facets(facets).sortables(indexes).build()
                     : new Document(id, d.getType(), d.getRevision(), collection,
                                    Optional.ofNullable(timestamp).map(Instant::ofEpochMilli).orElse(null),
                                    Optional.ofNullable(end).map(Instant::ofEpochMilli).orElse(null),

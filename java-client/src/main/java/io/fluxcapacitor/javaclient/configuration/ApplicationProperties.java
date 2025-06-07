@@ -14,9 +14,13 @@
 
 package io.fluxcapacitor.javaclient.configuration;
 
+import io.fluxcapacitor.common.application.ApplicationEnvironmentPropertiesSource;
+import io.fluxcapacitor.common.application.ApplicationPropertiesSource;
 import io.fluxcapacitor.common.application.DecryptingPropertySource;
 import io.fluxcapacitor.common.application.DefaultPropertySource;
+import io.fluxcapacitor.common.application.EnvironmentVariablesSource;
 import io.fluxcapacitor.common.application.PropertySource;
+import io.fluxcapacitor.common.application.SystemPropertiesSource;
 import io.fluxcapacitor.common.encryption.Encryption;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 
@@ -28,6 +32,14 @@ import java.util.Optional;
  * <p>This class delegates to a layered {@link PropertySource}, typically obtained from the active
  * {@link io.fluxcapacitor.javaclient.FluxCapacitor} instance. If no context-bound property source is present, it falls
  * back to a {@link DecryptingPropertySource} that wraps the default layered {@link DefaultPropertySource}.
+ *
+ * <p>Property sources are accessed in a prioritized order:
+ * <ol>
+ *   <li>{@link EnvironmentVariablesSource} – highest precedence</li>
+ *   <li>{@link SystemPropertiesSource}</li>
+ *   <li>{@link ApplicationEnvironmentPropertiesSource} – e.g. application-dev.properties</li>
+ *   <li>{@link ApplicationPropertiesSource} – fallback base configuration from application.properties</li>
+ * </ol>
  *
  * <p>Property resolution supports typed access, default values, encryption, and template substitution.
  *
