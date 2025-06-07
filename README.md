@@ -2,8 +2,7 @@
     <img src="https://flux-capacitor.io/assets/brand/flux-capacitor-white.svg" alt="Flux Capacitor logo" title="Flux Capacitor" align="right" height="60" />
 </a>
 
-Flux Capacitor java client
-======================
+# Flux Capacitor java client
 
 [![Build](https://github.com/flux-capacitor-io/flux-capacitor-client/actions/workflows/deploy.yml/badge.svg)](https://github.com/flux-capacitor-io/flux-capacitor-client/actions)
 [![Javadoc](https://img.shields.io/badge/javadoc-main-blue)](https://flux-capacitor.io/flux-capacitor-client/javadoc/apidocs/)
@@ -14,8 +13,9 @@ This repository contains the official Java client for [flux.host](https://flux.h
 short
 overview of functionalities, check out this [cheatsheet](documentation/cheatsheet.pdf).
 
-Installation
-======================
+---
+
+## Installation
 
 ### Maven users
 
@@ -49,8 +49,7 @@ compile(group: 'io.flux-capacitor', name: 'java-client', version: '${flux-capaci
 testCompile(group: 'io.flux-capacitor', name: 'java-client', version: '${flux-capacitor.version}', classifier: 'tests')
 ```
 
-Basic example
-======================
+## Basic example
 
 Create a new project and add an event class:
 
@@ -3980,7 +3979,7 @@ FluxCapacitor flux = FluxCapacitor.builder()
         .build(webSocketClient);
 ```
 
-> ℹ️ Use `makeApplicationInstance(true)` to install the Flux instance as a global singleton (`FluxCapacitor.get()`). 
+> ℹ️ Use `makeApplicationInstance(true)` to install the Flux instance as a global singleton (`FluxCapacitor.get()`).
 > Default **true** in Spring setups.
 
 ---
