@@ -1404,7 +1404,7 @@ Apply `@Timeout` to a **payload class** (typically a command or query):
 [//]: # (@formatter:off)
 ```java
 @Timeout(value = 3, timeUnit = TimeUnit.SECONDS)
-public record CalculatePremium(UserProfile profile) implements Query<BigDecimal> {}
+public record CalculatePremium(UserProfile profile) implements Request<BigDecimal> {}
 ```
 [//]: # (@formatter:on)
 
