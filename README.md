@@ -154,10 +154,15 @@ What follows is a summary of the most important features.
 
 ### 📦 Messaging
 - [Message Handling](#message-handling)
+- [Tracking Messages](#tracking-messages)
+- [Message Replays](#message-replays)
+- [Dynamic Dead Letter Queue (DLQ)](#dynamic-dead-letter-queue-dlq)
+- [Local Handlers](#local-handlers)
+- [Payload Validation](#payload-validation)
+- [User and Role-Based Access Control](#user-and-role-based-access-control)
 - [Scheduling](#scheduling)
 - [User-defined message logs](#user-defined-message-logs)
 - [Dispatching Messages](#dispatching-messages)
-- [Request Timeouts](#request-timeouts)
 - [Testing your Handlers](#testing-your-handlers)
 - [Handling Web Requests](#handling-web-requests)
 - [Outbound Web Requests](#outbound-web-requests)
@@ -354,7 +359,7 @@ class UserCommandHandler {
 }
 ```
 
-### Tracking Messages
+## Tracking Messages
 
 Flux Capacitor handles message dispatch asynchronously by default. When a message such as a command is published:
 
@@ -431,7 +436,7 @@ These defaults are sufficient for most scenarios. You can always override them f
 
 ---
 
-### Message Replays
+## Message Replays
 
 Flux Capacitor allows you to **replay past messages** by tracking from an earlier index in the message log.  
 This is useful for:
@@ -589,7 +594,9 @@ void retryFailedCommand(MyCommand failed) {
 }
 ```
 
-### Dynamic Dead Letter Queue (DLQ)
+---
+
+## Dynamic Dead Letter Queue (DLQ)
 
 The **error log is durable** and **replayable**, which means you can treat it as a **powerful, dynamic DLQ**.
 
@@ -718,7 +725,7 @@ This will first try to extract `userId` from metadata, and fall back to the payl
 
 ---
 
-### Local handlers
+## Local handlers
 
 Flux Capacitor supports both asynchronous and local (synchronous) message handling. **Local handlers** process messages
 in the same thread that published them, bypassing the message dispatch infrastructure entirely. This typically results
@@ -840,7 +847,9 @@ If a class implements `Request<R>`, Flux will use its declared generic type (R) 
 
 > This pattern is highly recommended for queries, as it reduces boilerplate and improves correctness.
 
-### Payload Validation
+---
+
+## Payload Validation
 
 Flux Capacitor automatically validates incoming request payloads using [JSR 380](https://beanvalidation.org/2.0/)
 (Bean Validation 2.0) annotations.
@@ -884,7 +893,9 @@ on `HandlerInterceptors`.
 > available in the audit trail in Flux Platform. This also encourages using **clear, user-facing error messages**
 > without leaking internal details.
 
-### User and Role-Based Access Control
+---
+
+## User and Role-Based Access Control
 
 Flux Capacitor allows you to restrict message handling based on the authenticated user's roles. This access control
 happens **before** the message reaches the handler — similar to how payload validation is enforced.
@@ -1163,6 +1174,8 @@ In this case:
 - If it fails, it retries after 10 minutes.
 - It resumes the original schedule if the next invocation succeeds.
 
+---
+
 ## User-defined message logs
 
 Flux Capacitor supports **custom message logs** in addition to built-in ones like commands, events, and queries.
@@ -1423,7 +1436,7 @@ If no local handler consumes the message, it is published to the Flux Platform v
 
 ---
 
-## Request Timeouts
+### Request Timeouts
 
 The `@Timeout` annotation allows developers to specify how long Flux should wait for a **command** or **query** to
 complete when using synchronous (`sendAndWait`) APIs.
@@ -1569,15 +1582,13 @@ interpreted as a **classpath resource path**, and deserialized accordingly.
 
 For example:
 
+[//]: # (@formatter:off)
 ```java
 fixture.givenCommands("create-user.json")
-    .
-
-whenQuery(new GetUser(userId))
-        .
-
-expectResult("user-profile.json");
+    .whenQuery(new GetUser(userId))
+    .expectResult("user-profile.json");
 ```
+[//]: # (@formatter:on)
 
 If your test class is in the `org.example` package, this will resolve to `/org/example/create-user.json` in the
 classpath, unless the JSON path is absolute (starts with `/`), e.g.:
@@ -2092,19 +2103,13 @@ String body = response.getBodyString();
 
 You can send requests asynchronously:
 
+[//]: # (@formatter:off)
 ```java
-FluxCapacitor.get().
-
-webRequestGateway()
-        .
-
-send(request)
-        .
-
-thenAccept(response ->log.
-
-info("Received: {}",response.getBodyString()));
+FluxCapacitor.get().webRequestGateway()
+        .send(request)
+        .thenAccept(response ->log.info("Received: {}",response.getBodyString()));
 ```
+[//]: # (@formatter:off)
 
 Or fire-and-forget:
 
