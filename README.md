@@ -76,9 +76,9 @@ Publish the event:
 ```java
 public class ExampleMain {
     public static void main(final String[] args) {
-        FluxCapacitor fluxCapacitor = DefaultFluxCapacitor.builder().build(LocalClient.newInstance());
-        fluxCapacitor.registerHandlers(new HelloWorldEventHandler());
-        fluxCapacitor.eventGateway().publish(new HelloWorld());
+        FluxCapacitor fc = DefaultFluxCapacitor.builder().build(LocalClient.newInstance());
+        fc.registerHandlers(new HelloWorldEventHandler());
+        fc.eventGateway().publish(new HelloWorld());
     }
 }
 ```
