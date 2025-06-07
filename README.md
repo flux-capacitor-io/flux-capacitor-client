@@ -147,8 +147,42 @@ by default.
 
 # Features
 
-The java client supports all features of Flux Capacitor but also offers plenty of additional functionality. Here’s a
-summary of the most important features.
+The java client supports all features of Flux Capacitor but also offers plenty of additional functionality. 
+What follows is a summary of the most important features.
+
+## Table of Contents
+
+### 📦 Messaging
+- [Message Handling](#message-handling)
+- [Scheduling](#scheduling)
+- [User-defined message logs](#user-defined-message-logs)
+- [Dispatching Messages](#dispatching-messages)
+- [Request Timeouts](#request-timeouts)
+- [Testing your Handlers](#testing-your-handlers)
+- [Handling Web Requests](#handling-web-requests)
+- [Outbound Web Requests](#outbound-web-requests)
+- [Metrics Messages](#metrics-messages)
+
+### 🧠 Domain Modeling, Persistence, and Search
+- [Domain Modeling](#domain-modeling)
+- [Applying Updates to Entities](#applying-updates-to-entities)
+- [Nested Entities](#nested-entities)
+- [Model Persistence](#model-persistence)
+- [Stateful Handlers](#stateful-handlers)
+- [Document Indexing and Search](#document-indexing-and-search)
+- [Tracking and Updating Documents](#tracking-and-updating-documents)
+
+### 🛡️ Data Handling and Serialization
+- [Protecting Sensitive Data](#protecting-sensitive-data)
+- [Serialization, Upcasting, and Downcasting](#serialization-upcasting-and-downcasting)
+- [Filtering Object Content](#filtering-object-content)
+
+### 🛠️ Configuration and Extensibility
+- [Configuring Application Properties](#configuring-application-properties)
+- [Parameter Injection with Custom Resolvers](#parameter-injection-with-custom-resolvers)
+- [Interceptors: Dispatching, Handling, and Batching](#interceptors-dispatching-handling-and-batching)
+- [Configuring Flux Capacitor](#configuring-flux-capacitor)
+- [WebSocketClient: Connect to the Flux Platform](#-websocketclient-connect-to-the-flux-platform)
 
 ---
 
@@ -1195,7 +1229,7 @@ for custom topics.
 
 ---
 
-## Message Dispatch
+## Dispatching Messages
 
 Flux Capacitor provides a unified and transparent way to send messages of all types—**commands**, **events**,
 **queries**, **schedules**, **web requests**, **metrics**, and more. All message types are routed through a shared
@@ -1389,7 +1423,7 @@ If no local handler consumes the message, it is published to the Flux Platform v
 
 ---
 
-## Customize Request Duration
+## Request Timeouts
 
 The `@Timeout` annotation allows developers to specify how long Flux should wait for a **command** or **query** to
 complete when using synchronous (`sendAndWait`) APIs.
@@ -1435,7 +1469,7 @@ If the timeout elapses before a response is received, a `TimeoutException` is th
 
 ---
 
-## Testing your handlers
+## Testing your Handlers
 
 Flux Capacitor comes with a flexible, expressive testing framework based on the given-when-then pattern. This enables
 writing behavioral tests for your handlers without needing to mock the infrastructure.
@@ -2148,6 +2182,121 @@ You can match requests by:
 - ✅ Supports timeouts, consumers, and structured request settings.
 - ✅ Easily mock remote endpoints for testing full business flows.
 
+
+---
+
+## Metrics Messages
+
+Flux Capacitor supports a built-in message type for metrics: `MessageType.METRICS`.  
+These messages provide a powerful way to observe and trace system behavior across clients, handlers, and infrastructure.
+
+Metrics messages are:
+
+- Lightweight, structured, and traceable
+- Logged like any other message
+- Routable to handlers (via `@HandleMetrics`)
+- Stored by default for **1 month** due to volume
+
+---
+
+### Publishing Metrics
+
+You can publish metrics manually using the `FluxCapacitor.publishMetrics(...)` method:
+
+```java
+FluxCapacitor.publishMetrics(new SystemMetrics("slowProjection", "thresholdExceeded"));
+```
+
+This emits a structured metrics message to the metrics topic.
+
+All metrics are wrapped in a regular `Message`, so you can include metadata or delivery guarantees:
+
+```java
+FluxCapacitor.get().
+
+metricsGateway()
+    .
+
+publish(new MyMetric("foo"),Metadata.
+
+of("critical","true"),Guarantee.STORED);
+```
+
+---
+
+### Automatic Metrics from Clients
+
+Many metrics are automatically emitted by the Flux Java client:
+
+- **Connect / Disconnect events** when clients (re)connect
+- **Tracking updates** (throughput, handler times, latency)
+- **Search / state / document store operations**
+- **Web request round-trip timings**
+
+These are particularly helpful in troubleshooting or auditing system performance.
+
+---
+
+### Consuming Metrics
+
+You can treat metrics like any other message type:
+
+```java
+
+@HandleMetrics
+void on(MetricEvent event) {
+    log.debug("Observed metric: {}", event);
+}
+```
+
+Use this to power custom dashboards, counters, diagnostics, or trigger alerts.
+
+---
+
+### Disabling Metrics
+
+To reduce noise or overhead, you can selectively disable automatic metrics:
+
+#### Disable per handler or batch using an interceptor
+
+```java
+
+@Consumer(handlerInterceptors = DisableMetrics.class)
+public class SilentHandler {
+    @HandleEvent
+    void on(MyEvent event) { ...}
+}
+```
+
+You can also use `batchInterceptors` to disable metrics for an entire consumer instance.
+
+#### Disable globally per client
+
+If you're instantiating a `WebSocketClient`, you can pass `disableMetrics = true` via the client config.
+
+#### Use programmatic interceptors
+
+If needed, you can suppress metric dispatch programmatically using:
+
+[//]: # (@formatter:off)
+```java
+AdhocDispatchInterceptor.runWithAdhocInterceptor(() -> {
+    // your code here
+}, (message, messageType, topic) -> null, MessageType.METRICS);
+```
+[//]: # (@formatter:on)
+
+---
+
+### Common Use Cases
+
+- **Audit debugging**: trace which handler caused a slowdown
+- **Observability**: track real-time stats like search throughput
+- **Dashboards**: expose per-entity or per-consumer metrics
+- **Trigger alerting**: when retries or handler delays exceed thresholds
+
+Metrics messages provide lightweight hooks into system behavior — use them for visibility without overhead.
+
 ---
 
 ## Domain Modeling
@@ -2440,7 +2589,7 @@ Just keep in mind: logic that lives in updates is **easier to test, extend, and 
 
 ---
 
-## Applying Updates in Handlers
+## Applying Updates to Entities
 
 To change the state of an entity, use `FluxCapacitor.loadAggregate(...)` to retrieve the aggregate and apply updates to
 it.
@@ -2478,7 +2627,7 @@ This style is recommended if you want to ensure validations happen before the en
 
 ---
 
-## Nested Entities and Members
+## Nested Entities
 
 Flux Capacitor allows aggregates to contain nested entities — for example, users with authorizations or orders with line
 items. These nested entities can be added, updated, or removed using the same `@Apply` pattern used for root aggregates.
@@ -3500,7 +3649,7 @@ Once the transformation is complete, the handler can be safely removed.
 
 ---
 
-## 🔐 Protecting Sensitive Data
+## Protecting Sensitive Data
 
 Flux Capacitor offers built-in support for handling sensitive information with care using the `@ProtectData` and
 `@DropProtectedData` annotations.
@@ -3795,121 +3944,7 @@ public LineItem filter(User user, Order root) {
 
 ---
 
-## Metrics Messages
-
-Flux Capacitor supports a built-in message type for metrics: `MessageType.METRICS`.  
-These messages provide a powerful way to observe and trace system behavior across clients, handlers, and infrastructure.
-
-Metrics messages are:
-
-- Lightweight, structured, and traceable
-- Logged like any other message
-- Routable to handlers (via `@HandleMetrics`)
-- Stored by default for **1 month** due to volume
-
----
-
-### Publishing Metrics
-
-You can publish metrics manually using the `FluxCapacitor.publishMetrics(...)` method:
-
-```java
-FluxCapacitor.publishMetrics(new SystemMetrics("slowProjection", "thresholdExceeded"));
-```
-
-This emits a structured metrics message to the metrics topic.
-
-All metrics are wrapped in a regular `Message`, so you can include metadata or delivery guarantees:
-
-```java
-FluxCapacitor.get().
-
-metricsGateway()
-    .
-
-publish(new MyMetric("foo"),Metadata.
-
-of("critical","true"),Guarantee.STORED);
-```
-
----
-
-### Automatic Metrics from Clients
-
-Many metrics are automatically emitted by the Flux Java client:
-
-- **Connect / Disconnect events** when clients (re)connect
-- **Tracking updates** (throughput, handler times, latency)
-- **Search / state / document store operations**
-- **Web request round-trip timings**
-
-These are particularly helpful in troubleshooting or auditing system performance.
-
----
-
-### Consuming Metrics
-
-You can treat metrics like any other message type:
-
-```java
-
-@HandleMetrics
-void on(MetricEvent event) {
-    log.debug("Observed metric: {}", event);
-}
-```
-
-Use this to power custom dashboards, counters, diagnostics, or trigger alerts.
-
----
-
-### Disabling Metrics
-
-To reduce noise or overhead, you can selectively disable automatic metrics:
-
-#### Disable per handler or batch using an interceptor
-
-```java
-
-@Consumer(handlerInterceptors = DisableMetrics.class)
-public class SilentHandler {
-    @HandleEvent
-    void on(MyEvent event) { ...}
-}
-```
-
-You can also use `batchInterceptors` to disable metrics for an entire consumer instance.
-
-#### Disable globally per client
-
-If you're instantiating a `WebSocketClient`, you can pass `disableMetrics = true` via the client config.
-
-#### Use programmatic interceptors
-
-If needed, you can suppress metric dispatch programmatically using:
-
-[//]: # (@formatter:off)
-```java
-AdhocDispatchInterceptor.runWithAdhocInterceptor(() -> {
-    // your code here
-}, (message, messageType, topic) -> null, MessageType.METRICS);
-```
-[//]: # (@formatter:on)
-
----
-
-### Common Use Cases
-
-- **Audit debugging**: trace which handler caused a slowdown
-- **Observability**: track real-time stats like search throughput
-- **Dashboards**: expose per-entity or per-consumer metrics
-- **Trigger alerting**: when retries or handler delays exceed thresholds
-
-Metrics messages provide lightweight hooks into system behavior — use them for visibility without overhead.
-
----
-
-## Application Properties
+## Configuring Application Properties
 
 Flux Capacitor provides a static utility, `ApplicationProperties`, for resolving configuration values across
 environments, tests, and production. It supports:
@@ -4374,7 +4409,7 @@ If Spring is used, the application instance is automatically set by Spring and u
 
 ---
 
-## 🌐 WebSocketClient: Connect to the Flux Platform
+## WebSocketClient: Connect to the Flux Platform
 
 The `WebSocketClient` is the default client used to connect to the Flux Platform over WebSocket. It provides full access
 to the event store, message gateways, tracking, search, scheduling, and key-value storage subsystems via configurable,
