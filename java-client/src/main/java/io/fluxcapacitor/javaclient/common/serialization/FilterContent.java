@@ -37,21 +37,21 @@ import java.lang.annotation.Target;
  *   <li>{@link User} – the current user performing the access</li>
  *   <li>Root object – the top-level object being filtered (useful for context when filtering nested values)</li>
  * </ul>
- * Any other arguments will be ignored.</p>
+ * Any other arguments will be ignored.
  *
  * <p><strong>Return value:</strong> The method should return:
  * <ul>
  *   <li>{@code this} – if the value is fully visible</li>
  *   <li>a modified copy – if only a subset of the value should be shown</li>
  *   <li>{@code null} – if the value should be completely hidden</li>
- * </ul></p>
+ * </ul>
  *
  * <p><strong>Recursive filtering:</strong> Filtering is automatically applied to nested objects, collections, and maps.
  * When filtering results in {@code null} for an item inside a collection or map:
  * <ul>
  *   <li>The item is removed from a {@code List}</li>
  *   <li>The key-value pair is removed from a {@code Map}</li>
- * </ul></p>
+ * </ul>
  *
  * <p><strong>Example (filtering the object):</strong></p>
  * <pre>{@code

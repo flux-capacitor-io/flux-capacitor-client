@@ -51,7 +51,6 @@ import java.lang.annotation.Target;
  *   <li>The returned document must have a higher {@link Revision} than the one stored</li>
  *   <li>The updated version will be stored in the document collection under the same ID</li>
  * </ul>
- * </p>
  *
  * <p>
  * This mechanism supports fully-automated data migrations: handlers can evolve or patch documents over time,
