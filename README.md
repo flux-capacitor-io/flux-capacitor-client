@@ -1005,7 +1005,7 @@ authentication tokens, headers, etc.). By default, Flux Capacitor uses a pluggab
 
 ---
 
-> 📌 Tip: Access control is enforced transparently — there’s no need to log or repeat the user or message context.
+> 💡 **Tip:** Access control is enforced transparently — there’s no need to log or repeat the user or message context.
 > Flux automatically maintains correlation metadata between the original request and any errors, logs, or events that
 > follow.
 
@@ -2180,6 +2180,36 @@ typically loaded using `FluxCapacitor.loadAggregate(id)`.
 An **aggregate** is a specialized root entity that serves as an entry point into a domain model. It may contain nested
 child entities (modeled via `@Member`), but represents a single unit of consistency.
 
+### 💡 **Tip:** Use strongly typed identifiers
+
+While `@EntityId` can be placed on any object (e.g. a `String` or `UUID`), consider using a strongly typed `Id<T>` class
+instead. This lets you:
+
+- Enforce consistent ID prefixes (e.g. `"user-"`)
+- Avoid collisions between entities with the same functional ID
+- Enable case-insensitive matching (optional)
+- Retain type information for safer entity loading and deserialization
+
+```java
+public class UserId extends Id<User> {
+    public UserId(String value) {
+        super(value, "user-");
+    }
+}
+
+@Aggregate
+public class User {
+    @EntityId
+    UserId userId;
+}
+```
+
+Now you can easily load the entity via:
+
+```java
+Entity<User> user = FluxCapacitor.loadAggregate(new UserId("1234"));
+```
+
 ---
 
 ### Applying Updates to entities
@@ -2528,6 +2558,161 @@ public class RevokeAuthorization {
 ```
 
 Flux will automatically prune the child entity with the given `authorizationId`.
+
+### Loading Entities and Aggregates
+
+Flux Capacitor supports a flexible and powerful approach to loading aggregates and their internal entities using
+`FluxCapacitor.loadAggregateFor(...)` and `FluxCapacitor.loadEntity(...)`.
+
+---
+
+#### `loadEntity(entityId)`
+
+Use this method to load a specific entity **without needing to know the aggregate root** it belongs to. This allows APIs
+to remain focused and concise—for example:
+
+```java
+class CompleteTask {
+    TaskId taskId;
+}
+```
+
+With Flux Capacitor, you can handle this using:
+
+[//]: # (@formatter:off)
+```java
+FluxCapacitor.loadEntity(taskId).assertAndApply(new CompleteTask(taskId));
+```
+[//]: # (@formatter:on)
+
+Even if the `Task` is deeply nested within a `Project` or other parent aggregate, this method works because of the 
+**entity relationship tracking** automatically maintained by Flux Capacitor.
+
+Additional behavior:
+
+- If **multiple entities** match the given ID, the one with the **most recently added relationship** is used.
+- The **entire aggregate** containing the entity is loaded, ensuring consistency.
+- The returned `Entity<T>` provides methods like `assertAndApply(...)` or `apply(...)`, and includes a reference to the
+  enclosing aggregate root.
+
+> This enables true *location transparency* for commands and queries: you don’t need to know or pass along the full
+> aggregate path.
+
+---
+
+#### `loadAggregateFor(entityId)`
+
+Use this method to retrieve the **aggregate root** that currently contains the specified entity ID.
+
+```java
+Entity<MyAggregate> aggregate = FluxCapacitor.loadAggregateFor("some-entity-id");
+```
+
+Behavior:
+
+- If the ID matches a **child entity**, the enclosing aggregate is returned.
+- If the ID refers to an **aggregate root**, that root is returned directly.
+- If no aggregate exists, an **empty aggregate** of type `Object` is returned. This enables bootstrapping a new one by
+  applying events.
+
+> Use `loadAggregateFor(entityId, Class<T>)` when you need type safety or to avoid relying on inference.
+
+### Alternative Entity Identifiers
+
+Flux Capacitor supports alternative ways to reference an entity using the `@Alias` annotation. This is especially useful
+when:
+
+- The entity needs to be looked up using a secondary identifier (e.g. an email address or external ID)
+- An entity wants to reference another entity without identifier collisions
+
+#### Lookup via Aliases
+
+Aliases are used when:
+
+- Loading an aggregate or entity using `FluxCapacitor.loadAggregateFor(alias)` or `FluxCapacitor.loadEntity(alias)`.
+- Calling `Entity#getEntity(Object id)` on a parent entity.
+
+> If multiple entities share the same alias, behavior is undefined—avoid alias collisions unless intentional.
+
+#### Supported Targets
+
+You can place `@Alias` on:
+
+- **Fields** (e.g., `@Alias String externalId`)
+- **Property methods** (e.g., `@Alias String legacyId()`)
+
+If the property is a **collection**, all non-null elements are treated as aliases. If the value is `null` or an empty
+collection, it is ignored.
+
+#### Prefix and Postfix
+
+To avoid clashes between IDs in different domains, use the optional `prefix` and `postfix` parameters:
+
+```java
+
+@Alias(prefix = "email:")
+String email;
+
+@Alias(postfix = "@external")
+String externalId;
+```
+
+This ensures that `email@example.com` is stored as `email:email@example.com`, and `12345` becomes `12345@external`.
+
+#### Example
+
+```java
+
+@Value
+class User {
+    String id;
+
+    @Alias(prefix = "email:")
+    String emailAddress;
+
+    @Alias
+    List<String> oldIds;
+}
+```
+
+Now the `User` entity can be looked up using:
+
+```java
+Entity<User> entity = FluxCapacitor.loadEntity("email:foo@example.com");
+```
+
+or
+
+```java
+Entity<User> entity = FluxCapacitor.loadEntity("1234"); // one of the oldIds
+```
+
+---
+
+### 💡 Tip: Prefer `Id<T>` for aliases
+
+While `@Alias` is flexible, it's often more robust and convenient to use an `Id<T>` type:
+
+- Supports prefixes and case-insensitive matching out of the box,
+- Enforces entity type metadata for safer deserialization,
+- Integrates cleanly with aggregate and entity loading,
+- Automatically stringifies to the repository ID when needed.
+
+```java
+public class Email extends Id<User> {
+    public Email(String email) {
+        super(email, "email:");
+    }
+}
+```
+
+Then you can load the entity as:
+
+```java
+FluxCapacitor.loadEntity(new Email("foo@example.com"));
+```
+
+This makes aliasing more explicit and reusable—particularly useful in larger applications.
 
 ### Routing Behavior
 
@@ -2958,8 +3143,78 @@ While both achieve the same result, `matchFacet(...)` is generally **faster and 
 That's because facet values are indexed and matched entirely at the data store level,  
 whereas `.match(...)` may involve resolving the path in memory and combining constraints manually.
 
-> **Tip:** Use `@Facet` on frequently-filtered fields (e.g. `status`, `type`, `category`) to take full advantage
+> 💡 **Tip:** Use `@Facet` on frequently-filtered fields (e.g. `status`, `type`, `category`) to take full advantage
 > of this optimization.
+
+---
+
+### Search Index exclusion
+
+By default, all non-transient properties of a document are included in the search index. However, you can fine-tune what
+fields get indexed using the following annotations:
+
+#### `@SearchExclude`
+
+Use `@SearchExclude` to exclude a field or type from search indexing. This prevents the property from being matched in
+search queries, though it will still be present in the stored document and accessible at runtime.
+
+```java
+
+@Document
+public class Order {
+    String id;
+    Customer customer;
+
+    @SearchExclude
+    byte[] encryptedPayload;
+}
+```
+
+You can also exclude entire types:
+
+```java
+
+@SearchExclude
+public class EncryptedData {
+    byte[] value;
+}
+```
+
+In this case, none of the properties of `EncryptedData` will be indexed, unless you override selectively with
+`@SearchInclude`.
+
+---
+
+#### `@SearchInclude`
+
+Use `@SearchInclude` to **override** an exclusion. This is functionally equivalent to `@SearchExclude(false)` and is
+typically used on a field or class that would otherwise be excluded by inheritance or parent-level settings.
+
+```java
+
+@SearchExclude
+public class BaseDocument {
+    String internalNotes;
+
+    @SearchInclude
+    String publicSummary;
+}
+```
+
+Here, `internalNotes` will not be indexed, but `publicSummary` will be.
+
+---
+
+### Behavior Summary
+
+| Annotation                                  | Effect                                                           |
+|---------------------------------------------|------------------------------------------------------------------|
+| `@SearchExclude`                            | Prevents property/type from being indexed for search             |
+| `@SearchExclude(false)` or `@SearchInclude` | Explicitly includes a property even if a parent type is excluded |
+| *No annotation*                             | Field is included in the search index by default                 |
+
+> **Note:** If you want a field to be completely omitted from storage (not just indexing), mark it as `transient`, use
+`@JsonIgnore`, or another serialization-related annotation.
 
 ---
 
@@ -3009,7 +3264,7 @@ This gives you document counts per facet value:
 ```
 [//]: # (@formatter:on)
 
-> **Tip:** Use `matchFacet("category", "headphones")` to filter efficiently by facet value. This is generally
+> 💡 **Tip:** Use `matchFacet("category", "headphones")` to filter efficiently by facet value. This is generally
 > faster than `match(...)`.
 
 Each `FacetStats` object will contain:
