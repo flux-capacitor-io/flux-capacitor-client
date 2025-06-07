@@ -203,7 +203,7 @@ of an event handler that dispatches a command to send a welcome email when a use
 ```java
 class UserEventHandler {
     @HandleEvent
-    void handle(UserCreated event) {
+    void handle(CreateUser event) {
         FluxCapacitor.sendCommand(new SendWelcomeEmail(event.getUserProfile()));
     }
 }
@@ -1265,7 +1265,7 @@ The easiest way to dispatch messages is via static methods on the `FluxCapacitor
 ```java
 FluxCapacitor.sendCommand(new CreateUser("Alice"));  // Asynchronously send a command
 FluxCapacitor.queryAndWait(new GetUserById("user-123"));  // Query and block for response
-FluxCapacitor.publishEvent(new UserCreated(...));  // Fire-and-forget event
+FluxCapacitor.publishEvent(new UserSignUp(...));  // Fire-and-forget event
 FluxCapacitor.schedule(new RetryPayment(...), Duration.ofMinutes(5));  // Delayed message
 ```
 [//]: # (@formatter:on)
@@ -1494,12 +1494,12 @@ TestFixture testFixture = TestFixture.create(new UserEventHandler());
 
 @Test
 void newUserGetsWelcomeEmail() {
-    testFixture.whenEvent(new UserCreated(myUserProfile))
+    testFixture.whenEvent(new CreateUser(userId, myUserProfile))
             .expectCommands(new SendWelcomeEmail(myUserProfile));
 }
 ```
 
-This test ensures that when a `UserCreated` event occurs, a `SendWelcomeEmail` command is issued by the handler.
+This test ensures that when a `CreateUser` event occurs, a `SendWelcomeEmail` command is issued by the handler.
 
 ### Testing complete workflows
 
@@ -1557,7 +1557,7 @@ fixture.whenCommand(new CreateUser(userProfile))
 ```
 [//]: # (@formatter:on)
 
-This example first triggers a `CreateUser` command, expects a `UserCreated` event, and then issues a `GetUser` query,
+This example first triggers a `CreateUser` command, expects a `SendWelcomeEmail` event, and then issues a `GetUser` query,
 asserting that it returns the expected result.
 
 ### Using givenXxx() for preconditions
@@ -1717,7 +1717,7 @@ Use `expectThat()` or `expectTrue()` to assert custom logic or verify interactio
 
 [//]: # (@formatter:off)
 ```java
-fixture.whenCommand(new CreateUser(userProfile))
+fixture.whenCommand("create-user-pete.json")
        .expectThat(fc -> Mockito.verify(emailService).sendEmail(...));
 ```
 [//]: # (@formatter:on)
@@ -1728,8 +1728,8 @@ Use `whenExecuting()` to test code outside of message dispatching, like HTTP cal
 
 [//]: # (@formatter:off)
 ```java
-fixture.whenExecuting(fc -> httpClient.put("/user", userProfile))
-       .expectEvents(new UserCreated(...));
+fixture.whenExecuting(fc -> httpClient.put("/user", "/users/user-profile-pete.json"))
+       .expectEvents("create-user-pete.json");
 ```
 [//]: # (@formatter:on)
 
