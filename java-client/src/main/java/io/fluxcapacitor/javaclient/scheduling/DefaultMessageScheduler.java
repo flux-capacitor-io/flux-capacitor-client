@@ -38,6 +38,13 @@ import static io.fluxcapacitor.common.MessageType.COMMAND;
 import static io.fluxcapacitor.common.MessageType.SCHEDULE;
 import static io.fluxcapacitor.javaclient.tracking.IndexUtils.indexFromTimestamp;
 
+/**
+ * Default implementation of the {@link MessageScheduler} interface.
+ * <p>
+ * This implementation uses a {@link SchedulingClient} to schedule and cancel scheduled messages,
+ * and implements the {@link HasLocalHandlers} interface to allow for local handling of scheduled messages,
+ * used by {@code TestFixtures}.
+ */
 @AllArgsConstructor
 public class DefaultMessageScheduler implements MessageScheduler, HasLocalHandlers {
 
@@ -64,8 +71,8 @@ public class DefaultMessageScheduler implements MessageScheduler, HasLocalHandle
         }
         dispatchInterceptor.monitorDispatch(message, SCHEDULE, null);
         return client.schedule(guarantee, new SerializedSchedule(message.getScheduleId(),
-                                               message.getDeadline().toEpochMilli(),
-                                               serializedMessage, ifAbsent));
+                                                                 message.getDeadline().toEpochMilli(),
+                                                                 serializedMessage, ifAbsent));
     }
 
     @Override
@@ -85,7 +92,8 @@ public class DefaultMessageScheduler implements MessageScheduler, HasLocalHandle
             return CompletableFuture.completedFuture(null);
         }
         return schedule(schedule.withPayload(new ScheduledCommand(serializedCommand))
-                                .addMetadata("$commandType", schedule.getPayloadClass().getName()), ifAbsent, guarantee);
+                                .addMetadata("$commandType", schedule.getPayloadClass().getName()), ifAbsent,
+                        guarantee);
     }
 
     @Override
