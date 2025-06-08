@@ -186,6 +186,7 @@ What follows is a summary of the most important features.
 - [Protecting Sensitive Data](#protecting-sensitive-data)
 - [Serialization, Upcasting, and Downcasting](#serialization-upcasting-and-downcasting)
 - [Filtering Object Content](#filtering-object-content)
+- [Kotlin Support](#kotlin-support)
 
 ### 🛠️ Configuration and Extensibility
 
@@ -3183,7 +3184,7 @@ This causes Flux to:
 ```java
 
 @Aggregate(searchable = true)
-public record Order(@EntityId OrderId orderId, 
+public record Order(@EntityId OrderId orderId,
                     OrderDetails details) {
 }
 ```
@@ -4172,6 +4173,38 @@ LineItem filter(User user, Order root) {
 - **It is not automatic** — for performance reasons, content filtering is not applied implicitly (e.g. during search or
   document deserialization)
 - If no method is annotated with `@FilterContent`, the object is returned unmodified
+
+---
+
+## Kotlin Support
+
+Flux Capacitor provides full support for Kotlin, including:
+
+- Use of `record`-like [data classes](https://kotlinlang.org/docs/data-classes.html),
+- Optional types (e.g., `String?`) instead of `@Nullable`,
+- Seamless use of Kotlin-specific language features (e.g., `when`, `sealed class`, `companion object`),
+- Support for `Class<T>` parameters passed as `MyClass::class` or `MyClass::class.java`,
+- Automatic recognition of Kotlin modules during deserialization (see below).
+
+### Automatic Jackson Integration
+
+Flux Capacitor includes [Jackson Kotlin Module](https://github.com/FasterXML/jackson-module-kotlin) integration when
+available on the classpath. You do **not** need to manually register the module or use a service loader. 
+If the `jackson-module-kotlin` dependency is present, it will be loaded dynamically for JSON (de)serialization.
+
+> 💡 If the module is missing, Flux Capacitor will fall back gracefully to standard Jackson behavior — no errors or
+> warnings.
+
+This enables correct serialization and deserialization of Kotlin constructs like:
+
+- default parameters,
+- `val` / `var` fields,
+- nullability,
+- `data class` equality and hashing,
+- and Kotlin-style constructor parameter mapping.
+
+> **Note:** Flux Capacitor does *not* require a Kotlin dependency itself. Kotlin support is purely optional and works
+> automatically when Kotlin and its Jackson module are used in your application.
 
 ---
 
