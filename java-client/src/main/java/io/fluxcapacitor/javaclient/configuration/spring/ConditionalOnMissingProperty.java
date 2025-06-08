@@ -55,9 +55,12 @@ public @interface ConditionalOnMissingProperty {
         @Override
         @SneakyThrows
         public boolean matches(@NotNull ConditionContext context, AnnotatedTypeMetadata metadata) {
-            String value = ApplicationProperties.getProperty(
-                    metadata.getAllAnnotationAttributes(ConditionalOnMissingProperty.class.getName()).getFirst("value")
-                            .toString());
+            String propertyName = metadata.getAllAnnotationAttributes(ConditionalOnMissingProperty.class.getName())
+                    .getFirst("value").toString();
+            String value = ApplicationProperties.getProperty(propertyName);
+            if (value == null) {
+                value = context.getEnvironment().getProperty(propertyName);
+            }
             return value == null || value.isEmpty();
         }
     }

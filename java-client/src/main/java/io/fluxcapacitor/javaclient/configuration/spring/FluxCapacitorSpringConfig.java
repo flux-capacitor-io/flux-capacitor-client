@@ -202,31 +202,34 @@ public class FluxCapacitorSpringConfig implements BeanPostProcessor {
     }
 
     /**
-     * Constructs the {@link FluxCapacitor} instance, preferring a user-provided {@link Client} or falling back
-     * to either a {@link WebSocketClient} or {@link LocalClient} depending on presence of configuration properties.
+     * Constructs the {@link FluxCapacitor} instance if no FluxCapacitor bean exists, preferring a user-provided
+     * {@link Client} or falling back to either a {@link WebSocketClient} or {@link LocalClient} depending on presence
+     * of configuration properties.
      */
     @Bean
     @ConditionalOnMissingBean
     public FluxCapacitor fluxCapacitor(FluxCapacitorBuilder builder, List<FluxCapacitorCustomizer> customizers) {
-        Client client = getBean(Client.class).orElseGet(() -> getBean(WebSocketClient.ClientConfig.class)
-                .<Client>map(WebSocketClient::newInstance)
-                .orElseGet(() -> {
-                    if (ApplicationProperties.containsProperty("FLUX_BASE_URL")
-                        && ApplicationProperties.containsProperty("FLUX_APPLICATION_NAME")) {
-                        var config = WebSocketClient.ClientConfig.builder().build();
-                        log.info("Using connected Flux Capacitor client (application name: {}, service url: {})",
-                                 config.getName(), config.getServiceBaseUrl());
-                        return WebSocketClient.newInstance(config);
-                    }
-                    log.info("Using in-memory Flux Capacitor client");
-                    return LocalClient.newInstance();
-                }));
+        return getBean(FluxCapacitor.class).orElseGet(() -> {
+            Client client = getBean(Client.class).orElseGet(() -> getBean(WebSocketClient.ClientConfig.class)
+                    .<Client>map(WebSocketClient::newInstance)
+                    .orElseGet(() -> {
+                        if (ApplicationProperties.containsProperty("FLUX_BASE_URL")
+                            && ApplicationProperties.containsProperty("FLUX_APPLICATION_NAME")) {
+                            var config = WebSocketClient.ClientConfig.builder().build();
+                            log.info("Using connected Flux Capacitor client (application name: {}, service url: {})",
+                                     config.getName(), config.getServiceBaseUrl());
+                            return WebSocketClient.newInstance(config);
+                        }
+                        log.info("Using in-memory Flux Capacitor client");
+                        return LocalClient.newInstance();
+                    }));
 
-        FluxCapacitorCustomizer customizer = customizers.stream()
-                .reduce((first, second) -> b -> second.customize(first.customize(b)))
-                .orElse(b -> b);
+            FluxCapacitorCustomizer customizer = customizers.stream()
+                    .reduce((first, second) -> b -> second.customize(first.customize(b)))
+                    .orElse(b -> b);
 
-        return customizer.customize(builder).build(client);
+            return customizer.customize(builder).build(client);
+        });
     }
 
     @Bean
