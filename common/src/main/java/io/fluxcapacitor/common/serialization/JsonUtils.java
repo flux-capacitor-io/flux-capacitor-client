@@ -16,9 +16,11 @@ package io.fluxcapacitor.common.serialization;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectMapper.DefaultTypeResolverBuilder;
 import com.fasterxml.jackson.databind.introspect.AnnotatedMember;
@@ -131,11 +133,16 @@ import static com.fasterxml.jackson.databind.cfg.JsonNodeFeature.STRIP_TRAILING_
 @Slf4j
 public class JsonUtils {
     /**
-     * Preconfigured JsonMapper for writing/serializing objects to JSON.
-     *
+     * Preconfigured JsonMapper for writing/serializing objects to JSON. By default, it is created using
+     * {@link #defaultWriterBuilder()}.
      * <p>
      * In advanced scenarios, users may replace this field with a custom {@link JsonMapper}. However, this is generally
      * discouraged unless strictly necessary.
+     */
+    public static JsonMapper writer = defaultWriterBuilder().build();
+
+    /**
+     * Creates a preconfigured builder for a JsonMapper for writing/serializing objects to JSON.
      * <p>
      * A better approach for customizing Jackson behavior is to provide your own modules via the Jackson
      * {@link com.fasterxml.jackson.databind.Module} SPI (ServiceLoader mechanism), which avoids overriding global
@@ -144,19 +151,33 @@ public class JsonUtils {
      * <strong>Warning:</strong> This mapper is also used by the default serializer in Flux applications,
      * {@code JacksonSerializer}. Misconfiguration may result in inconsistencies in search indexing or data loss.
      */
-    public static JsonMapper writer = JsonMapper.builder()
-            .addModule(new StripStringsModule()).addModule(new NullCollectionsAsEmptyModule())
-            .addModule(new Jdk8Module())
-            .disable(FAIL_ON_EMPTY_BEANS).disable(WRITE_DATES_AS_TIMESTAMPS).disable(WRITE_DURATIONS_AS_TIMESTAMPS)
-            .enable(WRITE_DATES_WITH_ZONE_ID)
-            .disable(ADJUST_DATES_TO_CONTEXT_TIME_ZONE).disable(FAIL_ON_UNKNOWN_PROPERTIES)
-            .enable(ACCEPT_SINGLE_VALUE_AS_ARRAY)
-            .disable(STRIP_TRAILING_BIGDECIMAL_ZEROES)
-            .enable(USE_BIG_DECIMAL_FOR_FLOATS)
-            .serializationInclusion(JsonInclude.Include.NON_NULL)
-            .findAndAddModules()
-            .build();
+    public static JsonMapper.Builder defaultWriterBuilder() {
+        JsonMapper.Builder builder = JsonMapper.builder()
+                .addModule(new StripStringsModule()).addModule(new NullCollectionsAsEmptyModule())
+                .addModule(new Jdk8Module());
+        builder = tryAddKotlinModule(builder);
+        return builder
+                .enable(JsonParser.Feature.ALLOW_COMMENTS)
+                .disable(FAIL_ON_EMPTY_BEANS).disable(WRITE_DATES_AS_TIMESTAMPS).disable(WRITE_DURATIONS_AS_TIMESTAMPS)
+                .enable(WRITE_DATES_WITH_ZONE_ID)
+                .disable(ADJUST_DATES_TO_CONTEXT_TIME_ZONE).disable(FAIL_ON_UNKNOWN_PROPERTIES)
+                .enable(ACCEPT_SINGLE_VALUE_AS_ARRAY)
+                .disable(STRIP_TRAILING_BIGDECIMAL_ZEROES)
+                .enable(USE_BIG_DECIMAL_FOR_FLOATS)
+                .serializationInclusion(JsonInclude.Include.NON_NULL)
+                .findAndAddModules();
+    }
 
+    static JsonMapper.Builder tryAddKotlinModule(JsonMapper.Builder builder) {
+        try {
+            Class<?> moduleClass = ReflectionUtils.classForName("com.fasterxml.jackson.module.kotlin.KotlinModule$Builder");
+            Object builderInstance = ReflectionUtils.asInstance(moduleClass);
+            Object kotlinModule = moduleClass.getMethod("build").invoke(builderInstance);
+            return builder.addModule((Module) kotlinModule);
+        } catch (Throwable ignored) {
+            return builder;
+        }
+    }
 
     /**
      * Preconfigured JsonMapper for reading/deserializing objects from JSON, including type handling.
