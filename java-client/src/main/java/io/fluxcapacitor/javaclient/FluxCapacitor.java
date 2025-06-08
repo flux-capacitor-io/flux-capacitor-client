@@ -655,26 +655,26 @@ public interface FluxCapacitor extends AutoCloseable {
 
     /**
      * Loads the current entity value for given entity id. Entity may be the aggregate root or any ancestral entity. If
-     * no such entity exists an empty optional is returned.
+     * no such entity exists or its value is not set {@code null} is returned.
      * <p>
      * If the entity is loaded while handling an event its aggregate, the returned entity will automatically be played
      * back to the event currently being handled. Otherwise, the most recent state of the entity is loaded.
      */
     @SuppressWarnings("unchecked")
-    static <T> Optional<T> loadEntityValue(Object entityId) {
-        return loadAggregateFor(entityId).getEntity(entityId).map(e -> (T) e.get());
+    static <T> T loadEntityValue(Object entityId) {
+        return (T) loadAggregateFor(entityId).getEntity(entityId).map(Entity::get).orElse(null);
     }
 
     /**
      * Loads the current entity value for given entity id. Entity may be the aggregate root or any ancestral entity. If
-     * no such entity exists an empty optional is returned.
+     * no such entity exists or its value is not set {@code null} is returned.
      * <p>
      * If the entity is loaded while handling an event its aggregate, the returned entity will automatically be played
      * back to the event currently being handled. Otherwise, the most recent state of the entity is loaded.
      */
     @SuppressWarnings("unchecked")
-    static <T> Optional<T> loadEntityValue(Id<T> entityId) {
-        return loadAggregateFor(entityId).getEntity(entityId).map(e -> (T) e.get());
+    static <T> T loadEntityValue(Id<T> entityId) {
+        return (T) loadAggregateFor(entityId).getEntity(entityId).map(Entity::get).orElse(null);
     }
 
     /**
