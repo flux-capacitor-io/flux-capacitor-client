@@ -10,8 +10,7 @@
 [![License](https://img.shields.io/badge/license-Apache%202.0-green.svg)](https://www.apache.org/licenses/LICENSE-2.0)
 
 This repository contains the official Java client for [flux.host](https://flux.host), the Flux Capacitor platform. For a
-short
-overview of functionalities, check out this [cheatsheet](documentation/cheatsheet.pdf).
+short overview of functionalities, check out this [cheatsheet](documentation/cheatsheet.pdf).
 
 ---
 
@@ -56,14 +55,14 @@ testCompile(group: 'io.flux-capacitor', name: 'java-client', version: '${flux-ca
 Create a new project and add an event class:
 
 ```java
-class HelloWorld {
+public record HelloWorld() {
 }
 ```
 
 Create a handler for the event:
 
 ```java
-class HelloWorldEventHandler {
+public class HelloWorldEventHandler {
     @HandleEvent
     void handle(HelloWorld event) {
         System.out.println("Hello World!");
@@ -263,6 +262,7 @@ Handler methods may also return a `CompletableFuture<T>` instead of a direct val
 publish the result to the result log once the future completes:
 
 ```java
+
 @HandleQuery
 CompletableFuture<UserProfile> handle(GetUserProfile query) {
     return userService.fetchAsync(query.getUserId());
@@ -693,11 +693,7 @@ By default, the routing key is derived from the message ID. But you can override
 method in your **payload class** with `@RoutingKey`.
 
 ```java
-
-@Value
-public class ShipOrder {
-    @RoutingKey
-    OrderId orderId;
+public record ShipOrder(@RoutingKey OrderId orderId) {
 }
 ```
 
@@ -706,8 +702,7 @@ Or explicitly reference a nested property:
 ```java
 
 @RoutingKey("customer/id")
-public class OrderPlaced {
-    Customer customer;
+public record OrderPlaced(Customer customer) {
 }
 ```
 
@@ -901,14 +896,8 @@ is thrown before the handler is invoked.
 
 ```java
 
-@Value
-public class CreateUser {
-    @NotBlank
-    String userId;
-
-    @NotNull
-    @Valid
-    UserProfile profile;
+public record CreateUser(@NotBlank String userId,
+                         @NotNull @Valid UserProfile profile) {
 }
 ```
 
@@ -1126,8 +1115,8 @@ This allows you to inject meaningful, application-specific `User` objects into y
 Your `UserProvider` implementation can also support testing and system behavior by implementing:
 
 - `getSystemUser()` — returns a default **system-level user**, used:
-  - as the default actor in tests,
-  - when publishing system-side effects (e.g. from scheduled handlers).
+    - as the default actor in tests,
+    - when publishing system-side effects (e.g. from scheduled handlers).
 - `getUserById(...)` — resolves a user by ID, used in test utilities like `fixture.whenCommandByUser(...)`.
 
 This ensures your custom user logic is consistently applied, even in automated tests and background execution.
@@ -1136,7 +1125,7 @@ This ensures your custom user logic is consistently applied, even in automated t
 
 ### 🔧 Registering your UserProvider
 
-To enable your custom `UserProvider` (e.g., for authenticating users via headers or tokens), register it using Java's 
+To enable your custom `UserProvider` (e.g., for authenticating users via headers or tokens), register it using Java's
 Service Provider mechanism.
 
 Create the file:
@@ -1154,9 +1143,9 @@ com.example.authentication.SystemUserProvider
 
 Flux Capacitor will automatically discover and register them at startup.
 
-> 💡 If you're using Spring, your `UserProvider` can also be exposed as a bean — Flux Capacitor will pick it up 
+> 💡 If you're using Spring, your `UserProvider` can also be exposed as a bean — Flux Capacitor will pick it up
 > automatically.
-> 
+>
 > ⚠️ However, tests **not using Spring** will not pick up the bean. For test scenarios or CLI usage, the SPI mechanism
 > is still the easiest.
 
@@ -1222,10 +1211,8 @@ You can apply `@Periodic` to either a `Schedule` payload or a `@HandleSchedule` 
 
 ```java
 
-@Value
 @Periodic(delay = 5, timeUnit = TimeUnit.MINUTES)
-public class RefreshData {
-    String index;
+public record RefreshData(String index) {
 }
 ```
 
@@ -1564,8 +1551,7 @@ Apply `@Timeout` to a **payload class** (typically a command or query):
 [//]: # (@formatter:off)
 ```java
 @Timeout(value = 3, timeUnit = TimeUnit.SECONDS)
-public record CalculatePremium(UserProfile profile) 
-        implements Request<BigDecimal> {}
+public record CalculatePremium(UserProfile profile) implements Request<BigDecimal> {}
 ```
 [//]: # (@formatter:on)
 
@@ -1774,9 +1760,9 @@ Wrap your payload in a Message to add or assert metadata:
 @Test
 void newAdminGetsAdditionalEmail() {
     testFixture.whenCommand(new Message(new CreateUser(...),
-                                        Metadata.of("roles", Arrays.asList("Customer", "Admin"))))
+    Metadata.of("roles", Arrays.asList("Customer", "Admin"))))
         .expectCommands(new SendWelcomeEmail(...),
-                        new SendAdminEmail(...));
+    new SendAdminEmail(...));
 }
 ```
 
@@ -1945,7 +1931,7 @@ TestFixture testFixture = TestFixture.create(new UserCommandHandler(), new UserL
 @Test
 void accountIsTerminatedAfterClosing() {
     testFixture
-            .givenCommands(new CreateUser(myUserProfile), 
+            .givenCommands(new CreateUser(myUserProfile),
                            new CloseAccount(userId))
             .whenTimeElapses(Duration.ofDays(30))
             .expectEvents(new AccountTerminated(userId));
@@ -1965,8 +1951,8 @@ You can also test cancellation logic:
 @Test
 void accountReopeningCancelsTermination() {
     testFixture
-            .givenCommands(new CreateUser(myUserProfile), 
-                           new CloseAccount(userId), 
+            .givenCommands(new CreateUser(myUserProfile),
+                           new CloseAccount(userId),
                            new ReopenAccount(userId))
             .whenTimeElapses(Duration.ofDays(30))
             .expectNoEventsLike(AccountTerminated.class);
@@ -2212,8 +2198,8 @@ public class MySession { ...
 
 ### Summary
 
-| Annotation                 | Description                                         |
-|----------------------------|-----------------------------------------------------|
+| Annotation                 | Description                                        |
+|----------------------------|----------------------------------------------------|
 | `@HandleSocketOpen`        | Handles WebSocket connection open                  |
 | `@HandleSocketMessage`     | Handles incoming text or binary WebSocket messages |
 | `@HandleSocketPong`        | Handles pong responses (usually for health checks) |
@@ -2468,13 +2454,10 @@ To define a stateful domain object, annotate it with `@Aggregate`:
 ```java
 
 @Aggregate
-@Value
 @Builder(toBuilder = true)
-public class UserAccount {
-    @EntityId
-    UserId userId;
-    UserProfile profile;
-    boolean accountClosed;
+public record UserAccount(@EntityId UserId userId,
+                          UserProfile profile,
+                          boolean accountClosed) {
 }
 ```
 
@@ -2497,16 +2480,14 @@ instead. This lets you:
 - Retain type information for safer entity loading and deserialization
 
 ```java
-public class UserId extends Id<UserAccount> {
+class UserId extends Id<UserAccount> {
     public UserId(String value) {
         super(value, "user-");
     }
 }
 
 @Aggregate
-public class UserAccount {
-    @EntityId
-    UserId userId;
+public record UserAccount(@EntityId UserId userId) {
 }
 ```
 
@@ -2527,10 +2508,8 @@ Here’s an example using two commands — one to create a user, and another to 
 
 ```java
 
-@Value
-public class CreateUser {
-    UserId userId;
-    UserProfile profile;
+public record CreateUser(UserId userId,
+                         UserProfile profile) {
 
     @AssertLegal
     void assertNotExists(UserAccount current) {
@@ -2548,10 +2527,8 @@ This update creates a new `UserAccount` entity after checking that no user with 
 
 ```java
 
-@Value
-public class UpdateProfile {
-    UserId userId;
-    UserProfile profile;
+public record UpdateProfile(UserId userId,
+                            UserProfile profile) {
 
     @AssertLegal
     void assertExists(@Nullable UserAccount current) {
@@ -2688,13 +2665,10 @@ looks like:
 ```java
 
 @Aggregate
-@Value
 @Builder(toBuilder = true)
-public class UserAccount {
-    @EntityId
-    UserId userId;
-    UserProfile profile;
-    boolean accountClosed;
+public record UserAccount(@EntityId UserId userId,
+                          UserProfile profile,
+                          boolean accountClosed) {
 
     @AssertLegal
     static void assertNotExists(CreateUser update, @Nullable UserAccount user) {
@@ -2730,8 +2704,7 @@ public class UserAccount {
 ```
 
 In this model, the `UserAccount` aggregate handles all validation and transformation logic. Over time, this
-centralization
-leads to bloat and tight coupling — especially in larger systems with many features.
+centralization leads to bloat and tight coupling — especially in larger systems with many features.
 
 ---
 
@@ -2795,13 +2768,10 @@ To define a nested structure, annotate the collection or field with `@Member`:
 ```java
 
 @Aggregate
-@Value
 @Builder(toBuilder = true)
-public class UserAccount {
-    @EntityId
-    UserId userId;
-    UserProfile profile;
-    boolean accountClosed;
+public record UserAccount(@EntityId UserId userId,
+                          UserProfile profile,
+                          boolean accountClosed) {
 
     @Member
     List<Authorization> authorizations;
@@ -2812,11 +2782,8 @@ Child entities must define their own `@EntityId`:
 
 ```java
 
-@Value
-public class Authorization {
-    @EntityId
-    AuthorizationId authorizationId;
-    Grant grant;
+public record Authorization(@EntityId AuthorizationId authorizationId,
+                            Grant grant) {
 }
 ```
 
@@ -2826,10 +2793,8 @@ To add a nested entity like `Authorization`, simply return a new instance from t
 
 ```java
 
-@Value
-public class AuthorizeUser {
-    AuthorizationId authorizationId;
-    Grant grant;
+public record AuthorizeUser(AuthorizationId authorizationId,
+                            Grant grant) {
 
     @Apply
     Authorization apply() {
@@ -2846,9 +2811,7 @@ To remove a nested entity, return `null` from the `@Apply` method:
 
 ```java
 
-@Value
-public class RevokeAuthorization {
-    AuthorizationId authorizationId;
+public record RevokeAuthorization(AuthorizationId authorizationId) {
 
     @AssertLegal
     void assertExists(@Nullable Authorization authorization) {
@@ -2890,8 +2853,7 @@ Use this method to load a specific entity **without needing to know the aggregat
 to remain focused and concise—for example:
 
 ```java
-class CompleteTask {
-    TaskId taskId;
+public record CompleteTask(TaskId taskId) {
 }
 ```
 
@@ -3016,12 +2978,8 @@ This ensures that `email@example.com` is stored as `email:email@example.com`, an
 
 ```java
 
-@Value
-class UserAccount {
-    String id;
-
-    @Alias(prefix = "email:")
-    String emailAddress;
+public record UserAccount(@EntityId String userId,
+                          @Alias(prefix = "email:") String emailAddress) {
 
     @Alias
     List<String> oldIds;
@@ -3165,11 +3123,8 @@ Here’s a simple example:
 ```java
 
 @Aggregate(snapshotPeriod = 1000)
-@Value
-public class UserAccount {
-    @EntityId
-    UserId userId;
-    UserProfile profile;
+public record UserAccount(@EntityId UserId userId,
+                          UserProfile profile) {
 
     @Apply
     UserAccount apply(UpdateProfile update) {
@@ -3191,11 +3146,8 @@ To enable document storage, set `searchable = true` in the `@Aggregate` annotati
 ```java
 
 @Aggregate(eventSourced = false, searchable = true, collection = "countries")
-@Value
-public class Country {
-    @EntityId
-    String countryCode;
-    String name;
+public record Country(@EntityId String countryCode,
+                      String name) {
 }
 ```
 
@@ -3231,8 +3183,8 @@ This causes Flux to:
 ```java
 
 @Aggregate(searchable = true)
-@Value
-public class Order { ...
+public record Order(@EntityId OrderId orderId, 
+                    OrderDetails details) {
 }
 ```
 
@@ -3308,14 +3260,10 @@ To declare a stateful handler, annotate a class with `@Stateful`:
 
 ```java
 
-@Value
 @Stateful
-public class PaymentProcess {
-    @EntityId
-    String id;
-    @Association
-    String pspReference;
-    PaymentStatus status;
+public record PaymentProcess(@EntityId String paymentId,
+                             @Association String pspReference,
+                             PaymentStatus status) {
 
     @HandleEvent
     static PaymentProcess on(PaymentInitiated event) {
@@ -3325,6 +3273,7 @@ public class PaymentProcess {
 
     @HandleEvent
     PaymentProcess on(PaymentConfirmed event) {
+        //pspReference property in PaymentConfirmed is matched 
         return withStatus(PaymentStatus.CONFIRMED);
     }
 }
@@ -3461,12 +3410,9 @@ manually.
 ```java
 
 @Aggregate(searchable = true)
-@Value
-public class UserAccount {
-    @EntityId
-    UserId userId;
-    UserProfile profile;
-    boolean accountClosed;
+public record UserAccount(@EntityId UserId userId,
+                          UserProfile profile,
+                          boolean accountClosed) {
 }
 ```
 
@@ -3574,14 +3520,10 @@ Suppose you have the following model:
 ```java
 
 @Searchable
-@Value
-public class Product {
-    @Facet
-    String category;
-    @Facet
-    String brand;
-    String name;
-    BigDecimal price;
+public record Product(@Facet String category,
+                      @Facet String brand,
+                      String name,
+                      BigDecimal price) {
 }
 ```
 
@@ -3630,13 +3572,9 @@ search queries, though it will still be present in the stored document and acces
 
 ```java
 
-@Document
-public class Order {
-    String id;
-    Customer customer;
-
-    @SearchExclude
-    byte[] encryptedPayload;
+public record Order(String id,
+                    Customer customer,
+                    @SearchExclude byte[] encryptedPayload) {
 }
 ```
 
@@ -3645,8 +3583,7 @@ You can also exclude entire types:
 ```java
 
 @SearchExclude
-public class EncryptedData {
-    byte[] value;
+public record EncryptedData(byte[] value) {
 }
 ```
 
@@ -3663,11 +3600,8 @@ typically used on a field or class that would otherwise be excluded by inheritan
 ```java
 
 @SearchExclude
-public class BaseDocument {
-    String internalNotes;
-
-    @SearchInclude
-    String publicSummary;
+public record BaseDocument(String internalNotes,
+                           @SearchInclude String publicSummary) {
 }
 ```
 
@@ -3694,13 +3628,8 @@ To enable efficient **range filters** and **sorted results** in document searche
 
 ```java
 
-@Value
-public class Product {
-    @Sortable
-    BigDecimal price;
-
-    @Sortable("releaseDate")
-    Instant publishedAt;
+public record Product(@Sortable BigDecimal price,
+                      @Sortable("releaseDate") Instant publishedAt) {
 }
 ```
 
@@ -3786,15 +3715,13 @@ Given the following indexed document:
 
 You can exclude sensitive fields like so:
 
+[//]: # (@formatter:off)
 ```java
 FluxCapacitor.search("users")
-    .
-
-exclude("profile.ssn")
-    .
-
-fetch(50);
+     .exclude("profile.ssn")
+     .fetch(50);
 ```
+[//]: # (@formatter:on)
 
 This will return:
 
@@ -3974,12 +3901,8 @@ To prevent a field from being stored with the rest of a message payload, annotat
 
 ```java
 
-@Value
-public class RegisterCitizen {
-    String name;
-
-    @ProtectData
-    String socialSecurityNumber;
+public record RegisterCitizen(String name,
+                              @ProtectData String socialSecurityNumber) {
 }
 ```
 
@@ -4057,8 +3980,7 @@ revision number to determine whether any transformation is required.
 ```java
 
 @Revision(1)
-public class CreateUser {
-    String userId; // renamed from `id`
+public record CreateUser(String userId) { // `userId` renamed from `id`
 }
 ```
 
@@ -4204,7 +4126,7 @@ or context.
 ```java
 
 @FilterContent
-public Order filter(User user) {
+Order filter(User user) {
     return user.hasRole(Role.admin) ? this : new Order(maskSensitiveFieldsOnly());
 }
 ```
@@ -4239,7 +4161,7 @@ This is useful for making decisions based on global context.
 ```java
 
 @FilterContent
-public LineItem filter(User user, Order root) {
+LineItem filter(User user, Order root) {
     return root.isOwner(user) ? this : null;
 }
 ```
@@ -4776,15 +4698,13 @@ public class MyService {
 
 Instead, prefer using the static methods on the `FluxCapacitor` class:
 
+[//]: # (@formatter:off)
  ```java
  FluxCapacitor.sendCommand(new MyCommand(...));
-        FluxCapacitor.
-
-query(new GetUserProfile(userId));
-        FluxCapacitor.
-
-publishEvent(new UserLoggedIn(...));
+ FluxCapacitor.query(new GetUserProfile(userId));
+ FluxCapacitor.publishEvent(new UserLoggedIn(...));
  ```
+[//]: # (@formatter:on)
 
 This avoids boilerplate, reduces coupling to Spring, and works equally well in non-Spring contexts like tests or
 lightweight setups.
