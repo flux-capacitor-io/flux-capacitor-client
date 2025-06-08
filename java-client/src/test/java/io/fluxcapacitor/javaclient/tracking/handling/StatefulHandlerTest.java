@@ -21,13 +21,10 @@ import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.modeling.EntityId;
 import io.fluxcapacitor.javaclient.modeling.Id;
 import io.fluxcapacitor.javaclient.test.TestFixture;
-import lombok.AllArgsConstructor;
 import lombok.Builder;
-import lombok.Value;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
@@ -196,13 +193,10 @@ public class StatefulHandlerTest {
 
         @Stateful
         @SearchExclude
-        @Value
         @Builder(toBuilder = true)
-        public static class StaticHandler {
-            @EntityId
-            @Association(value = {"someId", "aliasId"}, excludedClasses = ExcludedEvent.class) String someId;
-            @Association(excludeMetadata = true) String otherId;
-            int eventCount;
+        record StaticHandler(@EntityId @Association(value = {"someId", "aliasId"}, excludedClasses = ExcludedEvent.class) String someId,
+                             @Association(excludeMetadata = true) String otherId,
+                             int eventCount) {
 
             @HandleEvent
             static StaticHandler create(SomeEvent event) {
@@ -227,7 +221,8 @@ public class StatefulHandlerTest {
                 FluxCapacitor.sendAndForgetCommand(eventCount + 1);
                 FluxCapacitor.sendAndForgetCommand(1);
                 return List.of(toBuilder().eventCount(eventCount + 1).build(),
-                               StaticHandler.builder().someId(event.copyId).otherId(event.copyId).eventCount(1).build());
+                               StaticHandler.builder().someId(event.copyId).otherId(event.copyId).eventCount(1)
+                                       .build());
             }
 
             @HandleEvent
@@ -316,7 +311,8 @@ public class StatefulHandlerTest {
         void handlerIsCreated() {
             testFixture.whenEvent(new SomeEvent("foo"))
                     .expectCommands(1)
-                    .expectTrue(fc -> fc.documentStore().fetchDocument("foo", ConstructorHandler.class).isPresent());
+                    .expectTrue(
+                            fc -> fc.documentStore().fetchDocument("foo", ConstructorHandler.class).isPresent());
         }
 
         @Test
@@ -334,17 +330,13 @@ public class StatefulHandlerTest {
         }
 
         @Stateful
-        @Value
         @Builder(toBuilder = true)
-        @AllArgsConstructor
-        public static class ConstructorHandler {
-            @EntityId
-            @Association String someId;
-            int eventCount;
+        record ConstructorHandler(@EntityId @Association String someId,
+                                  int eventCount) {
 
             @HandleEvent
             ConstructorHandler(SomeEvent event) {
-                this(event.getSomeId(), 1);
+                this(event.someId(), 1);
                 FluxCapacitor.sendAndForgetCommand(eventCount);
             }
 
@@ -372,19 +364,14 @@ public class StatefulHandlerTest {
                     .expectCommands(2);
         }
 
-        @Stateful(timestampPath = "timestamp")
-        @Value
+        @Stateful
         @Builder(toBuilder = true)
-        @AllArgsConstructor
-        public static class SomeHandler {
-            @EntityId
-            @Association("someId") String id;
-            int eventCount;
-            Instant timestamp = FluxCapacitor.currentTime();
+        record SomeHandler(@EntityId @Association("someId") String id,
+                           int eventCount) {
 
             @HandleEvent
             SomeHandler(SomeEvent event) {
-                this(event.getSomeId(), 1);
+                this(event.someId(), 1);
                 FluxCapacitor.sendAndForgetCommand(eventCount);
             }
 
@@ -399,10 +386,7 @@ public class StatefulHandlerTest {
     @Nested
     class MappingTests {
         @Stateful
-        @Value
-        static class MappingHandler {
-            String someId;
-
+        record MappingHandler(String someId) {
             @HandleEvent
             static MappingHandler handle(String event) {
                 return new MappingHandler(event);
@@ -416,25 +400,16 @@ public class StatefulHandlerTest {
         }
     }
 
-    @Value
-    static class SomeEvent {
-        String someId;
+    record SomeEvent(String someId) {
     }
 
-    @Value
-    static class DeleteHandler {
-        String someId;
+    record DeleteHandler(String someId) {
     }
 
-    @Value
-    static class DuplicationEvent {
-        String someId;
-        String copyId;
+    record DuplicationEvent(String someId, String copyId) {
     }
 
-    @Value
-    static class AliasEvent {
-        AliasId aliasId;
+    record AliasEvent(AliasId aliasId) {
     }
 
     static class AliasId extends Id<Object> {
@@ -443,47 +418,34 @@ public class StatefulHandlerTest {
         }
     }
 
-    @Value
-    static class CustomEvent {
-        String customId;
+    record CustomEvent(String customId) {
     }
 
-    @Value
-    static class CustomRightPathEvent {
-        String customId;
+    record CustomRightPathEvent(String customId) {
     }
 
-    @Value
-    static class CustomWrongPathEvent {
-        String customId;
+    record CustomWrongPathEvent(String customId) {
     }
 
-    @Value
-    static class AlwaysAssociate {
-        String randomId = UUID.randomUUID().toString();
+    record AlwaysAssociate(String randomId) {
+        AlwaysAssociate() {
+            this(UUID.randomUUID().toString());
+        }
     }
 
-    @Value
-    static class AlwaysAssociateStatic {
+    record AlwaysAssociateStatic() {
     }
 
-    @Value
-    static class ExcludedEvent {
-        String someId;
+    record ExcludedEvent(String someId) {
     }
 
-    @Value
-    static class EventWithRightPath {
-        String someId;
+    record EventWithRightPath(String someId) {
     }
 
-    @Value
-    static class EventWithWrongPath {
-        String customId;
+    record EventWithWrongPath(String customId) {
     }
 
-    @Value
-    static class EventWithPropertyList {
-        List<String> someIds;
+    record EventWithPropertyList(List<String> someIds) {
     }
 }
+

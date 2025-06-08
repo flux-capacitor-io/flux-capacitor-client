@@ -224,7 +224,7 @@ public class AggregateEntitiesTest {
             testFixture.registerHandlers(new Object() {
                 @HandleCommand
                 void handle(CommandWithRoutingKey command) {
-                    loadEntity(command.getTarget()).assertLegal(command);
+                    loadEntity(command.target()).assertLegal(command);
                 }
             });
             testFixture.whenCommand(new CommandWithRoutingKey("list0"))
@@ -554,7 +554,7 @@ public class AggregateEntitiesTest {
                             }
                         })
                         .whenCommand(new AddChild(childId))
-                        .<Entity<?>>expectResult(e -> e.get() instanceof MissingChild &&childId.equals(e.id()));
+                        .<Entity<?>>expectResult(e -> e.get() instanceof MissingChild && childId.equals(e.id()));
             }
 
             @Test
@@ -713,7 +713,7 @@ public class AggregateEntitiesTest {
             @Test
             void testUpdateListChild() {
                 testFixture.whenCommand(new UpdateChild("list1", "data"))
-                        .expectTrue(fc -> loadAggregate("test", Aggregate.class).get().getList().get(1).getData()
+                        .expectTrue(fc -> loadAggregate("test", Aggregate.class).get().getList().get(1).data()
                                 .equals("data"));
             }
 
@@ -771,7 +771,7 @@ public class AggregateEntitiesTest {
             void testUpdateMapChild() {
                 testFixture.whenCommand(new UpdateChild(new Key("map1"), "data"))
                         .expectTrue(fc -> loadAggregate("test", Aggregate.class).get().getMap().get(new Key("map1"))
-                                .getData().equals("data"));
+                                .data().equals("data"));
             }
 
             @Test
@@ -1057,39 +1057,19 @@ public class AggregateEntitiesTest {
         }
     }
 
-    @Value
     @Builder(toBuilder = true)
-    static class ListChild implements Updatable {
-        @EntityId
-        String listChildId;
-        @With
-        Object data;
+    record ListChild(@EntityId String listChildId, @With Object data) implements Updatable {
     }
 
-    @Value
-    static class NullListChild {
-        @EntityId
-        String nullListChildId;
+    record NullListChild(@EntityId String nullListChildId) {
     }
 
-    @Value
     @Builder
-    static class MapChild implements Updatable {
-        @EntityId
-        Key mapChildId;
-        @With
-        Object data;
+    record MapChild(@EntityId Key mapChildId, @With Object data) implements Updatable {
     }
 
-    @Value
     @Builder
-    public static class MissingChild {
-        @EntityId
-        MissingChildId missingChildId;
-
-        @Member
-        @With
-        MissingGrandChild grandChild;
+    public record MissingChild(@EntityId MissingChildId missingChildId, @Member @With MissingGrandChild grandChild) {
     }
 
     static class MissingChildId extends Id<MissingChild> {
@@ -1098,11 +1078,8 @@ public class AggregateEntitiesTest {
         }
     }
 
-    @Value
     @Builder
-    static class MissingGrandChild {
-        @EntityId
-        String missingGrandChildId;
+    record MissingGrandChild(@EntityId String missingGrandChildId) {
     }
 
     @Value
@@ -1117,12 +1094,7 @@ public class AggregateEntitiesTest {
         GrandChild grandChild = new GrandChild("grandChild", new GrandChildAlias());
     }
 
-    @Value
-    static class GrandChild {
-        @EntityId
-        String grandChildId;
-        @Alias
-        GrandChildAlias alias;
+    record GrandChild(@EntityId String grandChildId, @Alias GrandChildAlias alias) {
     }
 
     static class GrandChildAlias extends Id<GrandChild> {
@@ -1131,11 +1103,7 @@ public class AggregateEntitiesTest {
         }
     }
 
-    @Value
-    static class CommandWithRoutingKey {
-        @RoutingKey
-        String target;
-
+    record CommandWithRoutingKey(@RoutingKey String target) {
         @AssertLegal
         void assertLegal(Object child) {
             if (child != null) {
@@ -1144,27 +1112,17 @@ public class AggregateEntitiesTest {
         }
     }
 
-    @Value
-    static class CommandWithRoutingKeyHandledByEntity {
-        @RoutingKey
-        String target;
+    record CommandWithRoutingKeyHandledByEntity(@RoutingKey String target) {
     }
 
-    @Value
-    static class CommandWithoutRoutingKey {
-        String customId;
-
+    record CommandWithoutRoutingKey(String customId) {
         @AssertLegal
         void assertLegal(Child child) {
             throw new IllegalCommandException("Child should not have been targeted");
         }
     }
 
-    @Value
-    static class CommandTargetingGrandchildButFailingOnParent {
-        @RoutingKey
-        String id;
-
+    record CommandTargetingGrandchildButFailingOnParent(@RoutingKey String id) {
         @AssertLegal
         void assertLegal(ChildWithChild child) {
             if (child != null) {
@@ -1173,10 +1131,7 @@ public class AggregateEntitiesTest {
         }
     }
 
-    @Value
-    static class CommandWithWrongProperty {
-        String randomProperty;
-
+    record CommandWithWrongProperty(String randomProperty) {
         @AssertLegal
         void assertLegal(Child child) {
             if (child != null) {
@@ -1185,10 +1140,7 @@ public class AggregateEntitiesTest {
         }
     }
 
-    @Value
-    static class UpdateCommandThatFailsIfChildDoesNotExist {
-        String missingChildId;
-
+    record UpdateCommandThatFailsIfChildDoesNotExist(String missingChildId) {
         @AssertLegal
         void assertLegal(@Nullable MissingChild child, @NonNull Aggregate aggregate) {
             if (child == null) {
@@ -1198,10 +1150,7 @@ public class AggregateEntitiesTest {
     }
 
 
-    @Value
-    static class Key {
-        String key;
-
+    record Key(String key) {
         @Override
         public String toString() {
             return key;

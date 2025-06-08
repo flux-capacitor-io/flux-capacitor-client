@@ -18,7 +18,6 @@ import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.modeling.Aggregate;
 import io.fluxcapacitor.javaclient.test.TestFixture;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleQuery;
-import lombok.Value;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
@@ -100,46 +99,33 @@ public class SearchableAggregateTest {
                 .expectResultContaining(new SearchableAggregateWithCustomCollection("bar"));
     }
 
-    @Value
-    private static class GetAggregates {
-        String collection;
+    record GetAggregates(String collection) {
     }
 
-    private static class QueryHandler {
+    static class QueryHandler {
         @HandleQuery
         List<?> handle(GetAggregates query) {
-            return FluxCapacitor.search(query.getCollection()).fetchAll();
+            return FluxCapacitor.search(query.collection()).fetchAll();
         }
     }
 
     @Aggregate(cached = false)
-    @Value
-    static class NotSearchableAggregate {
-        String foo;
+    record NotSearchableAggregate(String foo) {
     }
 
     @Aggregate(eventSourced = false, searchable = true, cached = false)
-    @Value
-    static class SearchableAggregate {
-        String foo;
+    record SearchableAggregate(String foo) {
     }
 
     @Aggregate(eventSourced = false, searchable = true, collection = "searchables")
-    @Value
-    static class SearchableAggregateWithCustomCollection {
-        String foo;
+    record SearchableAggregateWithCustomCollection(String foo) {
     }
 
     @Aggregate(eventSourced = false, searchable = true, timestampPath = "timestamp", endPath = "ending")
-    @Value
-    static class SearchableAggregateWithTimePath {
-        Instant timestamp;
-        Instant ending;
+    record SearchableAggregateWithTimePath(Instant timestamp, Instant ending) {
     }
 
     @Aggregate(eventSourced = false, searchable = true, timestampPath = "timestamp")
-    @Value
-    static class SearchableAggregateWithMissingTimePath {
-        Instant time;
+    record SearchableAggregateWithMissingTimePath(Instant time) {
     }
 }

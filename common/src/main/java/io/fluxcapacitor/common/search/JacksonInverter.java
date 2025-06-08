@@ -17,7 +17,10 @@ package io.fluxcapacitor.common.search;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.introspect.AnnotatedField;
 import com.fasterxml.jackson.databind.introspect.AnnotatedMember;
+import com.fasterxml.jackson.databind.introspect.AnnotatedMethod;
+import com.fasterxml.jackson.databind.introspect.AnnotatedParameter;
 import com.fasterxml.jackson.databind.introspect.JacksonAnnotationIntrospector;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -44,9 +47,7 @@ import lombok.Getter;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
-import java.lang.annotation.Annotation;
 import java.lang.reflect.AccessibleObject;
-import java.lang.reflect.Member;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -56,7 +57,6 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
@@ -109,23 +109,26 @@ public class JacksonInverter implements Inverter<JsonNode> {
         Summarize
      */
 
-    protected static Function<Member, Boolean> searchIgnoreCache = memoize(
-            m -> {
-                Optional<? extends Annotation> result =
-                        getMemberAnnotation(m.getDeclaringClass(), m.getName(), SearchExclude.class)
-                                .or(() -> ofNullable(getTypeAnnotation(m.getDeclaringClass(), SearchExclude.class)));
-                return result
-                        .map(a -> a instanceof SearchExclude s
-                                ? s : a.annotationType().getAnnotation(SearchExclude.class))
-                        .map(SearchExclude::value).orElse(false);
-            });
+    protected static Function<AnnotatedMember, Boolean> searchIgnoreCache = memoize(
+            m -> getMemberAnnotation(m.getDeclaringClass(), m.getName(), SearchExclude.class)
+                    .or(() -> ofNullable(getTypeAnnotation(m.getDeclaringClass(), SearchExclude.class)))
+                    .map(a -> a instanceof SearchExclude s
+                            ? s : a.annotationType().getAnnotation(SearchExclude.class))
+                    .map(SearchExclude::value).orElse(false));
 
     protected static ThrowingFunction<Object, String> createSummarizer(JacksonInverter inverter) {
         JacksonInverter summarizer = new JacksonInverter(inverter.objectMapper.rebuild().annotationIntrospector(
                 new JacksonAnnotationIntrospector() {
                     @Override
                     public boolean hasIgnoreMarker(AnnotatedMember m) {
-                        return super.hasIgnoreMarker(m) || searchIgnoreCache.apply(m.getMember());
+                        if (super.hasIgnoreMarker(m)) {
+                            return true;
+                        }
+                        if (m instanceof AnnotatedField || m instanceof AnnotatedMethod
+                            || m instanceof AnnotatedParameter) {
+                            return searchIgnoreCache.apply(m);
+                        }
+                        return false;
                     }
                 }).build(), o -> {
             throw new UnsupportedOperationException();

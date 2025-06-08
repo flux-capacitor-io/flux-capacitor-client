@@ -96,7 +96,8 @@ class EventSourcingRepositoryTest {
                     .given(fc -> fc.cache().clear())
                     .whenQuery(new GetModel())
                     .expectResult(new TestModel(Arrays.asList(new CreateModel(), new UpdateModel()), Metadata.empty()))
-                    .expectThat(fc -> verify(eventStoreClient).getEvents(eq(aggregateId.toString()), anyLong(), anyInt()));
+                    .expectThat(
+                            fc -> verify(eventStoreClient).getEvents(eq(aggregateId.toString()), anyLong(), anyInt()));
         }
 
         @Test
@@ -179,7 +180,7 @@ class EventSourcingRepositoryTest {
                     .given(fc -> fc.cache().clear())
                     .whenExecuting(fc -> loadAggregate(aggregateId))
                     .expectThat(fc -> verify(eventStoreClient, never()).storeEvents(anyString(), anyList(),
-                                                                           eq(false)));
+                                                                                    eq(false)));
         }
 
         @Test
@@ -212,7 +213,8 @@ class EventSourcingRepositoryTest {
             testFixture.givenCommands(new CreateModel())
                     .givenAppliedEvents(aggregateId, new UpdateModel(), new UpdateModel())
                     .whenQuery(new GetModel())
-                    .expectResult(new TestModel(Arrays.asList(new CreateModel(), new UpdateModel(), new UpdateModel()), Metadata.empty()));
+                    .expectResult(new TestModel(Arrays.asList(new CreateModel(), new UpdateModel(), new UpdateModel()),
+                                                Metadata.empty()));
         }
 
         private class Handler {
@@ -340,7 +342,9 @@ class EventSourcingRepositoryTest {
                         Entity<Object> test = FluxCapacitor.loadEntity("test");
                         return test.previous().get();
                     }).expectNonNullResult()
-                    .expectThat(fc -> verify(fc.client().getEventStoreClient(), never()).getEvents(eq("test"), anyLong(), anyInt()));
+                    .expectThat(
+                            fc -> verify(fc.client().getEventStoreClient(), never()).getEvents(eq("test"), anyLong(),
+                                                                                               anyInt()));
         }
 
         @Test
@@ -356,14 +360,11 @@ class EventSourcingRepositoryTest {
     }
 
     @Aggregate(eventPublication = IF_MODIFIED)
-    @Value
-    static class PublishIfModifiedModel {
-
-        Object event;
+    record PublishIfModifiedModel(Object event) {
 
         @Apply
-        PublishIfModifiedModel(Object event) {
-            this.event = event;
+        static PublishIfModifiedModel create(Object event) {
+            return new PublishIfModifiedModel(event);
         }
 
         @Apply
@@ -373,57 +374,37 @@ class EventSourcingRepositoryTest {
     }
 
     @Aggregate(eventPublication = ALWAYS)
-    @Value
-    static class PublishAlwaysModel {
-        Object event;
-
+    record PublishAlwaysModel(Object event) {
         @Apply
-        PublishAlwaysModel(Object event) {
-            this.event = event;
+        PublishAlwaysModel {
         }
     }
 
     @Aggregate(eventPublication = NEVER)
-    @Value
-    static class PublishNeverModel {
-        Object event;
-
+    record PublishNeverModel(Object event) {
         @Apply
-        PublishNeverModel(Object event) {
-            this.event = event;
+        PublishNeverModel {
         }
     }
 
     @Aggregate(eventPublication = NEVER)
-    @Value
-    static class PublishNeverOverwrittenModel {
-        Object event;
-
+    record PublishNeverOverwrittenModel(Object event) {
         @Apply(eventPublication = IF_MODIFIED)
-        PublishNeverOverwrittenModel(Object event) {
-            this.event = event;
+        PublishNeverOverwrittenModel {
         }
     }
 
     @Aggregate(cachingDepth = 0)
-    @Value
-    static class ZeroDepthModel {
-        Object event;
-
+    record ZeroDepthModel(Object event) {
         @Apply
-        ZeroDepthModel(Object event) {
-            this.event = event;
+        ZeroDepthModel {
         }
     }
 
     @Aggregate(cachingDepth = 0, checkpointPeriod = 3)
-    @Value
-    static class CheckpointModel {
-        Object event;
-
+    record CheckpointModel(Object event) {
         @Apply
-        CheckpointModel(Object event) {
-            this.event = event;
+        CheckpointModel {
         }
     }
 
@@ -442,7 +423,8 @@ class EventSourcingRepositoryTest {
                         }
                     })
                     .whenCommand(new SelfApplyingCommand(StoreOnlyModel.class)).expectNoErrors()
-                    .expectThat(fc -> verify(fc.client().getEventStoreClient()).storeEvents(any(), anyList(), eq(true)));
+                    .expectThat(
+                            fc -> verify(fc.client().getEventStoreClient()).storeEvents(any(), anyList(), eq(true)));
         }
 
         @Test
@@ -457,28 +439,23 @@ class EventSourcingRepositoryTest {
                     .whenCommand(new SelfApplyingCommand(PublishOnlyModel.class))
                     .expectMetrics("success")
                     .expectThat(fc -> verify(fc.client().getGatewayClient(MessageType.EVENT)).append(any(), any()))
-                    .expectThat(fc -> verify(fc.client().getEventStoreClient(), never()).storeEvents(any(), anyList(), anyBoolean()));
+                    .expectThat(fc -> verify(fc.client().getEventStoreClient(), never()).storeEvents(any(), anyList(),
+                                                                                                     anyBoolean()));
         }
 
     }
 
     @Aggregate(publicationStrategy = EventPublicationStrategy.STORE_ONLY)
-    @Value
-    static class StoreOnlyModel {
-        Object event;
+    record StoreOnlyModel(Object event) {
         @Apply
-        StoreOnlyModel(Object event) {
-            this.event = event;
+        StoreOnlyModel {
         }
     }
 
     @Aggregate(publicationStrategy = EventPublicationStrategy.PUBLISH_ONLY)
-    @Value
-    static class PublishOnlyModel {
-        Object event;
+    record PublishOnlyModel(Object event) {
         @Apply
-        PublishOnlyModel(Object event) {
-            this.event = event;
+        PublishOnlyModel {
         }
     }
 
@@ -607,11 +584,11 @@ class EventSourcingRepositoryTest {
                         TestModelNotEventSourced result =
                                 loadAggregate(aggregateId.toString(), TestModelNotEventSourced.class).get();
                         assertTrue(result.getNames().size() == 2
-                                           && result.getNames().get(1).equals(UpdateModel.class.getSimpleName()));
+                                   && result.getNames().get(1).equals(UpdateModel.class.getSimpleName()));
                     });
         }
 
-        private class Handler {
+        private static class Handler {
             @HandleCommand
             void handle(Object command) {
                 loadAggregate(aggregateId.toString(), TestModelNotEventSourced.class).assertLegal(command)
@@ -649,7 +626,7 @@ class EventSourcingRepositoryTest {
                             .storeEvents(anyString(), anyList(), eq(false)));
         }
 
-        private class Handler {
+        private static class Handler {
             @HandleCommand
             void handle(CreateModel command) {
                 loadAggregate(aggregateId.toString(), TestModelWithFactoryMethod.class).apply(command);
@@ -738,7 +715,8 @@ class EventSourcingRepositoryTest {
         @Test
         void testCreateViaEventInterfaceMethod() {
             testFixture.givenCommands(new CreateModelFromEventConcrete()).whenQuery(new GetModel())
-                    .<TestModelWithoutApplyEvent>expectResult(r -> r.firstEvent.equals(new CreateModelFromEventConcrete()));
+                    .<TestModelWithoutApplyEvent>expectResult(
+                            r -> r.firstEvent.equals(new CreateModelFromEventConcrete()));
         }
 
         @Test
@@ -768,13 +746,15 @@ class EventSourcingRepositoryTest {
         @Test
         void testUpsertViaEventIfNotExists_nullableModelInterface() {
             testFixture.givenCommands(new UpsertModelWithNullableClass()).whenQuery(new GetModel())
-                    .<TestModelWithoutApplyEvent>expectResult(r -> r.firstEvent.equals(new UpsertModelWithNullableClass()));
+                    .<TestModelWithoutApplyEvent>expectResult(
+                            r -> r.firstEvent.equals(new UpsertModelWithNullableClass()));
         }
 
         @Test
         void testUpsertViaEventIfExists_nullableModel() {
             testFixture.givenCommands(new UpsertModelWithNullable(), new UpsertModelWithNullable())
-                    .whenQuery(new GetModel()).<TestModelWithoutApplyEvent>expectResult(r -> r.secondEvent.equals(new UpsertModelWithNullable()));
+                    .whenQuery(new GetModel())
+                    .<TestModelWithoutApplyEvent>expectResult(r -> r.secondEvent.equals(new UpsertModelWithNullable()));
         }
 
         @Test
@@ -815,7 +795,7 @@ class EventSourcingRepositoryTest {
                                       new CreateModelFromEvent());
         }
 
-        private class Handler {
+        private static class Handler {
             @HandleCommand
             void handle(Object command) {
                 loadAggregate(aggregateId.toString(), TestModelWithoutApplyEvent.class).assertLegal(command)
@@ -835,8 +815,7 @@ class EventSourcingRepositoryTest {
         }
     }
 
-    @Value
-    static class CreateModelFromEvent {
+    record CreateModelFromEvent() {
         @Apply
         public TestModelWithoutApplyEvent apply() {
             return TestModelWithoutApplyEvent.builder().firstEvent(this).build();
@@ -848,39 +827,35 @@ class EventSourcingRepositoryTest {
         TestModelWithoutApplyEvent apply();
     }
 
-    @Value
-    static class CreateModelFromEventConcrete implements CreateModelFromEventInterface {
+    record CreateModelFromEventConcrete() implements CreateModelFromEventInterface {
         @Override
         public TestModelWithoutApplyEvent apply() {
             return TestModelWithoutApplyEvent.builder().firstEvent(this).build();
         }
     }
 
-    @Value
-    static class UpsertModelFromEvent {
+    record UpsertModelFromEvent() {
         @Apply
-        public TestModelWithoutApplyEvent apply() {
+        TestModelWithoutApplyEvent apply() {
             return TestModelWithoutApplyEvent.builder().firstEvent(this).build();
         }
 
         @Apply
-        public TestModelWithoutApplyEvent apply(TestModelWithoutApplyEvent aggregate) {
+        TestModelWithoutApplyEvent apply(TestModelWithoutApplyEvent aggregate) {
             return aggregate.toBuilder().secondEvent(this).build();
         }
     }
 
-    @Value
-    static class UpsertModelWithNullable {
+    record UpsertModelWithNullable() {
         @Apply
-        public TestModelWithoutApplyEvent apply(@Nullable TestModelWithoutApplyEvent aggregate) {
+        TestModelWithoutApplyEvent apply(@Nullable TestModelWithoutApplyEvent aggregate) {
             return aggregate == null
                     ? TestModelWithoutApplyEvent.builder().firstEvent(this).build()
                     : aggregate.toBuilder().secondEvent(this).build();
         }
     }
 
-    @Value
-    static class UpsertModelWithNullableClass implements UpsertModelWithNullableInterface {
+    record UpsertModelWithNullableClass() implements UpsertModelWithNullableInterface {
         @Override
         public TestModelWithoutApplyEvent apply(TestModelWithoutApplyEvent aggregate) {
             return aggregate == null
@@ -890,64 +865,50 @@ class EventSourcingRepositoryTest {
     }
 
     interface UpsertModelWithNullableInterface {
-        @Apply TestModelWithoutApplyEvent apply(@Nullable TestModelWithoutApplyEvent aggregate);
+        @Apply
+        TestModelWithoutApplyEvent apply(@Nullable TestModelWithoutApplyEvent aggregate);
     }
 
-    @Value
-    static class UpdateModelFromEvent {
+    record UpdateModelFromEvent() {
         @Apply
-        public TestModelWithoutApplyEvent apply(TestModelWithoutApplyEvent aggregate) {
+        TestModelWithoutApplyEvent apply(TestModelWithoutApplyEvent aggregate) {
             return aggregate.toBuilder().secondEvent(this).build();
         }
     }
 
-    @Value
-    static class GetPlayBackedAggregate {
+    record GetPlayBackedAggregate() {
     }
 
     @Aggregate
-    @Value
     @Builder(toBuilder = true)
-    static class TestModelWithoutApplyEvent {
-        Object firstEvent, secondEvent;
+    record TestModelWithoutApplyEvent(Object firstEvent, Object secondEvent) {
     }
 
-    @Value
-    static class CreateModel {
+    record CreateModel() {
     }
 
-    @Value
-    static class UpdateModel {
+    record UpdateModel() {
     }
 
-    @Value
-    static class ApplyWhileApplying {
+    record ApplyWhileApplying() {
     }
 
-    @Value
-    static class GetModel {
+    record GetModel() {
     }
 
-    @Value
-    static class ApplyInQuery {
+    record ApplyInQuery() {
     }
 
-    @Value
-    static class ApplyNonsense {
+    record ApplyNonsense() {
     }
 
-
-    @Value
-    static class FailToCreateModel {
+    record FailToCreateModel() {
     }
 
-    @Value
-    static class FailsAfterApply {
+    record FailsAfterApply() {
     }
 
-
-    @Value
-    static class CreateModelWithMetadata {
+    record CreateModelWithMetadata() {
     }
 
     @AllArgsConstructor

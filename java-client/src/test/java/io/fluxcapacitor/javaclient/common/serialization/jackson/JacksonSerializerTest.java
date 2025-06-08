@@ -23,6 +23,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.databind.node.TextNode;
 import io.fluxcapacitor.common.api.Data;
+import io.fluxcapacitor.common.search.SearchExclude;
+import io.fluxcapacitor.common.search.SearchInclude;
 import io.fluxcapacitor.common.serialization.Revision;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializationException;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingObject;
@@ -84,7 +86,8 @@ class JacksonSerializerTest {
     void testDeserializeStream() throws JsonProcessingException {
         List<RevisedObject> expected = asList(new RevisedObject("test0", 5), new RevisedObject("test2", 42));
         List<?> actual = serializer.deserialize(
-                        Stream.of(createRev0Data(expected.get(0).getName()), serializer.serialize(expected.get(1))), UnknownTypeStrategy.FAIL)
+                        Stream.of(createRev0Data(expected.get(0).getName()), serializer.serialize(expected.get(1))),
+                        UnknownTypeStrategy.FAIL)
                 .map(DeserializingObject::getPayload)
                 .collect(Collectors.toList());
         assertEquals(expected, actual);
@@ -155,6 +158,56 @@ class JacksonSerializerTest {
         List<Bar> input = Arrays.asList(new Foo("bla1"), new Foo2("bla2"));
         Data<byte[]> serialized = serializer.serialize(input);
         assertEquals(input, serializer.deserialize(serialized));
+    }
+
+    @Nested
+    class RecordTests {
+
+        @SearchExclude
+        record FooBar(@SearchInclude String foo, String bar, @SearchInclude int n) {
+        }
+
+        @Test
+        void testSerializeRecord() {
+            FooBar input = new FooBar("foo", "bar", 123);
+            FooBar output = serializer.convert(input, FooBar.class);
+            assertNotSame(input, output);
+            assertEquals(input, output);
+        }
+
+        @Test
+        void testSerializePartialRecord() {
+            FooBar input = new FooBar("foo", null, 123);
+            FooBar output = serializer.convert(input, FooBar.class);
+            assertNotSame(input, output);
+            assertEquals(input, output);
+            output = serializer.deserialize(new Data<>(
+                    """
+                            {
+                                "foo": "foo",
+                                "n": 123
+                            }
+                            """.getBytes(), serializer.asString(FooBar.class), 0, serializer.getFormat()));
+            assertNotSame(input, output);
+            assertEquals(input, output);
+            output = serializer.deserialize(new Data<>(
+                    """
+                            {
+                                "foo": "foo",
+                                "bar": "bar"
+                            }
+                            """.getBytes(), serializer.asString(FooBar.class), 0, serializer.getFormat()));
+            assertEquals(new FooBar("foo", "bar", 0), output);
+        }
+
+        @Test
+        void serializeToDocument() {
+            FooBar input = new FooBar("foo", "bar", 123);
+            var document = serializer.toDocument(input, "foobar", "test", null, null);
+            FooBar output = serializer.fromDocument(document);
+            assertNotSame(input, output);
+            assertEquals(input, output);
+        }
     }
 
     @Nested

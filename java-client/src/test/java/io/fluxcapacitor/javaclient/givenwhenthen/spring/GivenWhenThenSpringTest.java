@@ -27,7 +27,6 @@ import io.fluxcapacitor.javaclient.tracking.handling.Association;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleEvent;
 import io.fluxcapacitor.javaclient.tracking.handling.Stateful;
-import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.SneakyThrows;
 import lombok.Value;
@@ -40,6 +39,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.stereotype.Component;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.TestPropertySource;
@@ -78,6 +78,19 @@ class GivenWhenThenSpringTest {
     @Test
     void testBar() {
         testFixture.whenCommand(new DoSomething()).expectCommands(new DoSomethingElse());
+    }
+
+    @Component
+    static class RecordCommandHandler {
+        @HandleCommand
+        String handle(RecordCommand command) {
+            return "success";
+        }
+    }
+
+    @Test
+    void testRecordCommand() {
+        testFixture.whenCommand(new RecordCommand()).expectResult("success");
     }
 
     @Test
@@ -203,13 +216,8 @@ class GivenWhenThenSpringTest {
         }
 
         @Stateful
-        @Value
         @Builder(toBuilder = true)
-        @AllArgsConstructor
-        public static class ConstructorHandler {
-            @Association
-            String someId;
-            int eventCount;
+        record ConstructorHandler (@Association String someId, int eventCount) {
 
             @HandleEvent
             ConstructorHandler(StaticEvent event) {

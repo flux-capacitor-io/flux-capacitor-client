@@ -22,7 +22,6 @@ import io.fluxcapacitor.javaclient.persisting.eventsourcing.Apply;
 import io.fluxcapacitor.javaclient.test.TestFixture;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleQuery;
-import lombok.Value;
 import org.junit.jupiter.api.Test;
 
 import java.util.function.Predicate;
@@ -67,7 +66,7 @@ public class GivenWhenThenCorrelationTest {
                 .expectEvents((Predicate<Message>) e -> e.getMetadata().get("$trace.userName").equals("myself"));
     }
 
-    private static class Handler {
+    static class Handler {
         @HandleCommand
         void handle(Object command) {
             FluxCapacitor.loadAggregate(aggregateId, TestModel.class).assertLegal(command).apply(command);
@@ -86,25 +85,21 @@ public class GivenWhenThenCorrelationTest {
     }
 
     @Aggregate
-    @Value
-    public static class TestModel {
+    record TestModel() {
         @Apply
-        public static TestModel handle(CreateModel event) {
+        static TestModel handle(CreateModel event) {
             return new TestModel();
         }
     }
 
-    @Value
-    private static class CreateModel {
+    record CreateModel() {
     }
 
-    @Value
-    private static class CreateModelInTwoSteps {
+    record CreateModelInTwoSteps() {
     }
 
 
-    @Value
-    private static class GetModel {
+    record GetModel() {
     }
 
 }
