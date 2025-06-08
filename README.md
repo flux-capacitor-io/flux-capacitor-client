@@ -76,7 +76,8 @@ Publish the event:
 ```java
 public class ExampleMain {
     public static void main(final String[] args) {
-        var fluxCapacitor = DefaultFluxCapacitor.builder().build(LocalClient.newInstance());
+        var fluxCapacitor = DefaultFluxCapacitor.builder()
+                .build(LocalClient.newInstance());
         fluxCapacitor.registerHandlers(new HelloWorldEventHandler());
         fluxCapacitor.eventGateway().publish(new HelloWorld());
     }
@@ -89,14 +90,13 @@ Output:
 Hello World!
 ```
 
-### With Spring Boot
+### With Spring
 
 Flux Capacitor integrates seamlessly with Spring. Here’s how the above example looks with Spring Boot:
 
 ```java
 
 @SpringBootApplication
-@Import(FluxCapacitorSpringConfig.class)
 public class ExampleMain {
     public static void main(String... args) {
         SpringApplication.run(ExampleMain.class, args);
@@ -118,6 +118,8 @@ public class HelloWorldEventHandler {
 }
 ```
 
+> ⚠️ Using Spring non-Boot? Add `@Import(FluxCapacitorSpringConfig.class)` to register FluxCapacitor and related beans.
+
 ### Testing your handler
 
 Flux Capacitor includes a powerful TestFixture utility for testing your handlers without needing a full application
@@ -132,7 +134,8 @@ class HelloWorldEventHandlerTest {
     void testHelloWorldHandler() {
         TestFixture.create(new HelloWorldEventHandler())
                 .whenEvent(new HelloWorld())
-                .expectThat(fc -> System.out.println("Event handled successfully!"));
+                .expectThat(fc -> System.out.println(
+                        "Event handled successfully!"));
     }
 }
 ```
@@ -147,12 +150,13 @@ by default.
 
 # Features
 
-The java client supports all features of Flux Capacitor but also offers plenty of additional functionality. 
+The java client supports all features of Flux Capacitor but also offers plenty of additional functionality.
 What follows is a summary of the most important features.
 
 ## Table of Contents
 
 ### 📦 Messaging
+
 - [Message Handling](#message-handling)
 - [Tracking Messages](#tracking-messages)
 - [Message Replays](#message-replays)
@@ -169,6 +173,7 @@ What follows is a summary of the most important features.
 - [Metrics Messages](#metrics-messages)
 
 ### 🧠 Domain Modeling, Persistence, and Search
+
 - [Domain Modeling](#domain-modeling)
 - [Applying Updates to Entities](#applying-updates-to-entities)
 - [Nested Entities](#nested-entities)
@@ -178,11 +183,13 @@ What follows is a summary of the most important features.
 - [Tracking and Updating Documents](#tracking-and-updating-documents)
 
 ### 🛡️ Data Handling and Serialization
+
 - [Protecting Sensitive Data](#protecting-sensitive-data)
 - [Serialization, Upcasting, and Downcasting](#serialization-upcasting-and-downcasting)
 - [Filtering Object Content](#filtering-object-content)
 
 ### 🛠️ Configuration and Extensibility
+
 - [Configuring Application Properties](#configuring-application-properties)
 - [Parameter Injection with Custom Resolvers](#parameter-injection-with-custom-resolvers)
 - [Interceptors: Dispatching, Handling, and Batching](#interceptors-dispatching-handling-and-batching)
@@ -204,7 +211,8 @@ of an event handler that dispatches a command to send a welcome email when a use
 class UserEventHandler {
     @HandleEvent
     void handle(CreateUser event) {
-        FluxCapacitor.sendCommand(new SendWelcomeEmail(event.getUserProfile()));
+        FluxCapacitor.sendCommand(
+                new SendWelcomeEmail(event.getUserProfile()));
     }
 }
 ```
@@ -242,11 +250,38 @@ To perform a query and wait for its result synchronously, you can use:
 class UserEventHandler {
     @HandleEvent
     void handle(ResetPassword event) {
-        UserProfile userProfile = FluxCapacitor.queryAndWait(new GetUserProfile(event.getUserId()));
+        UserProfile userProfile = FluxCapacitor
+                .queryAndWait(new GetUserProfile(event.getUserId()));
         // Perform reset using userProfile
     }
 }
 ```
+
+### Returning Futures
+
+Handler methods may also return a `CompletableFuture<T>` instead of a direct value. In that case, Flux Capacitor will
+publish the result to the result log once the future completes:
+
+```java
+@HandleQuery
+CompletableFuture<UserProfile> handle(GetUserProfile query) {
+    return userService.fetchAsync(query.getUserId());
+}
+```
+
+This can be useful when calling asynchronous services (e.g. via HTTP or database drivers).
+
+> ⚠️ **Caution:** While supported, returning a future means Flux will consider the message *handled* as soon as the
+> handler returns the future—not when the future completes. This can be problematic if:
+>
+> - The operation must be guaranteed to complete (e.g. business-critical updates),
+> - You rely on message acknowledgment for progress tracking,
+> - Or you need back-pressure to avoid overloading the system.
+>
+> For most handlers, **synchronous return types are recommended**, or use `.join()` to explicitly block when necessary.
+
+This pattern works best for non-critical side effects or purely read-oriented queries that can tolerate eventual
+completion.
 
 ### Handler Matching and Passive Handlers
 
@@ -309,7 +344,7 @@ patterns.
 ```java
 public class UserHandler {
     @HandleQuery
-    User handle(GetUser query) {
+    UserAccount handle(GetUser query) {
         return userRepository.find(query.getUserId());
     }
 }
@@ -471,7 +506,8 @@ In this example, the consumer `auditReplay` will process all events starting fro
 > Index values are based on time and can be derived using `IndexUtils`:
 
 ```java
-long index = IndexUtils.indexFromTimestamp(Instant.parse("2024-01-01T00:00:00Z"));
+long index = IndexUtils.indexFromTimestamp(
+        Instant.parse("2024-01-01T00:00:00Z"));
 // returns: 111677748019200000L
 ```
 
@@ -631,12 +667,12 @@ class CommandReplayHandler {
 
 ### When to Use the Error Log
 
-| Use Case                   | How the Error Log Helps                        |
-|----------------------------|------------------------------------------------|
-| 🛠 Fix a bug retroactively | Replay failed commands from the past           |
-| 🚧 Validate new handler logic | Test it against real-world errors          |
-| 🔁 Retry transient failures | Re-issue requests with retry logic            |
-| 🧹 Clean up or suppress errors | Filter out known false-positives         |
+| Use Case                       | How the Error Log Helps              |
+|--------------------------------|--------------------------------------|
+| 🛠 Fix a bug retroactively     | Replay failed commands from the past |
+| 🚧 Validate new handler logic  | Test it against real-world errors    |
+| 🔁 Retry transient failures    | Re-issue requests with retry logic   |
+| 🧹 Clean up or suppress errors | Filter out known false-positives     |
 
 The error log acts as a **time-travel debugger** — it gives you full control over how and when to address failures, now
 or in the future.
@@ -1032,15 +1068,6 @@ Flux will interpret the enum-based annotation through the underlying `@RequiresA
 
 ---
 
-### Where does user info come from?
-
-User roles are resolved by the configured `UserProvider`, which extracts the current user from message metadata (e.g.,
-authentication tokens, headers, etc.). By default, Flux Capacitor uses a pluggable SPI to register this provider.
-
-> 💡 You can override or mock this provider in tests using the TestFixture API.
-
----
-
 ### Best Practices
 
 - Use role annotations on **payload classes** to guarantee strict access checks in all environments.
@@ -1053,6 +1080,85 @@ authentication tokens, headers, etc.). By default, Flux Capacitor uses a pluggab
 > 💡 **Tip:** Access control is enforced transparently — there’s no need to log or repeat the user or message context.
 > Flux automatically maintains correlation metadata between the original request and any errors, logs, or events that
 > follow.
+
+---
+
+### Where does user info come from?
+
+User roles are resolved by the configured `UserProvider`, which extracts the current user from message metadata (e.g.,
+authentication tokens, headers, etc.). By default, Flux Capacitor uses a pluggable SPI to register this provider.
+
+> 💡 You can override or mock this provider in tests using the TestFixture API.
+
+---
+
+### Providing Your Own User Logic
+
+You can implement a custom `UserProvider` to extract users from headers, JWT tokens, cookies, etc.
+
+```java
+public class MyUserProvider extends AbstractUserProvider {
+    public MyUserProvider() {
+        super("Authorization", MyUser.class); // metadata key and user type
+    }
+
+    @Override
+    public User fromMessage(HasMessage message) {
+        if (message.toMessage() instanceof WebRequest request) {
+            return decodeToken(request.getHeader("Authorization"));
+        }
+        return super.fromMessage(message);
+    }
+
+    private User decodeToken(String header) {
+        // Implement your own token decoding and verification logic here
+        return ...;
+    }
+}
+```
+
+This allows you to inject meaningful, application-specific `User` objects into your handlers.
+
+---
+
+### System and Testing Support
+
+Your `UserProvider` implementation can also support testing and system behavior by implementing:
+
+- `getSystemUser()` — returns a default **system-level user**, used:
+  - as the default actor in tests,
+  - when publishing system-side effects (e.g. from scheduled handlers).
+- `getUserById(...)` — resolves a user by ID, used in test utilities like `fixture.whenCommandByUser(...)`.
+
+This ensures your custom user logic is consistently applied, even in automated tests and background execution.
+
+---
+
+### 🔧 Registering your UserProvider
+
+To enable your custom `UserProvider` (e.g., for authenticating users via headers or tokens), register it using Java's 
+Service Provider mechanism.
+
+Create the file:
+
+```
+src/main/resources/META-INF/services/io.fluxcapacitor.javaclient.tracking.handling.authentication.UserProvider
+```
+
+List your implementation classes (one per line) in order of preference:
+
+```
+com.example.authentication.SenderProvider
+com.example.authentication.SystemUserProvider
+```
+
+Flux Capacitor will automatically discover and register them at startup.
+
+> 💡 If you're using Spring, your `UserProvider` can also be exposed as a bean — Flux Capacitor will pick it up 
+> automatically.
+> 
+> ⚠️ However, tests **not using Spring** will not pick up the bean. For test scenarios or CLI usage, the SPI mechanism
+> is still the easiest.
 
 ---
 
@@ -1076,7 +1182,8 @@ class UserLifecycleHandler {
 
     @HandleEvent
     void handle(AccountReopened event) {
-        FluxCapacitor.cancelSchedule("AccountClosed-" + event.getUserId());
+        FluxCapacitor.cancelSchedule(
+                "AccountClosed-" + event.getUserId());
     }
 
     @HandleSchedule
@@ -1274,7 +1381,8 @@ Each message can also include optional metadata:
 
 [//]: # (@formatter:off)
 ```java
-FluxCapacitor.sendCommand(new CreateUser("Bob"),Metadata.of("source","admin-ui"));
+FluxCapacitor.sendCommand(new CreateUser("Bob"),
+                          Metadata.of("source","admin-ui"));
 ```
 [//]: # (@formatter:on)
 
@@ -1302,9 +1410,11 @@ FluxCapacitor.sendAndForgetCommand(new CreateUser("Alice"));
 
 [//]: # (@formatter:off)
 ```java
-CompletableFuture<UserId> future = FluxCapacitor.sendCommand(new CreateUser("Bob"));
+CompletableFuture<UserId> future 
+        = FluxCapacitor.sendCommand(new CreateUser("Bob"));
 
-UserId id = FluxCapacitor.sendCommandAndWait(new CreateUser("Charlie"));
+UserId id = FluxCapacitor.sendCommandAndWait(
+        new CreateUser("Charlie"));
 ```
 [//]: # (@formatter:on)
 
@@ -1376,8 +1486,10 @@ Send an outbound HTTP call via the proxy mechanism in Flux Platform:
 
 [//]: # (@formatter:off)
 ```java
-WebRequest request = WebRequest.get("https://api.example.com/data").build();
-WebResponse response = FluxCapacitor.get().webRequestGateway().sendAndWait(request);
+WebRequest request = WebRequest
+        .get("https://api.example.com/data").build();
+WebResponse response = FluxCapacitor.get()
+        .webRequestGateway().sendAndWait(request);
 ```
 [//]: # (@formatter:on)
 
@@ -1389,7 +1501,8 @@ You can publish custom metrics to the Flux Platform:
 
 [//]: # (@formatter:off)
 ```java
-FluxCapacitor.publishMetrics(new SystemLoadMetric(cpu, memory));
+FluxCapacitor.publishMetrics(
+        new SystemLoadMetric(cpu, memory));
 ```
 [//]: # (@formatter:on)
 
@@ -1451,7 +1564,8 @@ Apply `@Timeout` to a **payload class** (typically a command or query):
 [//]: # (@formatter:off)
 ```java
 @Timeout(value = 3, timeUnit = TimeUnit.SECONDS)
-public record CalculatePremium(UserProfile profile) implements Request<BigDecimal> {}
+public record CalculatePremium(UserProfile profile) 
+        implements Request<BigDecimal> {}
 ```
 [//]: # (@formatter:on)
 
@@ -1459,7 +1573,8 @@ When this message is sent using a blocking gateway call, the configured timeout 
 
 [//]: # (@formatter:off)
 ```java
-BigDecimal result = FluxCapacitor.sendAndWait(new CalculatePremium(user));
+BigDecimal result = FluxCapacitor
+        .sendAndWait(new CalculatePremium(user));
 ```
 [//]: # (@formatter:on)
 
@@ -1472,7 +1587,8 @@ If the timeout elapses before a response is received, a `TimeoutException` is th
 
   [//]: # (@formatter:off)
   ```java
-  CompletableFuture<BigDecimal> future = FluxCapacitor.send(new CalculatePremium(user));
+  CompletableFuture<BigDecimal> future 
+        = FluxCapacitor.send(new CalculatePremium(user));
   future.orTimeout(3, TimeUnit.SECONDS);
   ```
   [//]: # (@formatter:on)
@@ -1529,7 +1645,8 @@ You can also match by class, predicate, or Hamcrest matcher:
 [//]: # (@formatter:off)
 ```java
 fixture.whenCommand(new CreateUser(userProfile))
-       .expectCommands(SendWelcomeEmail.class, isA(AddUserToOrganization.class));
+       .expectCommands(SendWelcomeEmail.class, 
+                       isA(AddUserToOrganization.class));
 ```
 [//]: # (@formatter:on)
 
@@ -1557,7 +1674,8 @@ fixture.whenCommand(new CreateUser(userProfile))
 ```
 [//]: # (@formatter:on)
 
-This example first triggers a `CreateUser` command, expects a `SendWelcomeEmail` event, and then issues a `GetUser` query,
+This example first triggers a `CreateUser` command, expects a `SendWelcomeEmail` event, and then issues a `GetUser`
+query,
 asserting that it returns the expected result.
 
 ### Using givenXxx() for preconditions
@@ -1655,8 +1773,10 @@ Wrap your payload in a Message to add or assert metadata:
 
 @Test
 void newAdminGetsAdditionalEmail() {
-    testFixture.whenCommand(new Message(new CreateUser(...),Metadata.of("roles", Arrays.asList("Customer", "Admin"))))
-        .expectCommands(new SendWelcomeEmail(...),new SendAdminEmail(...));
+    testFixture.whenCommand(new Message(new CreateUser(...),
+                                        Metadata.of("roles", Arrays.asList("Customer", "Admin"))))
+        .expectCommands(new SendWelcomeEmail(...),
+                        new SendAdminEmail(...));
 }
 ```
 
@@ -1754,17 +1874,15 @@ This ensures that:
 - Eventual consistency is respected (e.g., expect...() calls will wait for outcomes to materialize).
 
 > **Note:** Handlers annotated with `@LocalHandler` are executed synchronously, even in async fixtures, just as they
-> would
-> in production. Handlers annotated with `@TrackSelf`, `@Stateful`, or `@SocketEndpoint` — also behave as they would in
-> a production runtime: they are tracked and dispatched asynchronously when registered by class.
+> would in production.
 
-### Using test fixtures in Spring
+### Using Test Fixtures in Spring
 
-When using Spring, simply inject the test fixture via `FluxCapacitorTestConfig`:
+Flux Capacitor provides seamless integration with Spring Boot for testing. You can inject a `TestFixture` directly:
 
 ```java
 
-@SpringBootTest(classes = {App.class, FluxCapacitorTestConfig.class})
+@SpringBootTest
 class AsyncAppTest {
 
     @Autowired
@@ -1778,24 +1896,39 @@ class AsyncAppTest {
 }
 ```
 
-By default, this will inject an **async** test fixture. You can override this by setting the property:
+- ✅ **Spring Boot**: No manual setup needed—`TestFixture` is auto-configured.
+- ⚠️ **Spring Core (non-Boot)**: Manually import the test configuration:
+
+  ```java
+  @Import(FluxCapacitorTestConfig.class)
+  ```
+
+  This ensures the `TestFixture` and related infrastructure are available in the Spring context.
+
+---
+
+#### Switching to Synchronous Mode
+
+By default, the injected fixture is **asynchronous**. To use a **synchronous** fixture instead:
+
+##### Globally via `application.properties`:
 
 ```properties
 fluxcapacitor.test.sync=true
 ```
 
-Or selectively enable sync mode via per-test configuration using:
+##### Or per test class:
 
 ```java
 
 @TestPropertySource(properties = "fluxcapacitor.test.sync=true")
-@SpringBootTest(classes = {App.class, FluxCapacitorTestConfig.class})
+@SpringBootTest
 class SyncAppTest {
 
     @Autowired
     TestFixture fixture;
-  
-  ...
+
+    // test logic...
 }
 ```
 
@@ -1812,7 +1945,8 @@ TestFixture testFixture = TestFixture.create(new UserCommandHandler(), new UserL
 @Test
 void accountIsTerminatedAfterClosing() {
     testFixture
-            .givenCommands(new CreateUser(myUserProfile), new CloseAccount(userId))
+            .givenCommands(new CreateUser(myUserProfile), 
+                           new CloseAccount(userId))
             .whenTimeElapses(Duration.ofDays(30))
             .expectEvents(new AccountTerminated(userId));
 }
@@ -1831,7 +1965,9 @@ You can also test cancellation logic:
 @Test
 void accountReopeningCancelsTermination() {
     testFixture
-            .givenCommands(new CreateUser(myUserProfile), new CloseAccount(userId), new ReopenAccount(userId))
+            .givenCommands(new CreateUser(myUserProfile), 
+                           new CloseAccount(userId), 
+                           new ReopenAccount(userId))
             .whenTimeElapses(Duration.ofDays(30))
             .expectNoEventsLike(AccountTerminated.class);
 }
@@ -1876,7 +2012,7 @@ This architecture enables several key benefits:
 ```java
 
 @HandleGet("/users")
-public List<User> listUsers() {
+public List<UserAccount> listUsers() {
     return userService.getAllUsers();
 }
 ```
@@ -1884,17 +2020,30 @@ public List<User> listUsers() {
 This will match incoming GET requests to `/users` and return a list of users. The response is published back as a
 `WebResponse`.
 
-You can use the general `@HandleWeb` if you want to match multiple methods or define a custom method:
+You can use the general `@HandleWeb` if you want to match multiple paths or methods or define a custom HTTP method:
 
 ```java
 
-@HandleWeb(value = "/users/*", method = {"GET", "DELETE"})
-public Object handleUserRequest(WebRequest request) {
+@HandleWeb(value = "/users/{userId}", method = {"GET", "DELETE"})
+public CompletableFuture<?> handleUserRequest(WebRequest request, @PathParam String userId) {
     return switch (request.getMethod()) {
-        case "GET" -> userService.get(request.getPath());
-        case "DELETE" -> userService.delete(request.getPath());
-        default -> throw new IllegalArgumentException("Unsupported method");
+        case "GET" -> FluxCapacitor.query(new GetUser(userId));
+        case "DELETE" -> FluxCapacitor.sendCommand(new DeleteUser(userId));
+        default -> throw new UnsupportedOperationException();
     };
+}
+```
+
+> 💡 **Tip:** To match any HTTP method without listing them explicitly, use `HttpRequestMethod.ANY`.
+> This is equivalent to `"*"` and will match all incoming requests for the given path.
+
+```java
+
+@HandleWeb(value = "/users/{userId}", method = HttpRequestMethod.ANY)
+public CompletableFuture<?> handleAllUserMethods(
+        WebRequest request, @PathParam String userId) {
+    // Handle any method (GET, POST, DELETE, etc.)
+    ...
 }
 ```
 
@@ -1918,7 +2067,7 @@ Use the `@PathParam` annotation to extract dynamic segments from the URI path in
 ```java
 
 @HandleGet("/users/{id}")
-public User getUser(@PathParam String id) {
+public UserAccount getUser(@PathParam String id) {
     return userService.get(id);
 }
 ```
@@ -1936,7 +2085,7 @@ any path in the handler annotations:
 public class UserController {
 
     @HandleGet("/{id}")
-    public User getUser(@PathParam String id) {
+    public UserAccount getUser(@PathParam String id) {
         return userService.get(id);
     }
 }
@@ -2040,6 +2189,8 @@ buffer, sequence).
 
 > ✅ `@SocketEndpoint` handlers are prototype-scoped, meaning they're constructed once per session.
 
+> ℹ️ Like other handlers, socket endpoints may be annotated with `@Consumer` for tracking isolation.
+
 ---
 
 ### Automatic Ping-Pong & Keep-Alive
@@ -2092,7 +2243,8 @@ WebRequest request = WebRequest.get("https://api.example.com/data")
         .header("Authorization", "Bearer token123")
         .build();
 
-WebResponse response = FluxCapacitor.get().webRequestGateway().sendAndWait(request);
+WebResponse response = FluxCapacitor.get()
+        .webRequestGateway().sendAndWait(request);
 
 String body = response.getBodyString();
 ```
@@ -2107,7 +2259,8 @@ You can send requests asynchronously:
 ```java
 FluxCapacitor.get().webRequestGateway()
         .send(request)
-        .thenAccept(response ->log.info("Received: {}",response.getBodyString()));
+        .thenAccept(response -> log
+              .info("Received: {}",response.getBodyString()));
 ```
 [//]: # (@formatter:off)
 
@@ -2187,7 +2340,6 @@ You can match requests by:
 - ✅ Supports timeouts, consumers, and structured request settings.
 - ✅ Easily mock remote endpoints for testing full business flows.
 
-
 ---
 
 ## Metrics Messages
@@ -2216,16 +2368,15 @@ This emits a structured metrics message to the metrics topic.
 
 All metrics are wrapped in a regular `Message`, so you can include metadata or delivery guarantees:
 
+[//]: # (@formatter:off)
 ```java
-FluxCapacitor.get().
-
-metricsGateway()
-    .
-
-publish(new MyMetric("foo"),Metadata.
-
-of("critical","true"),Guarantee.STORED);
+FluxCapacitor.get()
+    .metricsGateway()
+    .publish(new MyMetric("foo"), 
+             Metadata.of("critical","true"),
+             Guarantee.STORED);
 ```
+[//]: # (@formatter:off)
 
 ---
 
@@ -2269,7 +2420,7 @@ To reduce noise or overhead, you can selectively disable automatic metrics:
 @Consumer(handlerInterceptors = DisableMetrics.class)
 public class SilentHandler {
     @HandleEvent
-    void on(MyEvent event) { ...}
+    void on(MyEvent event) { ... }
 }
 ```
 
@@ -2319,7 +2470,7 @@ To define a stateful domain object, annotate it with `@Aggregate`:
 @Aggregate
 @Value
 @Builder(toBuilder = true)
-public class User {
+public class UserAccount {
     @EntityId
     UserId userId;
     UserProfile profile;
@@ -2327,7 +2478,8 @@ public class User {
 }
 ```
 
-This `User` class models an aggregate with state such as `profile` and `accountClosed`. Each entity may contain a field
+This `UserAccount` class models an aggregate with state such as `profile` and `accountClosed`. Each entity may contain a
+field
 annotated with `@EntityId` that acts as a unique identifier. For aggregates, this is optional — the aggregate itself is
 typically loaded using `FluxCapacitor.loadAggregate(id)`.
 
@@ -2345,14 +2497,14 @@ instead. This lets you:
 - Retain type information for safer entity loading and deserialization
 
 ```java
-public class UserId extends Id<User> {
+public class UserId extends Id<UserAccount> {
     public UserId(String value) {
         super(value, "user-");
     }
 }
 
 @Aggregate
-public class User {
+public class UserAccount {
     @EntityId
     UserId userId;
 }
@@ -2361,7 +2513,7 @@ public class User {
 Now you can easily load the entity via:
 
 ```java
-Entity<User> user = FluxCapacitor.loadAggregate(new UserId("1234"));
+Entity<UserAccount> user = FluxCapacitor.loadAggregate(new UserId("1234"));
 ```
 
 ---
@@ -2381,18 +2533,18 @@ public class CreateUser {
     UserProfile profile;
 
     @AssertLegal
-    void assertNotExists(User current) {
-        throw new IllegalCommandException("User already exists");
+    void assertNotExists(UserAccount current) {
+        throw new IllegalCommandException("Account already exists");
     }
 
     @Apply
-    User apply() {
-        return new User(userId, profile, false);
+    UserAccount apply() {
+        return new UserAccount(userId, profile, false);
     }
 }
 ```
 
-This update creates a new `User` entity after checking that no user with the same ID currently exists.
+This update creates a new `UserAccount` entity after checking that no user with the same ID currently exists.
 
 ```java
 
@@ -2402,21 +2554,21 @@ public class UpdateProfile {
     UserProfile profile;
 
     @AssertLegal
-    void assertExists(@Nullable User current) {
+    void assertExists(@Nullable UserAccount current) {
         if (current == null) {
-            throw new IllegalCommandException("User not found");
+            throw new IllegalCommandException("Account not found");
         }
     }
 
     @AssertLegal
-    void assertAccountNotClosed(User current) {
+    void assertAccountNotClosed(UserAccount current) {
         if (current.isAccountClosed()) {
             throw new IllegalCommandException("Account is closed");
         }
     }
 
     @Apply
-    User apply(User current) {
+    UserAccount apply(UserAccount current) {
         return current.toBuilder().profile(profile).build();
     }
 }
@@ -2424,12 +2576,12 @@ public class UpdateProfile {
 
 This update first ensures the user exists and their account isn’t closed before applying the change.
 
-> **Note**: Handler method parameters (like `User current`) are only injected if non-null. Use `@Nullable` to allow for
-> missing values.
+> **Note**: Handler method parameters (like `UserAccount current`) are only injected if non-null. Use `@Nullable`
+> to allow for missing values.
 
 ---
 
-### Intercepting and Transforming Updates with `@InterceptApply`
+### Intercepting and Transforming Updates
 
 In addition to applying and validating updates, you can also **intercept** them *before* they reach the legal or apply
 phase.
@@ -2443,7 +2595,7 @@ Use `@InterceptApply` to:
 ```java
 
 @InterceptApply
-Object ignoreNoChange(User current) {
+Object ignoreNoChange(UserAccount current) {
     if (current.getProfile().equals(profile)) {
         return null; // suppress update, nothing to change
     }
@@ -2456,8 +2608,8 @@ You can even rewrite the update entirely:
 ```java
 
 @InterceptApply
-UpdateProfile downgradeCommand(CreateUser command, User existingUser) {
-    //the existingUser could be injected, hence it already exists
+UpdateProfile downgradeCommand(CreateUser command, UserAccount current) {
+    //the current account could be injected, hence it already exists
     return new UpdateProfile(command.getUserId(), command.getProfile());
 }
 ```
@@ -2538,28 +2690,28 @@ looks like:
 @Aggregate
 @Value
 @Builder(toBuilder = true)
-public class User {
+public class UserAccount {
     @EntityId
     UserId userId;
     UserProfile profile;
     boolean accountClosed;
 
     @AssertLegal
-    static void assertNotExists(CreateUser update, @Nullable User user) {
+    static void assertNotExists(CreateUser update, @Nullable UserAccount user) {
         if (user != null) {
-            throw new IllegalCommandException("User already exists");
+            throw new IllegalCommandException("Account already exists");
         }
     }
 
     @Apply
-    static User create(CreateUser update) {
-        return new User(update.getUserId(), update.getProfile(), false);
+    static UserAccount create(CreateUser update) {
+        return new UserAccount(update.getUserId(), update.getProfile(), false);
     }
 
     @AssertLegal
-    static void assertExists(UpdateProfile update, @Nullable User user) {
+    static void assertExists(UpdateProfile update, @Nullable UserAccount user) {
         if (user == null) {
-            throw new IllegalCommandException("User does not exist");
+            throw new IllegalCommandException("Account does not exist");
         }
     }
 
@@ -2571,13 +2723,14 @@ public class User {
     }
 
     @Apply
-    User update(UpdateProfile update) {
+    UserAccount update(UpdateProfile update) {
         return toBuilder().profile(update.getProfile()).build();
     }
 }
 ```
 
-In this model, the `User` aggregate handles all validation and transformation logic. Over time, this centralization
+In this model, the `UserAccount` aggregate handles all validation and transformation logic. Over time, this
+centralization
 leads to bloat and tight coupling — especially in larger systems with many features.
 
 ---
@@ -2605,12 +2758,12 @@ Here's a basic example of a command handler applying a `CreateUser` update:
 public class UserCommandHandler {
     @HandleCommand
     void handle(CreateUser command) {
-        FluxCapacitor.loadAggregate(command.getUserId(), User.class).assertAndApply(command);
+        FluxCapacitor.loadAggregate(command.getUserId(), UserAccount.class).assertAndApply(command);
     }
 }
 ```
 
-This loads the `User` entity by ID and applies the `CreateUser` command. Internally, Flux Capacitor will:
+This loads the `UserAccount` entity by ID and applies the `CreateUser` command. Internally, Flux Capacitor will:
 
 1. **Rehydrate** the entity using stored events or snapshots
 2. **Run all `@AssertLegal` methods** to verify preconditions
@@ -2644,7 +2797,7 @@ To define a nested structure, annotate the collection or field with `@Member`:
 @Aggregate
 @Value
 @Builder(toBuilder = true)
-public class User {
+public class UserAccount {
     @EntityId
     UserId userId;
     UserProfile profile;
@@ -2685,7 +2838,7 @@ public class AuthorizeUser {
 }
 ```
 
-The `User` aggregate is automatically updated to include this new child entity.
+The `UserAccount` aggregate is automatically updated to include this new child entity.
 
 ### Removing a Child Entity
 
@@ -2713,6 +2866,17 @@ public class RevokeAuthorization {
 
 Flux will automatically prune the child entity with the given `authorizationId`.
 
+> ⚠️ **Note:** When a child entity is added, updated, or removed using an `@Apply` method, Flux Capacitor will:
+>
+> - Automatically **locate the parent aggregate**
+> - Apply the update to the child entity
+> - And return a **new instance of the parent** (if it's immutable), with the updated child state included
+>
+> This allows you to use immutable models (e.g. Java records or classes with Lombok’s `@Value`) without extra
+> boilerplate.
+
+---
+
 ### Loading Entities and Aggregates
 
 Flux Capacitor supports a flexible and powerful approach to loading aggregates and their internal entities using
@@ -2739,7 +2903,7 @@ FluxCapacitor.loadEntity(taskId).assertAndApply(new CompleteTask(taskId));
 ```
 [//]: # (@formatter:on)
 
-Even if the `Task` is deeply nested within a `Project` or other parent aggregate, this method works because of the 
+Even if the `Task` is deeply nested within a `Project` or other parent aggregate, this method works because of the
 **entity relationship tracking** automatically maintained by Flux Capacitor.
 
 Additional behavior:
@@ -2752,6 +2916,40 @@ Additional behavior:
 > This enables true *location transparency* for commands and queries: you don’t need to know or pass along the full
 > aggregate path.
 
+#### 🔁 Finding All Aggregates for an Entity
+
+In some scenarios, an entity may be **referenced by multiple aggregates**—for example, when using shared reference
+data (e.g. a `Currency`, `Role`, or `Label`). If such an entity is updated, you might want to update *all* aggregates
+that reference it.
+
+To retrieve all aggregates that currently include a given entity ID:
+
+```java
+Map<String, Class<?>> aggregates = FluxCapacitor.get()
+        .aggregateRepository()
+        .getAggregatesFor(myEntityId);
+```
+
+This returns a map of aggregate IDs and their types.
+
+> ⚠️ **Caution:** This pattern should only be used if you know the number of associated aggregates will remain small and
+> bounded. If many aggregates accumulate over time, this lookup can grow unbounded and lead to performance issues.
+
+When used responsibly, this enables patterns like:
+
+[//]: # (@formatter:off)
+```java
+// Rerender or update every Project referencing a shared Tag
+for(Map.Entry<String, Class<?>> entry : FluxCapacitor.get()
+                .aggregateRepository().getAggregatesFor(tagId).entrySet()) {
+        FluxCapacitor.loadAggregate(entry.getKey(), entry.getValue())
+        .apply(new RefreshTag(tagId));
+}
+```
+[//]: # (@formatter:on)
+
+This approach can help keep derived or denormalized data consistent across aggregates.
+
 ---
 
 #### `loadAggregateFor(entityId)`
@@ -2759,7 +2957,8 @@ Additional behavior:
 Use this method to retrieve the **aggregate root** that currently contains the specified entity ID.
 
 ```java
-Entity<MyAggregate> aggregate = FluxCapacitor.loadAggregateFor("some-entity-id");
+Entity<MyAggregate> aggregate = FluxCapacitor
+        .loadAggregateFor("some-entity-id");
 ```
 
 Behavior:
@@ -2818,7 +3017,7 @@ This ensures that `email@example.com` is stored as `email:email@example.com`, an
 ```java
 
 @Value
-class User {
+class UserAccount {
     String id;
 
     @Alias(prefix = "email:")
@@ -2829,41 +3028,47 @@ class User {
 }
 ```
 
-Now the `User` entity can be looked up using:
+Now the `UserAccount` entity can be looked up using:
 
 ```java
-Entity<User> entity = FluxCapacitor.loadEntity("email:foo@example.com");
+Entity<UserAccount> entity = FluxCapacitor
+        .loadEntity("email:foo@example.com");
 ```
 
 or
 
 ```java
-Entity<User> entity = FluxCapacitor.loadEntity("1234"); // one of the oldIds
+Entity<UserAccount> entity = FluxCapacitor
+        .loadEntity("1234"); // one of the oldIds
 ```
 
 ---
 
-### 💡 Tip: Prefer `Id<T>` for aliases
+### 💡 Tip: Use `@Alias` on Strongly-Typed `Id<T>` Identifiers
 
-While `@Alias` is flexible, it's often more robust and convenient to use an `Id<T>` type:
+While `@Alias` can be applied to any field or property, it's often more convenient and robust to use it on a
+strongly-typed identifier that extends `Id<T>`:
 
-- Supports prefixes and case-insensitive matching out of the box,
-- Enforces entity type metadata for safer deserialization,
-- Integrates cleanly with aggregate and entity loading,
-- Automatically stringifies to the repository ID when needed.
+- `Id<T>` supports prefixing, case-insensitive matching, and type-safe deserialization.
+- The `@Alias` annotation recognizes the repository ID computed by the `Id<T>` implementation.
+- You don’t need to repeat the prefix in `@Alias`—it's already encoded in the `Id`.
 
 ```java
-public class Email extends Id<User> {
+public class Email extends Id<UserAccount> {
     public Email(String email) {
         super(email, "email:");
     }
 }
+
+@Alias
+Email email;
 ```
 
-Then you can load the entity as:
+This allows you to load the entity by its alias:
 
 ```java
-FluxCapacitor.loadEntity(new Email("foo@example.com"));
+Entity<UserAccount> account = FluxCapacitor
+        .loadEntity(new Email("john@example.com"));
 ```
 
 This makes aliasing more explicit and reusable—particularly useful in larger applications.
@@ -2874,7 +3079,7 @@ Flux automatically routes child-targeted updates like `AuthorizeUser` and `Revok
 entity using the `@EntityId`. You don’t need to write custom matching logic — the routing works transparently as long
 as:
 
-- The root aggregate is loaded (e.g. using `loadAggregate(userId, User.class)`), and
+- The root aggregate is loaded (e.g. using `loadAggregate(userId)`), and
 - The update contains enough identifying information to locate the nested entity
 
 ### Summary
@@ -2895,28 +3100,64 @@ Flux Capacitor supports multiple strategies for storing and reloading aggregates
 - **Document storage**: the full aggregate is stored as a document
 - **In-memory only**: ephemeral state, not persisted across messages
 
-By default, `@Aggregate` uses **event sourcing**, but you can configure each aggregate individually.
+By default, `@Aggregate` uses **event sourcing** (`@Aggregate(eventSourced = true)` by default), but you can configure
+each aggregate individually.
 
 ---
 
 ### Event Sourcing
 
-Flux Capacitor uses **event sourcing** by default for all `@Aggregate` types (`eventSourced = true` by default).
+Event-sourced aggregates are reconstructed from their event history. When you load an aggregate
+(e.g. via `loadAggregate(...)`, `loadEntity(...)`, or `loadAggregateFor(...)`), Flux uses the following strategy to
+restore its current state:
 
-Each time an update is applied:
+---
 
-1. The aggregate is **rehydrated** from its event history
-2. The update is validated via `@AssertLegal` methods
-3. The new state is computed via an `@Apply` method
-4. The update is appended to the **event store**
-5. The update is published to the **event log**
-6. The aggregate is cached or indexed (if enabled)
+### 1️⃣ Loading an Aggregate
+
+Flux Capacitor will attempt to resolve the **current state** of the aggregate or entity as follows:
+
+- **From cache**, if caching is enabled (default behavior).
+- If **snapshotting** is enabled and a snapshot is available, Flux uses it as the starting point and then replays any
+  subsequent events.
+- Otherwise, the entire state is rehydrated from the **event history**, by replaying each past event through its
+  matching `@Apply` method.
+
+Each event is **deserialized** and routed to the corresponding `@Apply` method to reconstruct the aggregate's entity
+graph.
+
+- If no such method exists for a given event, the event is silently **ignored**.
+- However, if the **event class itself is missing**, deserialization will fail unless `ignoreUnknownEvents = true` is
+  set on the aggregate. For better ways to deal with this, see [Upcasting](#upcasting).
+
+---
+
+### 2️⃣ Applying Updates and Committing Changes
+
+Once an aggregate has been loaded, you can apply updates, e.g.: using `Entity#apply(...)`. Each update follows this
+lifecycle:
+
+1. The state transition is computed using an `@Apply` method (on the update or entity).
+2. The update is **stored** in the event store and optionally **published** (depending on publication settings).
+3. The new state is written back to the **aggregate cache** (if enabled).
+4. A new **snapshot** is created, if a snapshot threshold has been reached.
+
+> **Commit Timing:**  
+> By default, updates are committed only **after the current message batch completes**, not immediately. This means:
+>
+> - Updates are **locally cached** (per tracker thread) until the batch is confirmed.
+> - This avoids unnecessary round-trips to the Flux Platform during batch processing.
+>
+> You can change this behavior by explicitly committing the update earlier—i.e., at the end of the current handler
+> method.
+
+#### Persistence Behavior
 
 You can customize event persistence behavior with:
 
 - `eventPublication`: prevent events when nothing has changed
 - `publicationStrategy`: store-only vs publish-and-store
-- `snapshotPeriod`: snapshot every N updates
+- `snapshotPeriod`: replace snapshot after every N updates
 - `ignoreUnknownEvents`: handle versioned aggregates gracefully
 
 Here’s a simple example:
@@ -2925,13 +3166,13 @@ Here’s a simple example:
 
 @Aggregate(snapshotPeriod = 1000)
 @Value
-public class User {
+public class UserAccount {
     @EntityId
     UserId userId;
     UserProfile profile;
 
     @Apply
-    User apply(UpdateProfile update) {
+    UserAccount apply(UpdateProfile update) {
         return toBuilder().profile(update.getProfile()).build();
     }
 }
@@ -2949,7 +3190,7 @@ To enable document storage, set `searchable = true` in the `@Aggregate` annotati
 
 ```java
 
-@Aggregate(eventSourced = false, searchable = true)
+@Aggregate(eventSourced = false, searchable = true, collection = "countries")
 @Value
 public class Country {
     @EntityId
@@ -2958,8 +3199,19 @@ public class Country {
 }
 ```
 
-This stores the entire entity as a document. The entity can still use `@Apply` and `@AssertLegal`, and changes are
-persisted to the document store.
+This stores the entire aggregate as a document in the `"countries"` collection. The entity can still use:
+
+- `@InterceptApply` to block or modify updates
+- `@AssertLegal` to validate updates
+- `@Apply` to compute and update state
+
+Each applied update will overwrite the document in the store, and—by default—**will also be published as an event**. If
+that's not desirable, you can disable event publication for the aggregate using
+`@Aggregate(eventPublication = NEVER)`. However, if you do, make sure to **also disable caching**, or you risk ending up
+with **inconsistent state** between application instances.
+
+> ℹ️ The `collection` defaults to the simple class name of the aggregate if not explicitly set. You can also configure
+> time-range indexing with `timestampPath` and `endPath` to enable temporal querying.
 
 > ⚠️ If you set `eventSourced = false` and do **not** enable `searchable`, the aggregate will not be persisted at all.  
 > Its state will only live in memory during message processing. This is typically not recommended unless you're using  
@@ -3022,7 +3274,8 @@ public class FraudMonitor {
 
         if (hasSuspiciousDelta(previous, current)) {
             FluxCapacitor.publishEvent(new AdminNotification(
-                    "Unusual balance change on account %s".formatted(current.getAccountId())));
+                    "Unusual balance change on account %s"
+                            .formatted(current.getAccountId())));
         }
     }
 
@@ -3030,7 +3283,8 @@ public class FraudMonitor {
         if (previous == null || current == null) {
             return false;
         }
-        BigDecimal delta = current.getBalance().subtract(previous.getBalance()).abs();
+        BigDecimal delta = current.getBalance()
+                .subtract(previous.getBalance()).abs();
         return delta.compareTo(BigDecimal.valueOf(10_000)) > 0;
     }
 }
@@ -3080,9 +3334,12 @@ public class PaymentProcess {
 
 - `@Stateful` classes persist their state using Flux’s document store (or a custom `HandlerRepository`)
 - They are automatically invoked when messages match their associations (`@Association` fields or methods)
-- Matching is dynamic and supports multiple handlers per message
+- Matching is dynamic and supports multiple handler instances per message
+- Multiple handler methods can exist for different message types
 - Handlers are immutable by convention — they are updated by returning a new version of themselves
 - Returning `null` deletes the handler (useful for terminating flows)
+
+> ℹ️ Like other handlers, stateful handlers may be annotated with `@Consumer` for tracking isolation.
 
 ```java
 
@@ -3205,7 +3462,7 @@ manually.
 
 @Aggregate(searchable = true)
 @Value
-public class User {
+public class UserAccount {
     @EntityId
     UserId userId;
     UserProfile profile;
@@ -3213,7 +3470,7 @@ public class User {
 }
 ```
 
-By default, the collection name is derived from the class’s **simple name** (User → `"User"`),
+By default, the collection name is derived from the class’s **simple name** (UserAccount → `"UserAccount"`),
 unless explicitly overridden via an annotation like `@Aggregate`, `@Stateful` or `@Searchable` or in the search/index
 call:
 
@@ -3228,7 +3485,8 @@ call:
 Use the fluent `search(...)` API:
 
 ```java
-List<User> admins = FluxCapacitor.search("users")
+List<UserAccount> admins = FluxCapacitor
+        .search("users")
         .match("admin", "profile/role")
         .inLast(Duration.ofDays(30))
         .sortBy("profile/lastLogin", true)
@@ -3238,7 +3496,8 @@ List<User> admins = FluxCapacitor.search("users")
 You can also query by class:
 
 ```java
-List<User> users = FluxCapacitor.search(User.class)
+List<UserAccount> users = FluxCapacitor
+        .search(UserAccount.class)
         .match("Netherlands", "profile.country")
         .fetchAll();
 ```
@@ -3299,6 +3558,63 @@ whereas `.match(...)` may involve resolving the path in memory and combining con
 
 > 💡 **Tip:** Use `@Facet` on frequently-filtered fields (e.g. `status`, `type`, `category`) to take full advantage
 > of this optimization.
+
+---
+
+### Facet Statistics
+
+When a field or getter is annotated with `@Facet`, you can also retrieve **facet statistics** — e.g., how many documents
+exist per value of a given property. This is useful for building **filters with counts**, such as product categories,
+user roles, or status indicators.
+
+#### Example: Product Breakdown by Category and Brand
+
+Suppose you have the following model:
+
+```java
+
+@Searchable
+@Value
+public class Product {
+    @Facet
+    String category;
+    @Facet
+    String brand;
+    String name;
+    BigDecimal price;
+}
+```
+
+You can retrieve facet stats like this:
+
+[//]: # (@formatter:off)
+```java
+List<FacetStats> stats = FluxCapacitor.search(Product.class)
+        .lookAhead("wireless")
+        .facetStats();
+```
+[//]: # (@formatter:on)
+
+This gives you document counts per facet value:
+
+[//]: # (@formatter:off)
+```json
+[
+  { "name": "category", "value": "headphones", "count": 55 },
+  { "name": "brand", "value": "Acme", "count": 45 },
+  { "name": "brand", "value": "NoName", "count": 10 }
+]
+```
+[//]: # (@formatter:on)
+
+> 💡 **Tip:** Use `matchFacet("category", "headphones")` to filter efficiently by facet value. This is generally
+> faster than `match(...)`.
+
+Each `FacetStats` object will contain:
+
+- the facet name (e.g., `category`)
+- the distinct values (e.g., `"electronics"`, `"clothing"`)
+- the number of documents per value
 
 ---
 
@@ -3372,63 +3688,6 @@ Here, `internalNotes` will not be indexed, but `publicSummary` will be.
 
 ---
 
-### Facet Statistics
-
-When a field or getter is annotated with `@Facet`, you can also retrieve **facet statistics** — e.g., how many documents
-exist per value of a given property. This is useful for building **filters with counts**, such as product categories,
-user roles, or status indicators.
-
-#### Example: Product Breakdown by Category and Brand
-
-Suppose you have the following model:
-
-```java
-
-@Searchable
-@Value
-public class Product {
-    @Facet
-    String category;
-    @Facet
-    String brand;
-    String name;
-    BigDecimal price;
-}
-```
-
-You can retrieve facet stats like this:
-
-[//]: # (@formatter:off)
-```java
-List<FacetStats> stats = FluxCapacitor.search(Product.class)
-        .lookAhead("wireless")
-        .facetStats();
-```
-[//]: # (@formatter:on)
-
-This gives you document counts per facet value:
-
-[//]: # (@formatter:off)
-```json
-[
-  { "name": "category", "value": "headphones", "count": 55 },
-  { "name": "brand", "value": "Acme", "count": 45 },
-  { "name": "brand", "value": "NoName", "count": 10 }
-]
-```
-[//]: # (@formatter:on)
-
-> 💡 **Tip:** Use `matchFacet("category", "headphones")` to filter efficiently by facet value. This is generally
-> faster than `match(...)`.
-
-Each `FacetStats` object will contain:
-
-- the facet name (e.g., `category`)
-- the distinct values (e.g., `"electronics"`, `"clothing"`)
-- the number of documents per value
-
----
-
 ### Rapid Sorting and Filtering
 
 To enable efficient **range filters** and **sorted results** in document searches, annotate properties with `@Sortable`:
@@ -3498,17 +3757,62 @@ If the sortable field is:
 
 ### Customizing Returned Fields
 
-You can include or exclude specific fields:
+When performing a search, you can control which fields are included or excluded in the returned documents.
 
-[//]: # (@formatter:off)
+This is useful for:
+
+- Hiding sensitive fields (e.g. private data, tokens)
+- Reducing payload size
+- Optimizing performance when only partial data is needed
+
+#### Example
+
+Given the following indexed document:
+
+```json
+{
+  "id": "user123",
+  "profile": {
+    "name": "Alice",
+    "email": "alice@example.com",
+    "ssn": "123456789"
+  },
+  "roles": [
+    "user",
+    "admin"
+  ]
+}
+```
+
+You can exclude sensitive fields like so:
+
 ```java
 FluxCapacitor.search("users")
-    .includeOnly("userId","profile.email")
-    .exclude("profile.password")
-    .fetch(50);
-```
-[//]: # (@formatter:on)
+    .
 
+exclude("profile.ssn")
+    .
+
+fetch(50);
+```
+
+This will return:
+
+```json
+{
+  "id": "user123",
+  "profile": {
+    "name": "Alice",
+    "email": "alice@example.com"
+  },
+  "roles": [
+    "user",
+    "admin"
+  ]
+}
+```
+
+> You can also use `.includeOnly(...)` instead to explicitly whitelist fields.
 ---
 
 ### Streaming Results
@@ -3556,8 +3860,8 @@ This enables handlers to react to document updates in real time — much like ha
 ```java
 
 @HandleDocument
-void handle(User user) {
-    log.info("User {} was added or updated", user.getUserId());
+void handle(UserAccount user) {
+    log.info("UserAccount {} was added or updated", user.getUserId());
 }
 ```
 
@@ -3569,8 +3873,8 @@ Handlers annotated with `@HandleDocument` will observe these updates as they pas
 > ⚠️ When catching up from behind (e.g. in a replay), only the **latest version** of a document is retained per key.
 > Earlier intermediate versions are not visible to late consumers.
 
-This makes `@HandleDocument` ideal for **live processing**, **projecting the latest known state**, or **cache rebuilds
-**.
+This makes `@HandleDocument` ideal for **live processing**, **projecting the latest known state**, or
+**cache rebuilds**.
 
 ---
 
@@ -3583,8 +3887,8 @@ If the handler returns a **newer revision** of the document, Flux will reindex a
 ```java
 
 @HandleDocument("users")
-User upgrade(User oldUser) {
-    return new User(oldUser.getId(), normalizeEmail(oldUser.getEmail()));
+UserAccount upgrade(UserAccount oldUser) {
+    return new UserAccount(oldUser.getId(), normalizeEmail(oldUser.getEmail()));
 }
 ```
 
@@ -3598,7 +3902,7 @@ To **delete** a document from the store, return `null`:
 ```java
 
 @HandleDocument("users")
-User upgrade(User user) {
+UserAccount upgrade(UserAccount user) {
     return user.isTestUser() ? null : user;
 }
 ```
@@ -3644,7 +3948,7 @@ This is a robust and rapid way to **reindex, clean, or refactor your stored docu
 @Consumer(name = "reindex-users", minIndex = 0)
 class ReindexUsers {
     @HandleDocument("users")
-    User upgrade(User legacyUser) {
+    UserAccount upgrade(UserAccount legacyUser) {
         return fixLegacyState(legacyUser);
     }
 }
@@ -3679,7 +3983,7 @@ public class RegisterCitizen {
 }
 ```
 
-When this message is serialized (e.g., to the event store or document store), the `socialSecurityNumber` will be:
+When this message is dispatched, the `socialSecurityNumber` will be:
 
 - **Offloaded** to a separate data vault
 - **Redacted** from the main payload (not visible in logs or message inspectors)
@@ -3829,8 +4133,8 @@ This works for **any** stored data — not just events, but also snapshots, key-
 
 ### Downcasting
 
-Downcasting does the reverse: it converts a newer object into an older format. This is useful for emitting *
-*legacy-compatible** data or supporting **external systems**.
+Downcasting does the reverse: it converts a newer object into an older format. This is useful for emitting
+**legacy-compatible** data or supporting **external systems**.
 
 ```java
 class CreateUserDowncaster {
@@ -3991,43 +4295,44 @@ Flux Capacitor supports secure storage of secrets using its built-in encryption 
 
 1. **Generate a new key** with:
 
-```java
-String key = DefaultEncryption.generateNewEncryptionKey();
-System.out.
+   [//]: # (@formatter:off)
+    ```java
+    String key = DefaultEncryption.generateNewEncryptionKey();
+    System.out.println(key);
+    // => ChaCha20|KJh832h1f7shDFb...  -> Save and use as ENCRYPTION_KEY
+    ```
+    [//]: # (@formatter:on)
 
-println(key); // Save and use as ENCRYPTION_KEY
-```
+2. **Set the encryption key** via an environment variable or system property:
 
-2. **Set an encryption key** via an environment variable or system property:
-
-```bash
-export ENCRYPTION_KEY=ChaCha20|KJh832h1f7shDFb...
-```
+    ```bash
+    export ENCRYPTION_KEY=ChaCha20|KJh832h1f7shDFb...
+    ```
 
 3. **Encrypt values** at build/deploy time:
 
-[//]: # (@formatter:off)
-```java
-String encrypted = ApplicationProperties.encryptValue("secret-google-key");
-System.out.println(encrypted);
-// => encrypted|ChaCha20|mm8yeY8TXtNpdrwO:REdej56zvFXc:b7oQdmnpQpUzagKtma9JLQ==
-```
-[//]: # (@formatter:on)
+   [//]: # (@formatter:off)
+    ```java
+    String encrypted = ApplicationProperties.encryptValue("secret-google-key");
+    System.out.println(encrypted);
+    // => encrypted|ChaCha20|mm8yeY8TXtNpdrwO:REdej56zvFXc:b7oQdmnpQpUzagKtma9JLQ==
+    ```
+    [//]: # (@formatter:on)
 
 4. **Add encrypted values to your config**:
 
-```properties
-google.apikey=encrypted|ChaCha20|mm8yeY8TXtNpdrwO:REdej56zvFXc:b7oQdmnpQpUzagKtma9JLQ==
-```
+    ```properties
+    google.apikey=encrypted|ChaCha20|mm8yeY8TXtNpdrwO:REdej56zvFXc:b7oQdmnpQpUzagKtma9JLQ==
+    ```
 
 5. **Resolve them normally in code**:
 
-[//]: # (@formatter:off)
-```java
-String apiKey = ApplicationProperties.getProperty("google.apikey");
-// -> "secret-google-key"
-```
-[//]: # (@formatter:on)
+   [//]: # (@formatter:off)
+    ```java
+    String apiKey = ApplicationProperties.getProperty("google.apikey");
+    // -> "secret-google-key"
+    ```
+    [//]: # (@formatter:on)
 
 Decryption is transparent. Flux detects encrypted values and decrypts them automatically.
 
@@ -4064,14 +4369,16 @@ This lets you inject **any value** into annotated handler methods — beyond jus
 When a message is dispatched to a handler (e.g. via `@HandleEvent`, `@HandleCommand`, etc.), the framework scans the
 method’s parameters and tries to resolve each one using the configured `ParameterResolvers`.
 
-By default, Flux Capacitor supports common parameters like:
+By default, Flux Capacitor supports injection of the following parameters into handler methods:
 
-- The **message payload**
-- **Metadata**
-- The deserialized `Message`, `Schedule` or `WebRequest`
-- The raw `SerializedMessage`
-- **User** (if authenticated)
-- **Trigger message** (via `@Trigger`)
+- The **message payload** (automatically matched by type)
+- The full **`Message`**, **`Schedule`**, or **`WebRequest`**
+- The raw **`DeserializingMessage`** (for low-level access)
+- The message **`Metadata`**
+- The currently authenticated **`User`** (if available)
+- The associated **`Entity`** wrapper or the entity value itself
+- The **triggering message** (annotated with `@Trigger`)
+- Any **Spring bean** (when Spring integration is enabled)
 
 Other contextual values like **message ID**, **timestamp**, etc. can be obtained from the `Message`.
 
@@ -4179,12 +4486,12 @@ public class LoggingInterceptor implements DispatchInterceptor {
 
 **Register globally:**
 
+[//]: # (@formatter:off)
 ```java
 FluxCapacitorBuilder.builder()
-    .
-
-addDispatchInterceptor(new LoggingInterceptor(),MessageType.COMMAND,MessageType.EVENT);
+    .addDispatchInterceptor(new LoggingInterceptor(),MessageType.COMMAND,MessageType.EVENT);
 ```
+[//]: # (@formatter:on)
 
 ---
 
@@ -4251,12 +4558,12 @@ public class LoggingBatchInterceptor implements BatchInterceptor {
 
 📌 **Global install:**
 
+[//]: # (@formatter:off)
 ```java
 FluxCapacitorBuilder.builder()
-    .
-
-addBatchInterceptor(new LoggingBatchInterceptor(),MessageType.EVENT);
+    .addBatchInterceptor(new LoggingBatchInterceptor(),MessageType.EVENT);
 ```
+[//]: # (@formatter:on)
 
 ---
 
@@ -4323,7 +4630,7 @@ public class MyCustomizer implements FluxCapacitorCustomizer {
 - `configureDefaultConsumer(MessageType, UnaryOperator<ConsumerConfiguration>)` to adjust the default consumer behavior
   per message type.
 - `addConsumerConfiguration(...)` to register additional consumers for selected message types.
-- `forwardWebRequestsToLocalServer(...)` to redirect incoming `@HandleWebRequest` calls to an existing local HTTP
+- `forwardWebRequestsToLocalServer(...)` to redirect incoming `@HandleWeb` calls to an existing local HTTP
   server.
 
 #### Interceptors and Decorators
@@ -4411,6 +4718,76 @@ builder.makeApplicationInstance(true).build(myClient);
 This is the central instance that orchestrates message gateways, tracking, scheduling, and storage across your
 application.  
 If Spring is used, the application instance is automatically set by Spring and unset when the Spring context is closed.
+
+---
+
+### Spring Auto-Configuration
+
+Flux Capacitor integrates well with Spring. If you're using Spring (or Spring Boot), many components are auto-configured
+for you:
+
+- If you provide a bean of type `Serializer`, `Cache`, `Client`, `UserProvider`, or `WebResponseMapper`, it will be
+  automatically picked up by the builder.
+- `Upcasters` and `Downcasters` are auto-registered if detected on Spring beans.
+- Handlers (`@Handle...`) are automatically registered after the context is refreshed.
+- `@TrackSelf`, `@Stateful`, and `@SocketEndpoint` beans are auto-detected and wired via post-processors.
+- If no `Client` is configured explicitly, Flux Capacitor tries to create a `WebSocketClient` (based on available
+  properties), or falls back to a `LocalClient`.
+
+> ⚠️ If you're using **Spring without Spring Boot**, be sure to add `@Import(FluxCapacitorSpringConfig.class)` to enable
+> auto-configuration.
+
+You can always override or customize behavior via a `FluxCapacitorCustomizer`.
+
+#### Injectable Beans
+
+Flux Capacitor exposes several core components as Spring beans, making them easy to inject into your application:
+
+| Bean Type              | Purpose                                                       |
+|------------------------|---------------------------------------------------------------|
+| `FluxCapacitor`        | Access to the full runtime and configuration                  |
+| `CommandGateway`       | Dispatch commands and receive results                         |
+| `EventGateway`         | Publish events to the global log                              |
+| `QueryGateway`         | Send queries and await answers                                |
+| `MetricsGateway`       | Emit custom metrics messages                                  |
+| `ErrorGateway`         | Report errors manually                                        |
+| `ResultGateway`        | Manually publish results from asynchronous flows              |
+| `MessageScheduler`     | Schedule commands or other messages in the future             |
+| `AggregateRepository`  | Load and store aggregates                                     |
+| `DocumentStore`        | Search, filter, and persist document models                   |
+| `KeyValueStore`        | Access key-value persisted state                              |
+
+You can simply inject any of these into your Spring-managed components:
+
+```java
+
+@Component
+@AllArgsConstructor
+public class MyService {
+    private final CommandGateway commandGateway;
+
+    public void doSomething() {
+        commandGateway.sendAndForget(new MyCommand(...));
+    }
+}
+```
+
+> ⚠️ **Note:** While dependency injection is supported, it is **not the recommended approach** in most cases.
+
+Instead, prefer using the static methods on the `FluxCapacitor` class:
+
+ ```java
+ FluxCapacitor.sendCommand(new MyCommand(...));
+        FluxCapacitor.
+
+query(new GetUserProfile(userId));
+        FluxCapacitor.
+
+publishEvent(new UserLoggedIn(...));
+ ```
+
+This avoids boilerplate, reduces coupling to Spring, and works equally well in non-Spring contexts like tests or
+lightweight setups.
 
 ---
 
