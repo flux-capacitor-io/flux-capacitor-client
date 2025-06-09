@@ -254,6 +254,13 @@ public interface When {
     }
 
     /**
+     * Simulates a POST request to the specified path without a payload.
+     */
+    default Then<Object> whenPost(String path) {
+        return whenPost(path, null);
+    }
+
+    /**
      * Simulates a PUT request to the specified path with the given payload.
      */
     default Then<Object> whenPut(String path, Object payload) {

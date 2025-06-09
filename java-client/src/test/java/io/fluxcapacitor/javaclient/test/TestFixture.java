@@ -33,6 +33,7 @@ import io.fluxcapacitor.common.handling.HandlerInvoker;
 import io.fluxcapacitor.common.serialization.JsonUtils;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.ClientUtils;
+import io.fluxcapacitor.javaclient.common.HasMessage;
 import io.fluxcapacitor.javaclient.common.IdentityProvider;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
@@ -470,6 +471,36 @@ public class TestFixture implements Given, When {
      */
     public TestFixture spy() {
         return spying ? this : new TestFixture(this, synchronous, true, false);
+    }
+
+    /**
+     * Retrieves the result of the <strong>previous</strong> when-phase and casts it to the expected type. If no
+     * previous result is available, {@code null} is returned.
+     * <p>
+     * If the previous result is a {@link Message}, the result payload will be returned.
+     */
+    @SuppressWarnings("unchecked")
+    public <T> T previousResult() {
+        FixtureResult previousResult = fixtureResult.getPreviousResult();
+        return previousResult == null ? null :
+                previousResult.getResult() instanceof HasMessage hm ? hm.getPayload() : (T) previousResult.getResult();
+    }
+
+    /**
+     * Retrieves the result of the <strong>previous</strong> when-phase and casts it to the given type. If no previous
+     * result is available, {@code null} is returned.
+     * <p>
+     * If the previous result is a {@link Message} but the requested type is not, the result payload will be returned.
+     */
+    public <T> T previousResult(Class<T> resultType) {
+        FixtureResult previousResult = fixtureResult.getPreviousResult();
+        if (previousResult == null) {
+            return null;
+        }
+        if (previousResult.getResult() instanceof HasMessage hm && !Message.class.isAssignableFrom(resultType)) {
+            return resultType.cast(hm.getPayload());
+        }
+        return resultType.cast(previousResult.getResult());
     }
 
     /**
@@ -1007,7 +1038,9 @@ public class TestFixture implements Given, When {
 
     protected TestFixture reset() {
         resetMocks();
+        var previousResult = fixtureResult;
         fixtureResult = new FixtureResult();
+        fixtureResult.setPreviousResult(previousResult);
         return this;
     }
 
@@ -1125,6 +1158,24 @@ public class TestFixture implements Given, When {
 
     @SuppressWarnings("unchecked")
     protected <T> T parseObject(Object object, Class<?> callerClass) {
+        if (object instanceof WebRequest message && WebUtils.hasPathParameter(message.getPath())) {
+            String replacementUrl = message.getPath();
+            var webParams = getKnownWebParams();
+            for (Map.Entry<String, String> entry : webParams.entrySet()) {
+                replacementUrl = WebUtils.replacePathParameter(replacementUrl, entry.getKey(), entry.getValue());
+            }
+            var remaining = WebUtils.extractPathParameters(replacementUrl);
+            if (remaining.size() > 1) {
+                throw new IllegalStateException("Multiple path parameters are unknown: %s ".formatted(remaining));
+            }
+            if (remaining.size() == 1) {
+                String value = lastResultValue().map(Object::toString).orElseThrow(
+                        () -> new IllegalStateException("Path parameters is unknown: %s ".formatted(remaining.getFirst())));
+                replacementUrl = WebUtils.replacePathParameter(replacementUrl, remaining.getFirst(), value);
+                webParams.put(remaining.getFirst(), value);
+            }
+            object = message.toBuilder().url(replacementUrl).build();
+        }
         if (object instanceof WebRequest message
             && message.getPayload() instanceof String payload && payload.endsWith(".json")) {
             return (T) message.toBuilder().payload(JsonUtils.fromFile(callerClass, payload, JsonNode.class))
@@ -1144,6 +1195,14 @@ public class TestFixture implements Given, When {
             object = fluxCapacitor.serializer().deserialize(eventBytes);
         }
         return (T) object;
+    }
+
+    protected Optional<Object> lastResultValue() {
+        if (getPreviousResult() != null && getPreviousResult().getResult() instanceof Object v) {
+            var value = v instanceof WebResponse r ? r.getPayload() instanceof Object rv ? rv : null : v;
+            return Optional.ofNullable(value);
+        }
+        return Optional.empty();
     }
 
     protected boolean checkConsumers() {

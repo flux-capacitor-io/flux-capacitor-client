@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.javaclient;
 
+import com.fasterxml.jackson.databind.node.TextNode;
 import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.Registration;
@@ -24,6 +25,7 @@ import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.search.SearchQuery;
 import io.fluxcapacitor.common.application.PropertySource;
+import io.fluxcapacitor.common.serialization.JsonUtils;
 import io.fluxcapacitor.javaclient.common.ClientUtils;
 import io.fluxcapacitor.javaclient.common.IdentityProvider;
 import io.fluxcapacitor.javaclient.common.Message;
@@ -177,6 +179,15 @@ public interface FluxCapacitor extends AutoCloseable {
      */
     static String generateId() {
         return currentIdentityProvider().nextFunctionalId();
+    }
+
+    /**
+     * Generates a strongly typed ID of given {@code idClass} using the current {@link IdentityProvider}.
+     *
+     * @return a unique, traceable typed identifier
+     */
+    static <T extends Id<?>> T generateId(Class<T> idClass) {
+        return JsonUtils.convertValue(TextNode.valueOf(generateId()), idClass);
     }
 
     /**

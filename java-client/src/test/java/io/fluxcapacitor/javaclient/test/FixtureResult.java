@@ -71,6 +71,26 @@ public class FixtureResult {
     Object result;
 
     /**
+     * The result or exception returned by the previous {@code when} phase.
+     */
+    @NonFinal
+    FixtureResult previousResult;
+
+    public void setPreviousResult(FixtureResult previousResult) {
+        this.previousResult = previousResult;
+        if (previousResult != null) {
+            this.knownWebParams.putAll(previousResult.knownWebParams);
+        }
+    }
+
+    /**
+     * A thread-safe mapping of web parameter keys to their corresponding values.
+     * This map is used to store and manage web-related parameters that are known
+     * and relevant to the operations or state of the system.
+     */
+    Map<String, String> knownWebParams = new ConcurrentHashMap<>();
+
+    /**
      * All command messages published during the {@code when} phase.
      */
     CopyOnWriteArrayList<Message> commands = new CopyOnWriteArrayList<>();

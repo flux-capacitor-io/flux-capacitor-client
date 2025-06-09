@@ -21,10 +21,15 @@ import java.lang.reflect.Executable;
 import java.net.HttpCookie;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
@@ -36,6 +41,8 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
  * of {@link WebPattern} annotations on handler methods annotated with {@link HandleWeb}.
  */
 public class WebUtils {
+    private static final Pattern PATH_PARAM_PATTERN = Pattern.compile("\\{([^/}]+)}");
+
     /**
      * Returns a properly formatted {@code Set-Cookie} header value for the given cookie.
      * <p>
@@ -142,5 +149,49 @@ public class WebUtils {
         Map<String, List<String>> result = emptyHeaderMap();
         result.putAll(input);
         return result;
+    }
+
+    /**
+     * Checks if the given path contains a named path parameter.
+     */
+    public static boolean hasPathParameter(String path) {
+        return PATH_PARAM_PATTERN.matcher(path).find();
+    }
+
+    /**
+     * Extracts all named path parameters from the given path.
+     * <p>
+     * Example usage:
+     * <pre>{@code
+     * E.g. List<String> params = extractPathParameters("/games/{gameId}/refund/{orderId}");
+     *      // → ["gameId", "orderId"]
+     * }</pre>
+     */
+    public static List<String> extractPathParameters(String path) {
+        if (path == null || path.isBlank()) {
+            return List.of();
+        }
+        Matcher matcher = PATH_PARAM_PATTERN.matcher(path);
+        Set<String> parameters = new LinkedHashSet<>();
+        while (matcher.find()) {
+            parameters.add(matcher.group(1));
+        }
+        return new ArrayList<>(parameters);
+    }
+
+    /**
+     * Replaces named path parameter with provided value.
+     * <p>
+     * Example usage:
+     * <pre>{@code
+     * replacePathParameter("/users/{userId}/games/{gameId}", "userId", "123");
+     *      // → "/users/123/games/{gameId}"
+     * }</pre>
+     */
+    public static String replacePathParameter(String path, String parameterName, String value) {
+        if (value == null) {
+            return path;
+        }
+        return path.replaceAll("\\{" + Pattern.quote(parameterName) + "}", Matcher.quoteReplacement(value));
     }
 }

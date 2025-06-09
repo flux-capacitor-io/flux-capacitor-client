@@ -18,6 +18,7 @@ import io.fluxcapacitor.javaclient.test.TestFixture;
 import io.fluxcapacitor.javaclient.web.HandleGet;
 import io.fluxcapacitor.javaclient.web.HandlePost;
 import io.fluxcapacitor.javaclient.web.HandleWeb;
+import io.fluxcapacitor.javaclient.web.PathParam;
 import io.fluxcapacitor.javaclient.web.WebRequest;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -25,6 +26,7 @@ import org.junit.jupiter.api.Test;
 import static io.fluxcapacitor.javaclient.web.HttpRequestMethod.GET;
 import static io.fluxcapacitor.javaclient.web.HttpRequestMethod.POST;
 import static io.fluxcapacitor.javaclient.web.HttpRequestMethod.PUT;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 public class GivenWhenThenWebTest {
 
@@ -38,20 +40,61 @@ public class GivenWhenThenWebTest {
         }
 
         @Test
-        void testPostString() {
-            testFixture.whenWebRequest(WebRequest.builder().method(POST).url("/string").payload("payload").build())
-                    .expectResult("payload");
+        void testPreviousResult_firstWhen() {
+            testFixture.whenApplying(fc -> testFixture.previousResult()).expectNoResult();
         }
 
-        private class Handler {
+        @Test
+        void testPreviousResult() {
+            testFixture.whenWebRequest(WebRequest.builder().method(GET).url("/get").build()).expectResult("get")
+                    .andThen().whenApplying(fc -> testFixture.previousResult()).expectResult("get");
+        }
+
+        @Test
+        void testPostString() {
+            testFixture.whenPost("/string", "body")
+                    .expectResult("val1")
+                    .andThen()
+                    .whenPost("/followUp/{var1}", null)
+                    .expectResult("val1val2")
+                    .andThen()
+                    .whenPost("/followUp/{var1}/{val2}", null)
+                    .expectResult("val1val2val3");
+        }
+
+        @Test
+        void testPostString_missingParam() {
+            assertThrows(IllegalStateException.class, () -> testFixture.whenPost("/followUp/{var1}", null));
+        }
+
+        @Test
+        void testPostString_missingParams() {
+            assertThrows(IllegalStateException.class, () -> testFixture.whenPost("/string", "body")
+                    .expectResult("val1")
+                    .andThen()
+                    .whenPost("/followUp/{var1}/{val2}", null)
+                    .expectResult("val1val2val3"));
+        }
+
+        private static class Handler {
             @HandleWeb(value = "/get", method = GET)
             String get() {
                 return "get";
             }
 
             @HandleWeb(value = "/string", method = POST)
-            String post(String body) {
-                return body;
+            String post() {
+                return "val1";
+            }
+
+            @HandlePost("/followUp/{var1}")
+            String followUp(@PathParam String var1) {
+                return var1 + "val2";
+            }
+
+            @HandlePost("/followUp/{var1}/{var2}")
+            String followUp2(@PathParam String var1, @PathParam String var2) {
+                return var2 + "val3";
             }
         }
     }
