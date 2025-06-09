@@ -372,6 +372,9 @@ public class ReflectionUtils {
     @SuppressWarnings("unchecked")
     public static <A extends Annotation> A getTypeAnnotation(Class<?> type,
                                                              Class<? extends Annotation> annotationType) {
+        if (type == null) {
+            return null;
+        }
         for (Annotation annotation : getTypeAnnotations(type)) {
             if (annotation.annotationType().equals(annotationType)) {
                 return (A) annotation;
@@ -382,7 +385,7 @@ public class ReflectionUtils {
                 }
             }
         }
-        return null;
+        return getTypeAnnotation(type.getEnclosingClass(), annotationType);
     }
 
     public static Collection<? extends Annotation> getTypeAnnotations(Class<?> type) {

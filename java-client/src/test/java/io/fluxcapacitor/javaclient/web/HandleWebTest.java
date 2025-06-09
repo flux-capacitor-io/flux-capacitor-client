@@ -632,6 +632,7 @@ public class HandleWebTest {
             }
 
             @Nested
+            @Path(endpointUrl)
             class DefaultConstructorTests {
 
                 @BeforeEach
@@ -667,7 +668,6 @@ public class HandleWebTest {
                 }
 
                 @SocketEndpoint
-                @Path(endpointUrl)
                 static class Endpoint {
                     @HandleEvent
                     static void handleBefore(Integer event) {
