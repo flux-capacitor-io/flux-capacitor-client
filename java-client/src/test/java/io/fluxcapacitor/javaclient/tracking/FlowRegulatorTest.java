@@ -61,7 +61,7 @@ class FlowRegulatorTest {
             @Override
             public Optional<Duration> pauseDuration() {
                 if (pausedOnce.compareAndSet(false, true)) {
-                    return Optional.of(Duration.ofMillis(800));
+                    return Optional.of(Duration.ofMillis(1000));
                 }
                 return Optional.empty();
             }
