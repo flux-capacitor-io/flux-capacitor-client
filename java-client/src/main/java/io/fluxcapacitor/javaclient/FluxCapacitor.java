@@ -839,6 +839,13 @@ public interface FluxCapacitor extends AutoCloseable {
     }
 
     /**
+     * Gets the document with given id in given collection type, returning the value.
+     */
+    static <T> Optional<T> getDocument(Object id, Class<T> collection) {
+        return get().documentStore().fetchDocument(id, collection, collection);
+    }
+
+    /**
      * Gets the document with given id in given collection, converting the matching document to a value with given
      * type.
      */
