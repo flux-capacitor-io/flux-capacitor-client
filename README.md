@@ -3207,11 +3207,10 @@ You can tune cache behavior with:
 - `cachingDepth`: how many versions to retain (enables `.previous()` access)
 - `checkpointPeriod`: how often to insert intermediate event checkpoints
 
-> ✅ When loading an aggregate inside an event handler, Flux ensures that the returned entity is always up-to-date.  
-> If the event being handled is part of that aggregate, the aggregate is automatically rehydrated *up to and
-including*  
-> the current event. Flux will wait (if needed) until the aggregate has caught up to that point, ensuring consistency  
-> and preventing stale reads — even during concurrent or out-of-order processing.
+> ✅ When loading an aggregate inside an event handler, Flux ensures that the returned entity is always up-to-date. If
+> the event being handled is part of that aggregate, the aggregate is automatically rehydrated 
+> *up to and including* the current event. **Flux will wait** (if needed) until the aggregate cache has caught up to that 
+> point, ensuring consistency and preventing stale reads — even during concurrent or out-of-order processing.
 
 This makes it possible to write event-sourced, state-aware logic directly within event handlers — often eliminating the
 need for separate projections or read models.
@@ -4190,7 +4189,7 @@ Flux Capacitor provides full support for Kotlin, including:
 ### Automatic Jackson Integration
 
 Flux Capacitor includes [Jackson Kotlin Module](https://github.com/FasterXML/jackson-module-kotlin) integration when
-available on the classpath. You do **not** need to manually register the module or use a service loader. 
+available on the classpath. You do **not** need to manually register the module or use a service loader.
 If the `jackson-module-kotlin` dependency is present, it will be loaded dynamically for JSON (de)serialization.
 
 > 💡 If the module is missing, Flux Capacitor will fall back gracefully to standard Jackson behavior — no errors or
@@ -4858,7 +4857,7 @@ This simulates the entire platform in-memory without external dependencies.
 
 ### Java Version
 
-Flux Capacitor requires **JDK 21 or higher** to compile and run. It is actively tested on **JDK 24** and remains 
+Flux Capacitor requires **JDK 21 or higher** to compile and run. It is actively tested on **JDK 24** and remains
 compatible with recent versions.
 
 ---
