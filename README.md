@@ -259,7 +259,7 @@ What follows is a summary of the most important features.
 - [Parameter Injection with Custom Resolvers](#parameter-injection-with-custom-resolvers)
 - [Interceptors: Dispatching, Handling, and Batching](#interceptors-dispatching-handling-and-batching)
 - [Configuring Flux Capacitor](#configuring-flux-capacitor)
-- [WebSocketClient: Connect to the Flux Platform](#-websocketclient-connect-to-the-flux-platform)
+- [WebSocketClient: Connect to the Flux Platform](#websocketclient-connect-to-the-flux-platform)
 - [Compatibility and Dependencies](#compatibility-and-dependencies)
 
 ---
