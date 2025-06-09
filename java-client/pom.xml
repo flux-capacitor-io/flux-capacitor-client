@@ -29,10 +29,6 @@
     <description>Default Java client library for interfacing with Flux Capacitor.</description>
     <url>https://flux-capacitor.io</url>
 
-    <properties>
-        <hibernate-validator.version>9.0.0.Final</hibernate-validator.version>
-    </properties>
-
     <dependencies>
         <!--flux-capacitor common-->
         <dependency>
@@ -65,12 +61,10 @@
         <dependency>
             <groupId>org.hibernate.validator</groupId>
             <artifactId>hibernate-validator</artifactId>
-            <version>${hibernate-validator.version}</version>
         </dependency>
         <dependency>
             <groupId>org.hibernate.validator</groupId>
             <artifactId>hibernate-validator-annotation-processor</artifactId>
-            <version>${hibernate-validator.version}</version>
         </dependency>
         <dependency>
             <groupId>org.glassfish.expressly</groupId>
