@@ -20,6 +20,7 @@ import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.TaskScheduler;
 import io.fluxcapacitor.common.ThrowingConsumer;
 import io.fluxcapacitor.common.ThrowingFunction;
+import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.search.SearchQuery;
 import io.fluxcapacitor.common.application.PropertySource;
@@ -865,6 +866,28 @@ public interface FluxCapacitor extends AutoCloseable {
      */
     static <T> T filterContent(T value, User user) {
         return get().serializer().filterContent(value, user);
+    }
+
+    /**
+     * Downcasts the given object to a previous revision.
+     *
+     * @param object the object to downcast
+     * @param desiredRevision the target revision
+     * @return a serialized form of the object downcasted to the given revision
+     */
+    static Object downcast(Object object, int desiredRevision) {
+        return get().serializer().downcast(object, desiredRevision);
+    }
+
+    /**
+     * Downcasts a {@link Data} object to the specified revision level.
+     *
+     * @param data the serialized data
+     * @param desiredRevision the target revision number
+     * @return a serialized form of the object downcasted to the given revision
+     */
+    static Object downcast(Data<?> data, int desiredRevision) {
+        return get().serializer().downcast(data, desiredRevision);
     }
 
     /**

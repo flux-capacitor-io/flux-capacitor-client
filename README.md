@@ -2386,7 +2386,7 @@ You can match requests by:
 
 ---
 
-### 📦 Summary
+### Summary
 
 - ✅ Use `WebRequest` for centralized, traceable outbound HTTP calls.
 - ✅ Automatically routes to a proxy or local handler depending on URL.
@@ -4101,7 +4101,7 @@ required metadata keys.
 
 ### Dropping or Splitting Messages
 
-Upcasters can also **drop** a message or **split** it into multiple new ones:
+Upcasters can also **drop** a message by returning `null` or `void`, or **split** it into multiple new ones:
 
 ```java
 
@@ -4116,7 +4116,7 @@ Stream<Data<ObjectNode>> split(Data<ObjectNode> data) {
 }
 ```
 
-This works for **any** stored data — not just events, but also snapshots, key-value entries, and documents.
+This works for **any** stored data — not just messages, but also snapshots, key-value entries, and documents.
 
 ---
 
@@ -4135,6 +4135,15 @@ class CreateUserDowncaster {
     }
 }
 ```
+
+To downcast an object to a desired revision, use:
+
+```java
+FluxCapacitor.downcast(object, revision);
+```
+
+> This returns the downcasted version of the object in serialized form (e.g., as an `ObjectNode`), allowing you to
+> inspect or persist the object as it would appear in an earlier revision.
 
 ---
 
