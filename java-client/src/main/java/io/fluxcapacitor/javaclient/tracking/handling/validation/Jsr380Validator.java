@@ -18,8 +18,8 @@ import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Path;
 import jakarta.validation.TraversableResolver;
 import jakarta.validation.Validation;
+import jakarta.validation.metadata.ConstraintDescriptor;
 import lombok.AllArgsConstructor;
-import org.hibernate.validator.internal.metadata.descriptor.ConstraintDescriptorImpl;
 
 import java.lang.annotation.ElementType;
 import java.lang.reflect.Method;
@@ -86,12 +86,11 @@ public class Jsr380Validator implements Validator {
                 .collect(toCollection(() -> new TreeSet<>(CASE_INSENSITIVE_ORDER)));
     }
 
-    @SuppressWarnings({"unchecked", "rawtypes"})
     protected static String format(ConstraintViolation<?> v, boolean fullPath) {
         //If the validator uses a custom message we just return the message, otherwise we add the property path
         try {
-            ConstraintDescriptorImpl constraintDescriptor = (ConstraintDescriptorImpl) v.getConstraintDescriptor();
-            Method method = constraintDescriptor.getAnnotationType().getDeclaredMethod("message");
+            ConstraintDescriptor<?> constraintDescriptor = v.getConstraintDescriptor();
+            Method method = constraintDescriptor.getAnnotation().annotationType().getDeclaredMethod("message");
             Object defaultMessage = method.getDefaultValue();
             if (!Objects.equals(defaultMessage, method.invoke(constraintDescriptor.getAnnotation()))) {
                 return v.getMessage();

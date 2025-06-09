@@ -38,7 +38,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <undertow.version>2.3.18.Final</undertow.version>
-        <kotlin.version>2.0.21</kotlin.version>
+        <kotlin.version>2.1.21</kotlin.version>
     </properties>
 
     <dependencies>
@@ -67,7 +67,7 @@
         <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-core</artifactId>
-            <version>5.16.1</version>
+            <version>5.18.0</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -136,7 +136,7 @@
             <dependency>
                 <groupId>org.springframework</groupId>
                 <artifactId>spring-framework-bom</artifactId>
-                <version>6.2.5</version>
+                <version>6.2.7</version>
                 <scope>import</scope>
                 <type>pom</type>
             </dependency>
@@ -144,6 +144,7 @@
             <dependency>
                 <groupId>org.junit</groupId>
                 <artifactId>junit-bom</artifactId>
+                <!-- v5.13.1 causes StatefulHandlerTest#staticHandlerIsUpdated to fail sometimes -->
                 <version>5.12.1</version>
                 <scope>import</scope>
                 <type>pom</type>
@@ -157,12 +158,12 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-clean-plugin</artifactId>
-                    <version>3.4.1</version>
+                    <version>3.5.0</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-surefire-plugin</artifactId>
-                    <version>3.5.2</version>
+                    <version>3.5.3</version>
                     <configuration>
                         <excludes>
                             <exclude/>

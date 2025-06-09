@@ -30,7 +30,7 @@
     <url>https://flux-capacitor.io</url>
 
     <properties>
-        <hibernate-validator.version>8.0.2.Final</hibernate-validator.version>
+        <hibernate-validator.version>9.0.0.Final</hibernate-validator.version>
     </properties>
 
     <dependencies>
@@ -52,7 +52,7 @@
         <dependency>
             <groupId>io.jooby</groupId>
             <artifactId>jooby</artifactId>
-            <version>3.6.1</version>
+            <version>3.9.1</version>
         </dependency>
 
         <!--websocket client-->
@@ -73,9 +73,14 @@
             <version>${hibernate-validator.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.glassfish</groupId>
-            <artifactId>jakarta.el</artifactId>
-            <version>4.0.2</version>
+            <groupId>org.glassfish.expressly</groupId>
+            <artifactId>expressly</artifactId>
+            <version>6.0.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.jboss.logging</groupId>
+            <artifactId>jboss-logging</artifactId>
+            <version>3.6.1.Final</version>
         </dependency>
 
         <!--spring-->
