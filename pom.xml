@@ -23,6 +23,7 @@
     <packaging>pom</packaging>
     <version>0-SNAPSHOT</version>
     <modules>
+        <module>flux-capacitor-bom</module>
         <module>common</module>
         <module>java-client</module>
         <module>test-server</module>
@@ -31,7 +32,7 @@
 
     <name>Flux Capacitor Client</name>
     <description>Flux Capacitor provides messaging-as-a-service for distributed applications.</description>
-    <url>https://flux-capacitor.io</url>
+    <url>https://github.com/flux-capacitor-io/flux-capacitor-client</url>
 
     <properties>
         <maven.compiler.release>21</maven.compiler.release>
@@ -441,7 +442,7 @@
 
     <organization>
         <name>Flux Capacitor</name>
-        <url>https://flux-capacitor.io</url>
+        <url>https://github.com/flux-capacitor-io/flux-capacitor-client</url>
     </organization>
 
     <developers>

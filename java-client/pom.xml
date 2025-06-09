@@ -27,7 +27,7 @@
 
     <name>${project.groupId}:${project.artifactId}</name>
     <description>Default Java client library for interfacing with Flux Capacitor.</description>
-    <url>https://flux-capacitor.io</url>
+    <url>https://github.com/flux-capacitor-io/flux-capacitor-client</url>
 
     <dependencies>
         <!--flux-capacitor common-->
