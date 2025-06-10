@@ -35,7 +35,7 @@ public class DefaultTypeRegistry implements TypeRegistry {
     @SneakyThrows
     static List<String> loadAllRegisteredTypes() {
         List<String> allTypes = new ArrayList<>();
-        var resources = ClassLoader.getSystemClassLoader().getResources(TypeRegistryProcessor.TYPES_FILE);
+        var resources = TypeRegistry.class.getClassLoader().getResources(TypeRegistryProcessor.TYPES_FILE);
         while (resources.hasMoreElements()) {
             var url = resources.nextElement();
             try (BufferedReader reader = new BufferedReader(new InputStreamReader(url.openStream()))) {
