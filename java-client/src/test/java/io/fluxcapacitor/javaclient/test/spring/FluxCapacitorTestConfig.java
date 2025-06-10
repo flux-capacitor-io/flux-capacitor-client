@@ -31,6 +31,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Primary;
+import org.springframework.context.annotation.Profile;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 
@@ -99,6 +100,7 @@ import java.util.Optional;
 @Import(FluxCapacitorSpringConfig.class)
 @Slf4j
 @Order(Ordered.HIGHEST_PRECEDENCE)
+@Profile("!main")
 public class FluxCapacitorTestConfig {
 
     private final ApplicationContext context;
@@ -115,6 +117,7 @@ public class FluxCapacitorTestConfig {
     @Bean
     @Primary
     public FluxCapacitor testFluxCapacitor(TestFixture testFixture) {
+        log.info("Using test fixture for Flux Capacitor");
         return testFixture.getFluxCapacitor();
     }
 
