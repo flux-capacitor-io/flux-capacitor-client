@@ -66,4 +66,32 @@ public interface HandlerMatcher<T, M> {
      * @return an optional invoker if the message is supported by the target; empty otherwise
      */
     Optional<HandlerInvoker> getInvoker(T target, M message);
+
+    /**
+     * Combines this {@code HandlerMatcher} with another {@code HandlerMatcher} to form a composite matcher.
+     * The resulting matcher is capable of delegating matching responsibilities to both the current
+     * matcher and the provided next matcher.
+     *
+     * @param next the next {@code HandlerMatcher} to combine with the current matcher
+     * @return a new {@code HandlerMatcher} that combines the current matcher and the provided next matcher
+     */
+    default HandlerMatcher<T, M> or(HandlerMatcher<T, M> next) {
+        var first = this;
+        return new HandlerMatcher<T, M>() {
+            @Override
+            public boolean canHandle(M message) {
+                return first.canHandle(message) || next.canHandle(message);
+            }
+
+            @Override
+            public Stream<Executable> matchingMethods(M message) {
+                return Stream.concat(first.matchingMethods(message), next.matchingMethods(message));
+            }
+
+            @Override
+            public Optional<HandlerInvoker> getInvoker(T target, M message) {
+                return first.getInvoker(target, message).or(() -> next.getInvoker(target, message));
+            }
+        };
+    }
 }

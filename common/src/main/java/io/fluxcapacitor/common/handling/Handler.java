@@ -82,6 +82,28 @@ public interface Handler<M> {
     Optional<HandlerInvoker> getInvoker(M message);
 
     /**
+     * Creates a composite handler that executes the current handler and then delegates to the specified next handler if
+     * the current handler cannot handle the message or does not provide an invoker.
+     *
+     * @param next the next handler to be invoked if this handler does not handle the message
+     * @return a new handler combining the current handler and the specified next handler
+     */
+    default Handler<M> or(Handler<M> next) {
+        var first = this;
+        return new Handler<>() {
+            @Override
+            public Class<?> getTargetClass() {
+                return first.getTargetClass();
+            }
+
+            @Override
+            public Optional<HandlerInvoker> getInvoker(M message) {
+                return first.getInvoker(message).or(() -> next.getInvoker(message));
+            }
+        };
+    }
+
+    /**
      * Abstract base class for {@link Handler} implementations that delegate to another handler.
      * <p>
      * This is useful for decorating or extending handler behavior while preserving its target class and delegation

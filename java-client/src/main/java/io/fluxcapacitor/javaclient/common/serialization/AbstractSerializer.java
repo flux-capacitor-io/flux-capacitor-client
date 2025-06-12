@@ -47,7 +47,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
-import static io.fluxcapacitor.common.reflection.ReflectionUtils.ifClass;
+import static io.fluxcapacitor.common.reflection.ReflectionUtils.asClass;
 import static io.fluxcapacitor.javaclient.common.ClientUtils.getRevisionNumber;
 import static java.lang.String.format;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -135,7 +135,7 @@ public abstract class AbstractSerializer<I> implements Serializer {
     }
 
     private String formatValue(Object value) {
-        return value == null ? "null" : ifClass(value) instanceof Class<?> c ? c.getName() : value.getClass().getName();
+        return value == null ? "null" : asClass(value).getName();
     }
 
     /**

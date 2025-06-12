@@ -17,19 +17,20 @@ package io.fluxcapacitor.common.api;
 /**
  * Marker interface for objects that carry associated {@link Metadata}.
  * <p>
- * Implementations of this interface expose a structured metadata map that can be
- * used for routing, correlation, trace propagation, or other contextual behavior
- * within the Flux platform.
+ * Implementations of this interface expose a structured metadata map that can be used for routing, correlation, trace
+ * propagation, or other contextual behavior within the Flux platform.
  * </p>
  *
  * <p>
- * Typical implementers include {@code Message}, {@link SerializedMessage}, and custom types
- * that participate in message tracking or enrichment.
+ * Typical implementers include {@code Message}, {@link SerializedMessage}, and custom types that participate in message
+ * tracking or enrichment.
  * </p>
  *
  * @see Metadata
  */
 public interface HasMetadata {
+
+    String FINAL_CHUNK = "$finalChunk";
 
     /**
      * Returns the {@link Metadata} associated with this object.
@@ -37,4 +38,25 @@ public interface HasMetadata {
      * @return metadata attached to this instance; never {@code null}
      */
     Metadata getMetadata();
+
+    /**
+     * Determines if the data associated with this metadata is "chunked". This method checks if the metadata contains a
+     * {@code FINAL_CHUNK} key.
+     *
+     * @return true if the metadata contains the {@code FINAL_CHUNK} key, false otherwise.
+     */
+    default boolean chunked() {
+        return getMetadata().containsKey(FINAL_CHUNK);
+    }
+
+    /**
+     * Determines if the data associated with this metadata is the final part of the data. This method evaluates the
+     * value of the {@code FINAL_CHUNK} key in the metadata. If it is missing or set to {@code true}, this method
+     * returns {@code true}.
+     *
+     * @return true if the metadata value for the {@code FINAL_CHUNK} key is {@code true}, false otherwise.
+     */
+    default boolean lastChunk() {
+        return "true".equalsIgnoreCase(getMetadata().getOrDefault(FINAL_CHUNK, "true"));
+    }
 }

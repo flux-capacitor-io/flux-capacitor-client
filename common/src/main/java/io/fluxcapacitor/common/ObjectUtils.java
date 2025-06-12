@@ -17,6 +17,7 @@ package io.fluxcapacitor.common;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
+import java.io.ByteArrayOutputStream;
 import java.io.StringReader;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -339,6 +340,19 @@ public class ObjectUtils {
      */
     public static <T> Consumer<? super T> tryAccept(Consumer<? super T> consumer) {
         return t -> tryRun(() -> consumer.accept(t));
+    }
+
+    /**
+     * Combines multiple byte arrays into a single byte array by concatenating their contents in the given order.
+     */
+    @SneakyThrows
+    public static byte[] join(byte[]... chunks) {
+        try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+            for (byte[] i : chunks) {
+                outputStream.write(i);
+            }
+            return outputStream.toByteArray();
+        }
     }
 
     private static class PrefixedThreadFactory implements ThreadFactory {

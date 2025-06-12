@@ -16,7 +16,9 @@ package io.fluxcapacitor.javaclient.web;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.TextNode;
+import io.fluxcapacitor.common.FileUtils;
 import io.fluxcapacitor.common.MessageType;
+import io.fluxcapacitor.common.ThrowingPredicate;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.serialization.JsonUtils;
@@ -34,6 +36,7 @@ import io.fluxcapacitor.javaclient.tracking.handling.authentication.User;
 import io.fluxcapacitor.javaclient.web.SocketEndpoint.AliveCheck;
 import io.fluxcapacitor.javaclient.web.path.ClassPathHandler;
 import io.fluxcapacitor.javaclient.web.path.PackagePathHandler;
+import io.fluxcapacitor.javaclient.web.path.subpath.SubPathHandler;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.SneakyThrows;
@@ -42,7 +45,10 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
+import java.io.InputStream;
 import java.net.HttpCookie;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.Map;
 import java.util.Optional;
@@ -328,7 +334,7 @@ public class HandleWebTest {
     @Nested
     class PathTests {
 
-        final TestFixture testFixture = TestFixture.create(new ClassPathHandler(), new PackagePathHandler());
+        final TestFixture testFixture = TestFixture.create(new ClassPathHandler(), new PackagePathHandler(), new SubPathHandler());
 
         @Test
         void classPathTest() {
@@ -338,6 +344,11 @@ public class HandleWebTest {
         @Test
         void packagePathTest() {
             testFixture.whenGet("/package/get").expectResult("get");
+        }
+
+        @Test
+        void subPathTest() {
+            testFixture.whenGet("/package/sub/class/get").expectResult("get");
         }
 
         @Test
@@ -496,6 +507,93 @@ public class HandleWebTest {
             public SomeId(String functionalId) {
                 super(functionalId);
             }
+        }
+
+    }
+
+    @Nested
+    class StaticFileTests {
+        private final TestFixture testFixture = TestFixture.create(new ClasspathHandler(), new FileSystemHandler());
+
+        @Test
+        void normalGet() {
+            testFixture.whenGet("/web/get").expectResult("dynamicGet");
+        }
+
+        @Test
+        void serveHtmlFile() {
+            testFixture.whenGet("/static/index.html")
+                    .expectResult(testContents("<!DOCTYPE html>"));
+        }
+
+        @Test
+        void serveLogo() {
+            testFixture.whenGet("/static/assets/logo.svg")
+                    .expectResult(testContents("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"));
+        }
+
+        @Test
+        void serveLogo_relative() {
+            TestFixture.create(new RelativeClasspathHandler()).whenGet("/web/static/assets/logo.svg")
+                    .expectResult(testContents("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"));
+        }
+
+        @Test
+        void serveLogo_fs() {
+            testFixture.whenGet("/file/assets/logo.svg")
+                    .expectResult(testContents("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"));
+        }
+
+        @Test
+        void serveFallback() {
+            testFixture.whenGet("/static/whatever")
+                    .expectResult(testContents("<!DOCTYPE html>"));
+        }
+
+        @Test
+        void serveRoot() {
+            testFixture.whenGet("/static")
+                    .expectWebResult(testContents("<!DOCTYPE html>"))
+                    .andThen()
+                    .whenGet("/static/")
+                    .expectWebResult(testContents("<!DOCTYPE html>"))
+                    .andThen()
+                    .whenGet("/file")
+                    .expectWebResult(testContents("<!DOCTYPE html>"))
+                    .andThen()
+                    .whenGet("/file/")
+                    .expectWebResult(testContents("<!DOCTYPE html>"));
+        }
+
+        @Path
+        @ServeStatic(value = "/static", resourcePath = "classpath:/web/static")
+        static class ClasspathHandler {
+            @HandleGet("/get")
+            String get() {
+                return "dynamicGet";
+            }
+        }
+
+        @Path
+        @ServeStatic(value = "static", resourcePath = "classpath:/web/static")
+        static class RelativeClasspathHandler {
+        }
+
+        static class FileSystemHandler extends StaticFileHandler {
+            public FileSystemHandler() {
+                super("/file", Paths.get(FileUtils.getFile(
+                        FileSystemHandler.class, "/web/static/index.html")).toAbsolutePath().toString()
+                        .replace("/index.html", ""), "index.html");
+            }
+        }
+
+        static ThrowingPredicate<WebResponse> testContents(String string) {
+            return r -> {
+                try (InputStream input = r.getPayload()) {
+                    var contents = new String(input.readAllBytes(), StandardCharsets.UTF_8);
+                    return contents.contains(string);
+                }
+            };
         }
 
     }

@@ -61,8 +61,8 @@ public class DefaultResultGateway implements ResultGateway {
             return client.append(guarantee, serializedMessage);
         } catch (Exception e) {
             throw new GatewayException(String.format("Failed to send response %s",
-                                                     payload == null || ifClass(payload) != null
-                                                             ? Objects.toString(payload) : payload.getClass()), e);
+                                                     payload != null && ifClass(payload) == null
+                                                             ? payload.getClass() : Objects.toString(payload)), e);
         }
     }
 

@@ -22,34 +22,47 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Declares the root URI path prefix for web handlers.
+ * Declares a path prefix that contributes to the final URI of a web handler.
  * <p>
- * Can be applied at the package, class, or method level to compose full request paths.
- * The most specific annotation overrides more general ones (e.g. method &gt; class &gt; package).
+ * The {@code @Path} annotation can be placed on packages, classes, methods, and properties (fields or getters).
+ * Path values from outer levels (e.g. packages or enclosing classes) are chained with inner levels unless a path starts
+ * with {@code /}, in which case the chain is reset and the path is treated as absolute.
  * </p>
  *
  * <p>
- * The path value is automatically normalized (ensuring slashes are added if necessary).
+ * If a {@code @Path} value is empty, the system will fall back to using the simple name of the latest package,
+ * (e.g. {@code com.example.users} → {@code users}).
  * </p>
  *
- * <h2>Example:</h2>
+ * <p>
+ * When {@code @Path} is placed on a property (field or getter), its value is used dynamically at runtime
+ * to determine the path segment. In that case, the annotation is expected to be used without an explicit value.
+ * The runtime property value will follow the same chaining rules: if it starts with a slash, it resets the path.
+ * </p>
+ *
+ * <h2>Examples</h2>
  * <pre>{@code
- * @Path("/users")
- * public class UserController {
+ * @Path
+ * package com.example.api;
  *
+ * @Path("users")
+ * public class UserController {
  *     @HandleGet("/{id}")
- *     public User getUser(@PathParam String id) { ... }
+ *     WebResponse getUser(@PathParam String id) { ... }
  * }
+ *
+ * // Resolves to: /api/users/{id}
  * }</pre>
  */
 @Retention(RetentionPolicy.RUNTIME)
-@Target({ElementType.METHOD, ElementType.CONSTRUCTOR, ElementType.TYPE, ElementType.PACKAGE})
+@Target({ElementType.FIELD, ElementType.METHOD, ElementType.CONSTRUCTOR, ElementType.TYPE, ElementType.PACKAGE})
 @Inherited
 @Documented
 public @interface Path {
 
     /**
-     * Defines the URI path prefix to prepend to route patterns defined in handler annotations.
+     * Defines the URI path segment. If omitted (i.e. the value is empty), the simple name of the class or package is used.
+     * If the value starts with '/', it is treated as an absolute path and resets any previously chained segments.
      */
-    String value();
+    String value() default "";
 }
