@@ -802,9 +802,21 @@ public class ReflectionUtils {
         return Modifier.isStatic(method.getModifiers());
     }
 
-    public static boolean isConstant(Object value) {
-        return value == null || value instanceof String || value instanceof Number
-               || value instanceof Boolean || value.getClass().isEnum();
+    private static final Set<Class<?>> leafValueTypes = Set.of(
+            String.class, Number.class, Boolean.class, Character.class,
+            java.util.UUID.class, java.net.URI.class,
+            java.net.URL.class, java.util.Locale.class,
+            java.util.Currency.class, java.time.temporal.Temporal.class,
+            java.time.temporal.TemporalAmount.class
+    );
+
+    public static boolean isLeafValue(Object value) {
+        if (value == null) {
+            return true;
+        }
+        Class<?> type = value.getClass();
+        return leafValueTypes.stream().anyMatch(t -> t.isAssignableFrom(type))
+               || type.isEnum();
     }
 
     public static boolean isAnnotationPresent(Parameter parameter, Class<? extends Annotation> annotationType) {

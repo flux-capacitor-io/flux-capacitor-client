@@ -74,7 +74,7 @@ import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotation;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getMemberAnnotation;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getPropertyName;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getTypeAnnotation;
-import static io.fluxcapacitor.common.reflection.ReflectionUtils.isConstant;
+import static io.fluxcapacitor.common.reflection.ReflectionUtils.isLeafValue;
 import static java.util.Collections.emptySet;
 import static java.util.Optional.ofNullable;
 import static java.util.function.Function.identity;
@@ -91,7 +91,6 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 @Getter(AccessLevel.PROTECTED)
 @AllArgsConstructor
 public class JacksonInverter implements Inverter<JsonNode> {
-
     private final JsonMapper objectMapper;
     private final ThrowingFunction<Object, String> summarizer;
 
@@ -191,7 +190,7 @@ public class JacksonInverter implements Inverter<JsonNode> {
             default -> {
                 String name = getAnnotation(holder, Facet.class).map(Facet::value).filter(s -> !s.isBlank())
                         .orElseGet(() -> getPropertyName(holder));
-                if (isConstant(propertyValue)
+                if (isLeafValue(propertyValue)
                     || ReflectionUtils.getTypeAnnotation(propertyValue.getClass(), Facet.class) != null) {
                     String stringValue = propertyValue.toString();
                     yield stringValue.isBlank() ? Stream.empty() : Stream.of(new FacetEntry(name, stringValue));
@@ -232,7 +231,7 @@ public class JacksonInverter implements Inverter<JsonNode> {
             default -> {
                 String name = getAnnotation(holder, Sortable.class).map(Sortable::value).filter(s -> !s.isBlank())
                         .orElseGet(() -> getPropertyName(holder));
-                if (isConstant(propertyValue)
+                if (isLeafValue(propertyValue)
                     || ReflectionUtils.getTypeAnnotation(propertyValue.getClass(), Sortable.class) != null) {
                     yield Stream.of(new SortableEntry(name, propertyValue));
                 }
