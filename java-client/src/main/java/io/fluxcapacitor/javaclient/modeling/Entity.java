@@ -411,8 +411,8 @@ public interface Entity<T> {
             if (eventIndex == null) {
                 return false;
             }
-            Long lastEventIndex = aggregate.lastEventIndex();
-            return lastEventIndex != null && eventIndex <= lastEventIndex;
+            Long aggregateIndex = aggregate.lastEventIndex();
+            return aggregateIndex != null && aggregateIndex <= eventIndex;
         }).orElseThrow(() -> new IllegalStateException(format(
                 "Could not load aggregate %s of type %s for event %s. Aggregate (%s) started at event %s",
                 id(), type().getSimpleName(), eventIndex, this, lastEventIndex())));
