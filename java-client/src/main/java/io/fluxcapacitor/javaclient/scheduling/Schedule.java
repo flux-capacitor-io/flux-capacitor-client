@@ -61,14 +61,8 @@ public class Schedule extends Message {
      */
     public static String scheduleIdMetadataKey = "$scheduleId";
 
-    /**
-     * Unique identifier for this scheduled message. Used to replace, cancel, or retrieve the schedule.
-     */
     @NonNull String scheduleId;
 
-    /**
-     * The time at which this scheduled message should be delivered.
-     */
     @NonNull Instant deadline;
 
     /**
@@ -196,5 +190,19 @@ public class Schedule extends Message {
     public Schedule reschedule(Duration duration) {
         return new Schedule(getPayload(), getMetadata(), FluxCapacitor.currentIdentityProvider().nextTechnicalId(), currentTime(),
                             scheduleId, deadline.plus(duration));
+    }
+
+    /**
+     * Unique identifier for this scheduled message. Used to replace, cancel, or retrieve the schedule.
+     */
+    public @NonNull String getScheduleId() {
+        return scheduleId;
+    }
+
+    /**
+     * The time at which this scheduled message should be delivered.
+     */
+    public @NonNull Instant getDeadline() {
+        return deadline;
     }
 }

@@ -303,6 +303,20 @@ public class WebResponse extends Message {
         return getHeader("Content-Type");
     }
 
+    /**
+     * Returns all HTTP headers associated with the current response.
+     */
+    public @NonNull Map<String, List<String>> getHeaders() {
+        return headers;
+    }
+
+    /**
+     * Returns the HTTP status code associated with the current response.
+     */
+    public Integer getStatus() {
+        return status;
+    }
+
     Object getEncodedPayload() {
         return super.getPayload();
     }

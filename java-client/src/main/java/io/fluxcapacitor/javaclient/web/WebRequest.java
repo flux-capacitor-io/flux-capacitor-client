@@ -129,22 +129,12 @@ public class WebRequest extends Message {
         return builder().method(HttpRequestMethod.DELETE).url(url);
     }
 
-    /**
-     * The request path including query parameters (e.g. {@code "/api/users?id=123"}). May contain the full URL for
-     * outbound web requests.
-     */
     @NonNull
     String path;
 
-    /**
-     * The HTTP or WebSocket method (e.g. {@code "GET"}, {@code "POST"}, {@code "WS_OPEN"}).
-     */
     @NonNull
     String method;
 
-    /**
-     * The HTTP headers as a case-sensitive map. Header values are lists to support repeated headers.
-     */
     @NonNull
     Map<String, List<String>> headers;
 
@@ -288,6 +278,28 @@ public class WebRequest extends Message {
      */
     public Optional<HttpCookie> getCookie(String name) {
         return getCookies().stream().filter(c -> Objects.equals(name, c.getName())).findFirst();
+    }
+
+    /**
+     * The request path including query parameters (e.g. {@code "/api/users?id=123"}). May contain the full URL for
+     * outbound web requests.
+     */
+    public @NonNull String getPath() {
+        return path;
+    }
+
+    /**
+     * The HTTP or WebSocket method (e.g. {@code "GET"}, {@code "POST"}, {@code "WS_OPEN"}).
+     */
+    public @NonNull String getMethod() {
+        return method;
+    }
+
+    /**
+     * The HTTP headers as a case-sensitive map. Header values are lists to support repeated headers.
+     */
+    public @NonNull Map<String, List<String>> getHeaders() {
+        return headers;
     }
 
     /**
