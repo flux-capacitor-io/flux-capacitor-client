@@ -20,10 +20,10 @@ import io.fluxcapacitor.common.api.search.NoOpConstraint;
 import io.fluxcapacitor.common.search.Document;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
+import lombok.Getter;
 import lombok.NonNull;
 import lombok.Value;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -50,40 +50,13 @@ import java.util.List;
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class ExistsConstraint extends PathConstraint {
     /**
-     * Creates a constraint that checks for the presence of any of the given paths. Sub-paths will be included by
-     * default (i.e. {@code path/**} is added for each path).
+     * Creates a constraint that checks for the presence of any of the given paths. Sub-paths will be included.
      *
      * @param paths the paths to check for existence
      * @return a constraint that matches if any of the given paths (or their sub-paths) exist
      */
     public static Constraint exists(String... paths) {
-        return exists(true, paths);
-    }
-
-    /**
-     * Creates a constraint that checks for the presence of one or more paths.
-     *
-     * @param includeSubPaths whether to include sub-paths (i.e. {@code path/**})
-     * @param paths           the paths to check
-     * @return a constraint that matches if any of the given paths (or their sub-paths if enabled) exist
-     */
-    public static Constraint exists(boolean includeSubPaths, String... paths) {
-        if (paths.length == 0) {
-            return NoOpConstraint.instance;
-        }
-        List<String> allPaths;
-        if (includeSubPaths) {
-            allPaths = new ArrayList<>(paths.length * 2);
-            for (String path : paths) {
-                allPaths.add(path);
-                if (!path.endsWith("**")) {
-                    allPaths.add(path + "/**");
-                }
-            }
-        } else {
-            allPaths = Arrays.asList(paths);
-        }
-        return AnyConstraint.any(allPaths.stream().<Constraint>map(ExistsConstraint::new).toList());
+        return AnyConstraint.any(Arrays.stream(paths).<Constraint>map(ExistsConstraint::new).toList());
     }
 
     /**
@@ -91,19 +64,17 @@ public class ExistsConstraint extends PathConstraint {
      */
     @NonNull String exists;
 
+    @JsonIgnore
+    @Getter(lazy = true)
+    List<String> paths = exists.endsWith("**") ? List.of(exists) : List.of(exists, exists + "/**");
+
     @Override
     protected boolean matches(Document.Entry entry) {
         return entry.getType() != Document.EntryType.NULL;
     }
 
     @Override
-    @JsonIgnore
-    public List<String> getPaths() {
-        return List.of(exists);
-    }
-
-    @Override
     public Constraint withPaths(List<String> paths) {
-        return paths.isEmpty() ? NoOpConstraint.instance : exists(paths.get(0));
+        return paths.isEmpty() ? NoOpConstraint.instance : exists(paths.getFirst());
     }
 }

@@ -32,7 +32,6 @@ import io.fluxcapacitor.javaclient.FluxCapacitor;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -190,12 +189,7 @@ public interface Search {
      * Constrains the search to documents that have any of the given paths.
      */
     default Search anyExist(String... paths) {
-        return switch (paths.length) {
-            case 0 -> this;
-            case 1 -> constraint(ExistsConstraint.exists(paths[0]));
-            default ->
-                    constraint(AnyConstraint.any(Arrays.stream(paths).map(ExistsConstraint::exists).collect(toList())));
-        };
+        return constraint(ExistsConstraint.exists(paths));
     }
 
     /**

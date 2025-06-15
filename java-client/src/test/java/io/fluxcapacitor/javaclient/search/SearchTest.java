@@ -237,10 +237,8 @@ public class SearchTest {
     void testExistsConstraint() {
         expectMatch(exists("someId"));
         expectNoMatch(exists("some"));
-        expectMatch(exists(false, "someId"));
         expectMatch(exists("booleans"));
         expectMatch(exists("booleans/first"));
-        expectNoMatch(exists(false, "booleans"));
     }
 
     @Test
