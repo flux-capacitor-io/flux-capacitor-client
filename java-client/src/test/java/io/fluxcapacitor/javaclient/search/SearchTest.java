@@ -27,6 +27,7 @@ import io.fluxcapacitor.common.api.search.SearchQuery;
 import io.fluxcapacitor.common.api.search.SerializedDocument;
 import io.fluxcapacitor.common.api.search.bulkupdate.DeleteDocument;
 import io.fluxcapacitor.common.api.search.bulkupdate.IndexDocument;
+import io.fluxcapacitor.common.api.search.constraints.BetweenConstraint;
 import io.fluxcapacitor.common.api.search.constraints.FacetConstraint;
 import io.fluxcapacitor.common.api.tracking.Read;
 import io.fluxcapacitor.common.search.Facet;
@@ -582,9 +583,10 @@ public class SearchTest {
 
         private final Instant now = Instant.now();
 
-        private final SomeDocument a = new SomeDocument().toBuilder().symbols("aaa")
+        private final SomeDocument a = new SomeDocument().toBuilder().someId("a").symbols("aaa")
                 .someNumber(new BigDecimal("50")).ts(Instant.parse("2023-12-01T12:00:00Z")).build();
-        private final SomeDocument b = new SomeDocument();
+        private final SomeDocument b = new SomeDocument().toBuilder().someId("b").build();
+
         private final Given testFixture = TestFixture.create().atFixedTime(now)
                 .givenDocument(a, "id1", "test", now)
                 .givenDocument(b, "id2", "test", now.plusSeconds(1));
@@ -610,31 +612,53 @@ public class SearchTest {
 
         @Test
         void sortOnField() {
-            testFixture.whenApplying(
+            SomeDocument nullFields = new SomeDocument().toBuilder().someId("nullFields").symbols(null).someNumber(null).ts(null).build();
+            testFixture
+                    .givenDocument(nullFields, nullFields.getSomeId(), "test", now)
+                    .whenApplying(
                             fc -> fc.documentStore().search("test").sortBy("symbols").fetchAll())
-                    .expectResult(List.of(a, b))
+                    .expectResult(List.of(a, b, nullFields))
                     .andThen()
                     .whenApplying(
                             fc -> fc.documentStore().search("test").sortBy("someNumber").fetchAll())
-                    .expectResult(List.of(b, a))
+                    .expectResult(List.of(b, a, nullFields))
                     .andThen()
                     .whenApplying(
                             fc -> fc.documentStore().search("test").sortBy("ts").fetchAll())
-                    .expectResult(List.of(a, b));
+                    .expectResult(List.of(a, b, nullFields));
         }
 
         @Test
         void sortOnFieldDesc() {
-            testFixture.whenApplying(
+            SomeDocument nullFields = new SomeDocument().toBuilder().someId("nullFields").symbols(null).someNumber(null).ts(null).build();
+            testFixture
+                    .givenDocument(nullFields, nullFields.getSomeId(), "test", now)
+                    .whenApplying(
                             fc -> fc.documentStore().search("test").sortBy("symbols", true).fetchAll())
-                    .expectResult(List.of(b, a))
+                    .expectResult(List.of(nullFields, b, a))
                     .andThen()
                     .whenApplying(
                             fc -> fc.documentStore().search("test").sortBy("someNumber", true).fetchAll())
-                    .expectResult(List.of(a, b))
+                    .expectResult(List.of(nullFields, a, b))
                     .andThen()
                     .whenApplying(
                             fc -> fc.documentStore().search("test").sortBy("ts", true).fetchAll())
+                    .expectResult(List.of(nullFields, b, a));
+        }
+
+        @Test
+        void betweenWithNull() {
+            SomeDocument nullFields = new SomeDocument().toBuilder().someId("nullFields").symbols(null).someNumber(null).ts(null).build();
+            testFixture
+                    .givenDocument(nullFields, nullFields.getSomeId(), "test", now)
+                    .whenApplying(
+                            fc -> fc.documentStore().search("test").constraint(
+                                    BetweenConstraint.below(30, "someNumber")).sortBy("someNumber").fetchAll())
+                    .expectResult(List.of(b))
+                    .andThen()
+                    .whenApplying(
+                            fc -> fc.documentStore().search("test").constraint(
+                                    BetweenConstraint.below(60, "someNumber")).sortBy("someNumber").fetchAll())
                     .expectResult(List.of(b, a));
         }
 
