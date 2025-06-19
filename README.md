@@ -233,6 +233,9 @@ What follows is a summary of the most important features.
 - [Dispatching Messages](#dispatching-messages)
 - [Testing your Handlers](#testing-your-handlers)
 - [Handling Web Requests](#handling-web-requests)
+- [Serving Static Files](#serving-static-files)
+- [Handling WebSocket Messages](#handling-websocket-messages)
+- [Testing Web Endpoint Behavior](#testing-web-endpoint-behavior)
 - [Outbound Web Requests](#outbound-web-requests)
 - [Metrics Messages](#metrics-messages)
 
@@ -2127,28 +2130,6 @@ public UserAccount getUser(@PathParam String id) {
 
 If the `value` is left empty, the framework will use the parameter name (`id` in this case).
 
-#### URI Prefixing with `@Path`
-
-You can use the `@Path` annotation at the package, class, or method level to declare a URI prefix that is prepended to
-any path in the handler annotations:
-
-```java
-
-@Path("/users")
-public class UserController {
-
-    @HandleGet("/{id}")
-    public UserAccount getUser(@PathParam String id) {
-        return userService.get(id);
-    }
-}
-```
-
-This defines a route at `/users/{id}`. The prefixing is **hierarchical**:
-
-- method-level `@Path` overrides class-level
-- class-level overrides package-level
-
 #### Other Parameter Annotations
 
 In addition to `@PathParam`, you can extract other values from the request using:
@@ -2163,7 +2144,130 @@ Each of these annotations supports the same rules:
 - If no name is given, the method parameter name is used
 - Values are automatically converted to the target parameter type
 
-### Handling WebSocket Messages
+#### URI Prefixing and Composition with `@Path`
+
+The `@Path` annotation can be used at the **package**, **class**, **method**, or **property** level to construct URI
+path segments. Paths are chained together from the outermost package to the innermost handler method. If a path segment
+starts with `/`, it resets the chain from that point downward.
+
+- Empty path values use the simple name of the package.
+- If placed on a field or getter, the property value is used as the path segment (enabling dynamic routing).
+
+```java
+@Path
+package my.example.api;
+
+@Path("users")
+public class UserHandler {
+
+    @Path("{id}")
+    @HandleGet
+    public User getUser(@PathParam String id) { ...}
+}
+```
+
+This matches `/api/users/{id}`. If the class annotation had started with a `/`, i.e.: had been `@Path("/users")`, the
+pattern would have become `/users/{id}`.
+
+---
+
+## Serving Static Files
+
+Flux Capacitor supports serving static files directly from a handler class by using the `@ServeStatic` annotation.
+This allows client applications to expose static resources (HTML, JS, CSS, images, etc.) without needing an external web
+server.
+
+```java
+
+@ServeStatic(value = "/web", resourcePath = "/static")
+public class WebAssets {
+}
+```
+
+This will serve all files under `/static` (from the classpath or file system) under the URI path `/web`.
+
+### Features
+
+- Supports both **file system** and **classpath** resources
+- Optional **fallback file** (e.g. for single-page apps)
+- Automatic `Cache-Control` headers
+- Compression via Brotli and GZIP (if precompressed variants exist)
+
+### Annotation Reference
+
+```java
+@ServeStatic(
+        value = "/assets",
+        resourcePath = "/public",
+        fallbackFile = "index.html",
+        immutableCandidateExtensions = {"js", "css", "svg"},
+        maxAgeSeconds = 86400
+)
+```
+
+#### Parameters:
+
+- `value`: Web path(s) where static content is served. Relative paths are prefixed by `@Path` values.
+- `resourcePath`: The resource root (either on the file system or classpath).
+- `fallbackFile`: A file to serve when the requested path doesn’t exist (e.g. `index.html`). Set to `""` to disable.
+- `immutableCandidateExtensions`: Extensions that are eligible for aggressive caching if fingerprinted (e.g.
+  `main.123abc.js`).
+- `maxAgeSeconds`: Default cache duration for non-immutable resources.
+
+### Example: Serving a React App
+
+```java
+@ServeStatic(value = "/app", resourcePath = "/static", fallbackFile = "index.html")
+public class WebFrontend { ... }
+```
+
+This will serve files under `/app/**` and fallback to `index.html` for unknown paths—ideal for single-page apps.
+
+> 📁 Files in `/static` on the classpath (e.g. under `resources/static/`) or `/static` on disk will be served.
+
+> When both file system and classpath contain a file, the **file system takes precedence**.
+
+> If the `resourcePath` starts with `classpath:`, **only classpath resources** are served.  
+> If it starts with `file:`, **only file system resources** are served.
+
+This allows precise control over where content is loaded from and ensures classpath-only or file-system-only resolution depending on the use case.
+
+#### Combining Static and Dynamic Handlers
+
+You can freely combine `@ServeStatic` with dynamic handler methods in the same class or package.
+
+This is especially useful when your application serves a combination of:
+
+- **Static assets** like HTML, JS, CSS
+- **Dynamic endpoints** like REST APIs or view-rendered pages
+
+```java
+@Path("/app")
+@ServeStatic("static") // serves static files from the /static resource directory for web paths /app/static/**
+public class AppController {
+
+    @HandleGet("/status")
+    Status getStatus() {
+        return new Status("OK", Instant.now());
+    }
+
+    @HandlePost("/submit")
+    SubmissionResult submitForm(FormData data) {
+        return formService.handle(data);
+    }
+}
+```
+
+This will:
+
+- Serve `/app/static/index.html`, `/app/static/styles.css`, etc. from the `static/` resource directory
+- Also respond to `/app/status` and `/app/submit` dynamically
+
+The static file handling applies to all routes **not matched** by other methods in the class. This makes it ideal for combining SPAs or hybrid web apps with API endpoints under a shared route prefix.
+
+---
+
+## Handling WebSocket Messages
 
 Flux Capacitor provides first-class support for **WebSocket communication**, enabling stateful or stateless message
 handling using the same annotation-based model as other requests.
@@ -2280,9 +2384,9 @@ distributed, event-driven architecture.
 
 ---
 
-### ✅ Testing Web Endpoint Behavior
+## Testing Web Endpoint Behavior
 
-Flux Capacitor allows you to simulate and verify HTTP interactions as part of your test flows. Web requests 
+Flux Capacitor allows you to simulate and verify HTTP interactions as part of your test flows. Web requests
 can be tested like any other command, query, or event.
 
 Here’s a complete test for a `POST /games` handler that accepts a JSON request and publishes a command:
@@ -2329,21 +2433,24 @@ As always, the `.json` file is automatically loaded from the classpath, allowing
 
 #### Example: Querying with `GET`
 
-You can test GET endpoints just as easily. This example first registers a game via `POST /games`, then fetches the list of all games via `GET /games` and checks the result:
+You can test GET endpoints just as easily. This example first registers a game via `POST /games`, then fetches the list
+of all games via `GET /games` and checks the result:
 
 ```java
+
 @Test
 void getGames() {
     testFixture
-        .givenPost("/games", "/game/game-details.json")   // Precondition: register a game
-        .whenGet("/games")                                // Perform GET request
-        .<List<Game>>expectResult(r -> r.size() == 1);    // Assert one game is returned
+            .givenPost("/games", "/game/game-details.json")   // Precondition: register a game
+            .whenGet("/games")                                // Perform GET request
+            .<List<Game>>expectResult(r -> r.size() == 1);    // Assert one game is returned
 }
 ```
 
 This corresponds to the following handler method:
 
 ```java
+
 @HandleGet
 @Path("/games")
 CompletableFuture<List<Game>> getGames(@QueryParam String term) {
@@ -2355,13 +2462,15 @@ CompletableFuture<List<Game>> getGames(@QueryParam String term) {
 
 #### ℹ️ Path Parameter Substitution in Tests
 
-When simulating web requests, Flux Capacitor automatically substitutes `{...}` placeholders in the request path using results from previous steps:
+When simulating web requests, Flux Capacitor automatically substitutes `{...}` placeholders in the request path using
+results from previous steps:
 
 - The result of the **first `when...()` step** is saved when `.andThen()` is called.
 - If a subsequent path (e.g. `/games/{gameId}/buy`) contains placeholders, Flux Capacitor will:
 - Attempt to replace each placeholder (like `{gameId}`) with the string value of a previously returned result.
 - Track all resolved placeholders across steps. This allows chaining:
-   
+
+[//]: # (@formatter:off)
 ```java
 testFixture.whenPost("/games", "/game/game-details.json") // returns gameId
      .andThen()
@@ -2369,10 +2478,13 @@ testFixture.whenPost("/games", "/game/game-details.json") // returns gameId
      .andThen()
      .whenPost("/games/{gameId}/refund/{orderId}"); // uses gameId from step 1, orderId from step 2
 ```
+[//]: # (@formatter:on)
 
-Substitutions are based purely on the order of results, not types or field names. The `.toString()` value of each result is used to fill the next unresolved placeholder.
+Substitutions are based purely on the order of results, not types or field names. The `.toString()` value of each result
+is used to fill the next unresolved placeholder.
 
-This keeps tests expressive and avoids boilerplate, especially for flows that involve chained resource creation (e.g. `POST /games → POST /games/{gameId}/buy → ...`).
+This keeps tests expressive and avoids boilerplate, especially for flows that involve chained resource creation (e.g.
+`POST /games → POST /games/{gameId}/buy → ...`).
 
 ---
 

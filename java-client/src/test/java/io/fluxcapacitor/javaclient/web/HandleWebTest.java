@@ -466,6 +466,11 @@ public class HandleWebTest {
                 testFixture.whenGet("/id/123").expectResult(new SomeId("123"));
             }
 
+            @Test
+            void testPathParam_Path() {
+                testFixture.whenGet("/path/123").expectResult(new SomeId("123"));
+            }
+
             static class Handler {
                 @HandleGet("string/{foo}")
                 Object get(@PathParam String foo) {
@@ -479,6 +484,12 @@ public class HandleWebTest {
 
                 @HandleGet("id/{foo}")
                 Object get(@PathParam SomeId foo) {
+                    return foo;
+                }
+
+                @Path("/path/{foo}")
+                @HandleGet
+                Object getPath(@PathParam SomeId foo) {
                     return foo;
                 }
             }
