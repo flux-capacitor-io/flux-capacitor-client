@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.javaclient.web;
 
+import io.fluxcapacitor.common.LazyInputStream;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.serialization.JsonUtils;
@@ -35,8 +36,10 @@ import lombok.ToString;
 import lombok.Value;
 import lombok.experimental.Accessors;
 import lombok.experimental.FieldDefaults;
+import org.springframework.util.function.ThrowingSupplier;
 
 import java.beans.ConstructorProperties;
+import java.io.InputStream;
 import java.lang.reflect.Type;
 import java.net.HttpCookie;
 import java.time.Instant;
@@ -79,6 +82,7 @@ import static java.util.stream.Collectors.toList;
 @ToString(callSuper = true)
 public class WebResponse extends Message {
     private static final List<String> gzipEncoding = List.of("gzip");
+
     @NonNull
     Map<String, List<String>> headers;
     Integer status;
@@ -109,6 +113,27 @@ public class WebResponse extends Message {
      */
     public WebResponse(Message m) {
         this(m.getPayload(), m.getMetadata(), m.getMessageId(), m.getTimestamp());
+    }
+
+    public static WebResponse ok(Object payload, Map<String, String> headers) {
+        return builder().status(200).payload(payload).singleValuedHeaders(headers).build();
+    }
+
+    public static WebResponse ok(ThrowingSupplier<? extends InputStream> inputStreamSupplier,
+                                 Map<String, String> headers) {
+        return ok(new LazyInputStream(inputStreamSupplier), headers);
+    }
+
+    public static WebResponse partial(ThrowingSupplier<? extends InputStream> inputStreamSupplier, Map<String, String> headers) {
+        return builder().status(206).payload(new LazyInputStream(inputStreamSupplier)).singleValuedHeaders(headers).build();
+    }
+
+    public static WebResponse notModified(Map<String, String> headers) {
+        return builder().status(304).singleValuedHeaders(headers).build();
+    }
+
+    public static WebResponse notFound(String reason) {
+        return builder().status(404).payload(reason).build();
     }
 
     /**
@@ -357,10 +382,15 @@ public class WebResponse extends Message {
                 if (payload instanceof String) {
                     return contentType("text/plain");
                 }
-                if (payload instanceof byte[]) {
+                if (payload instanceof byte[] || payload instanceof InputStream) {
                     return contentType("application/octet-stream");
                 }
             }
+            return this;
+        }
+
+        public Builder singleValuedHeaders(Map<String, String> headers) {
+            headers.forEach(this::header);
             return this;
         }
 

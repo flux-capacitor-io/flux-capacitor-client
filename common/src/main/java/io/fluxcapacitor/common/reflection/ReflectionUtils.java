@@ -206,6 +206,10 @@ public class ReflectionUtils {
         return null;
     }
 
+    public static Class<?> asClass(@NonNull Object value) {
+        return ifClass(value) instanceof Class<?> c ? c : value.getClass();
+    }
+
     public static List<Method> getAllMethods(Class<?> type) {
         return methodsCache.apply(type);
     }
@@ -291,13 +295,13 @@ public class ReflectionUtils {
 
     public static Optional<? extends AccessibleObject> getAnnotatedProperty(Object target,
                                                                             Class<? extends Annotation> annotation) {
-        return target == null ? Optional.empty() : getAnnotatedProperty(target.getClass(), annotation);
+        return target == null ? Optional.empty() : getAnnotatedProperty(asClass(target), annotation);
     }
 
     public static Optional<? extends AccessibleObject> getAnnotatedProperty(Class<?> target,
                                                                             Class<? extends Annotation> annotation) {
         List<? extends AccessibleObject> annotatedProperties = getAnnotatedProperties(target, annotation);
-        return annotatedProperties.isEmpty() ? Optional.empty() : Optional.of(annotatedProperties.get(0));
+        return annotatedProperties.isEmpty() ? Optional.empty() : Optional.of(annotatedProperties.getFirst());
     }
 
     public static Optional<Object> getAnnotatedPropertyValue(Object target, Class<? extends Annotation> annotation) {
@@ -361,8 +365,7 @@ public class ReflectionUtils {
     }
 
     public static List<Field> getAnnotatedFields(Object target, Class<? extends Annotation> annotation) {
-        return target == null ? emptyList() :
-                getAnnotatedFields(ifClass(target) instanceof Class<?> t ? t : target.getClass(), annotation);
+        return target == null ? emptyList() : getAnnotatedFields(asClass(target), annotation);
     }
 
     public static boolean isAnnotationPresent(Class<?> type, Class<? extends Annotation> annotationType) {
@@ -399,8 +402,11 @@ public class ReflectionUtils {
                 .collect(toCollection(LinkedHashSet::new));
     }
 
+    @SuppressWarnings("unchecked")
     public static <A extends Annotation> Optional<A> getPackageAnnotation(Package p, Class<A> annotationType) {
-        return Optional.ofNullable(p.getAnnotation(annotationType));
+        return getPackageAnnotations(p).stream()
+                .filter(a -> a.annotationType().equals(annotationType))
+                .map(a -> (A) a).findFirst();
     }
 
     public static Collection<? extends Annotation> getPackageAnnotations(Package p) {
@@ -522,8 +528,7 @@ public class ReflectionUtils {
     @SuppressWarnings("unchecked")
     public static <T> Optional<T> getFieldValue(String fieldName, Object target) {
         return target == null ? Optional.empty() :
-                getField(ifClass(target) instanceof Class<?> type ? type : target.getClass(), fieldName)
-                        .map(f -> (T) getValue(f, target, true));
+                getField(asClass(target), fieldName).map(f -> (T) getValue(f, target, true));
     }
 
     @SneakyThrows
@@ -901,12 +906,12 @@ public class ReflectionUtils {
     public static <T> Optional<T> getAnnotationAs(AnnotatedElement member,
                                                   Class<? extends Annotation> annotationType,
                                                   Class<? extends T> returnType) {
-        Annotation annotation;
-        if (member instanceof Executable e) {
-            annotation = getMethodAnnotation(e, annotationType).orElse(null);
-        } else {
-            annotation = getTopLevelAnnotation(member, annotationType);
-        }
+        Annotation annotation = switch (member) {
+            case Executable e -> getMethodAnnotation(e, annotationType).orElse(null);
+            case Package p -> getPackageAnnotation(p, annotationType).orElse(null);
+            case Class<?> c -> getTypeAnnotation(c, annotationType);
+            default -> getTopLevelAnnotation(member, annotationType);
+        };
         return getAnnotationAs(annotation, annotationType, returnType);
     }
 
@@ -1122,6 +1127,14 @@ public class ReflectionUtils {
 
     public static boolean classExists(String className) {
         return classForNameCache.apply(className).isPresent();
+    }
+
+    public static String getSimpleName(Class<?> c) {
+        return getSimpleName(c.getName());
+    }
+
+    public static String getSimpleName(Package p) {
+        return p.getName().substring(p.getName().lastIndexOf('.') + 1);
     }
 
     public static String getSimpleName(String fullyQualifiedName) {

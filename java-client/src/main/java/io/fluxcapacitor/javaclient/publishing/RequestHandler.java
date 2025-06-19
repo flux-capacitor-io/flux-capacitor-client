@@ -16,6 +16,7 @@ package io.fluxcapacitor.javaclient.publishing;
 
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.tracking.client.TrackingClient;
+import jakarta.annotation.Nullable;
 
 import java.time.Duration;
 import java.util.List;
@@ -63,8 +64,10 @@ public interface RequestHandler extends AutoCloseable {
      * @param requestSender A callback used to dispatch the request (e.g. to a gateway or transport layer).
      * @return A {@link CompletableFuture} that completes with the response message or fails on timeout.
      */
-    CompletableFuture<SerializedMessage> sendRequest(SerializedMessage request,
-                                                     Consumer<SerializedMessage> requestSender);
+    default CompletableFuture<SerializedMessage> sendRequest(SerializedMessage request,
+                                                             Consumer<SerializedMessage> requestSender) {
+        return sendRequest(request, requestSender, (Duration) null);
+    }
 
     /**
      * Sends a single request with a custom timeout and returns a future for the corresponding response.
@@ -75,7 +78,8 @@ public interface RequestHandler extends AutoCloseable {
      * @return A {@link CompletableFuture} that completes with the response or fails on timeout.
      */
     CompletableFuture<SerializedMessage> sendRequest(SerializedMessage request,
-                                                     Consumer<SerializedMessage> requestSender, Duration timeout);
+                                                     Consumer<SerializedMessage> requestSender,
+                                                     @Nullable Duration timeout);
 
     /**
      * Sends multiple requests and returns a list of futures for their corresponding responses.
@@ -100,7 +104,19 @@ public interface RequestHandler extends AutoCloseable {
      */
     List<CompletableFuture<SerializedMessage>> sendRequests(List<SerializedMessage> requests,
                                                             Consumer<List<SerializedMessage>> requestSender,
-                                                            Duration timeout);
+                                                            @Nullable Duration timeout);
+
+    default CompletableFuture<SerializedMessage> sendRequest(
+            SerializedMessage request,
+            Consumer<SerializedMessage> requestSender,
+            Consumer<SerializedMessage> intermediateCallback) {
+        return sendRequest(request, requestSender, null, intermediateCallback);
+    }
+
+    CompletableFuture<SerializedMessage> sendRequest(
+            SerializedMessage request,
+            Consumer<SerializedMessage> requestSender, Duration timeout,
+            Consumer<SerializedMessage> intermediateCallback);
 
     /**
      * Releases all resources associated with this handler.

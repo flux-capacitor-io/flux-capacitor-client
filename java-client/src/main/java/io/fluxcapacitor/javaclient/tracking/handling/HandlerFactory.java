@@ -17,12 +17,9 @@ package io.fluxcapacitor.javaclient.tracking.handling;
 import io.fluxcapacitor.common.handling.Handler;
 import io.fluxcapacitor.common.handling.HandlerFilter;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
-import lombok.NonNull;
 
 import java.util.List;
 import java.util.Optional;
-
-import static io.fluxcapacitor.common.reflection.ReflectionUtils.ifClass;
 
 /**
  * Factory interface for creating {@link Handler} instances that process {@link DeserializingMessage}s.
@@ -36,22 +33,6 @@ import static io.fluxcapacitor.common.reflection.ReflectionUtils.ifClass;
  * </ul>
  */
 public interface HandlerFactory {
-
-    /**
-     * Returns the class to be used for handler inspection and reflection.
-     * <p>
-     * If the given {@code target} is already a {@link Class} object or Kotlin class, it is returned directly.
-     * Otherwise, the runtime class of the provided instance is returned using {@link Object#getClass()}.
-     * <p>
-     * This method is used to ensure consistent behavior when building handlers for both concrete instances and
-     * class-based declarations (e.g. stateful or stateless handlers).
-     *
-     * @param target The handler instance or class to inspect.
-     * @return The effective {@link Class} representing the handler.
-     */
-    static Class<?> getTargetClass(@NonNull Object target) {
-        return ifClass(target) instanceof Class<?> targetClass ? targetClass : target.getClass();
-    }
 
     /**
      * Attempts to create a message handler for the given {@code target} object.

@@ -15,9 +15,10 @@
 package io.fluxcapacitor.javaclient.web;
 
 import io.fluxcapacitor.common.Guarantee;
+import io.fluxcapacitor.common.api.Data;
+import io.fluxcapacitor.common.api.HasMetadata;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
-import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.publishing.DispatchInterceptor;
 import io.fluxcapacitor.javaclient.publishing.GatewayException;
@@ -25,7 +26,11 @@ import io.fluxcapacitor.javaclient.publishing.ResultGateway;
 import io.fluxcapacitor.javaclient.publishing.client.GatewayClient;
 import lombok.AllArgsConstructor;
 
+import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
 
 import static io.fluxcapacitor.common.MessageType.WEBRESPONSE;
 
@@ -43,6 +48,8 @@ import static io.fluxcapacitor.common.MessageType.WEBRESPONSE;
 @AllArgsConstructor
 public class WebResponseGateway implements ResultGateway {
 
+    public static final int MAX_RESPONSE_SIZE = 2 * 1024 * 1024;
+
     private final GatewayClient client;
     private final Serializer serializer;
     private final DispatchInterceptor dispatchInterceptor;
@@ -54,28 +61,51 @@ public class WebResponseGateway implements ResultGateway {
         return respond(webResponseMapper.map(payload, metadata), target, requestId, guarantee);
     }
 
-    private CompletableFuture<Void> respond(WebResponse response, String target, Integer requestId,
+    private CompletableFuture<Void> respond(WebResponse rawResponse, String target, Integer requestId,
                                             Guarantee guarantee) {
-        try {
-            SerializedMessage serializedMessage = interceptDispatch(response);
-            if (serializedMessage == null) {
-                return CompletableFuture.completedFuture(null);
-            }
-            serializedMessage.setTarget(target);
-            serializedMessage.setRequestId(requestId);
-            return client.append(guarantee, serializedMessage);
-        } catch (Exception e) {
-            throw new GatewayException("Failed to send response " + response.getPayloadClass(), e);
+
+        WebResponse response = (WebResponse) dispatchInterceptor.interceptDispatch(rawResponse, WEBRESPONSE, null);
+        if (response == null) {
+            return CompletableFuture.completedFuture(null);
         }
+        Function<SerializedMessage, CompletableFuture<Void>> dispatcher = input -> {
+            try {
+                SerializedMessage serializedMessage =
+                        dispatchInterceptor.modifySerializedMessage(input, response, WEBRESPONSE, null);
+                if (serializedMessage != null) {
+                    dispatchInterceptor.monitorDispatch(response, WEBRESPONSE, null);
+                    serializedMessage.setTarget(target);
+                    serializedMessage.setRequestId(requestId);
+                    return client.append(guarantee, serializedMessage);
+                }
+                return CompletableFuture.completedFuture(null);
+            } catch (Exception e) {
+                throw new GatewayException("Failed to send response " + rawResponse.getPayloadClass(), e);
+            }
+        };
+        return sendResponse(response, dispatcher);
     }
 
-    protected SerializedMessage interceptDispatch(WebResponse response) {
-        Message message = dispatchInterceptor.interceptDispatch(response, WEBRESPONSE, null);
-        SerializedMessage serializedMessage = message == null ? null :
-                dispatchInterceptor.modifySerializedMessage(message.serialize(serializer), message, WEBRESPONSE, null);
-        if (serializedMessage != null) {
-            dispatchInterceptor.monitorDispatch(message, WEBRESPONSE, null);
+    protected CompletableFuture<Void> sendResponse(WebResponse response,
+                                                   Function<SerializedMessage, CompletableFuture<Void>> dispatcher) {
+        if (response.getPayload() instanceof InputStream inputStream) {
+            List<CompletableFuture<Void>> futures = new ArrayList<>();
+            try (OutputStreamCapturer capturer = new OutputStreamCapturer(MAX_RESPONSE_SIZE, (chunk, last) -> {
+                Metadata metadata = response.getMetadata().with(HasMetadata.FINAL_CHUNK, last.toString());
+                SerializedMessage message = new SerializedMessage(new Data<>(chunk, null, 0),
+                                                                  metadata, response.getMessageId(),
+                                                                  response.getTimestamp().toEpochMilli());
+                futures.add(dispatcher.apply(message));
+            })) {
+                try (inputStream) {
+                    inputStream.transferTo(capturer);
+                }
+            } catch (Throwable e) {
+                return CompletableFuture.failedFuture(e);
+            }
+            return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
+        } else {
+            return dispatcher.apply(response.serialize(serializer));
         }
-        return serializedMessage;
     }
 }

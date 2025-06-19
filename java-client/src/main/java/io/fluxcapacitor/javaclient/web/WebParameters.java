@@ -16,8 +16,11 @@ package io.fluxcapacitor.javaclient.web;
 
 import lombok.Value;
 
+import java.lang.reflect.Executable;
 import java.util.Arrays;
 import java.util.stream.Stream;
+
+import static io.fluxcapacitor.javaclient.web.WebUtils.concatenateUrlParts;
 
 /**
  * Internal configuration holder used to expand the URI and method mappings of a web request handler method.
@@ -37,7 +40,7 @@ import java.util.stream.Stream;
  * {@link WebPattern} instances—one for each combination of method and URI pattern.
  *
  * @see WebPattern
- * @see io.fluxcapacitor.javaclient.web.WebUtils#getWebPatterns(java.lang.reflect.Executable)
+ * @see WebUtils#getWebPatterns(Executable)
  */
 @Value
 public class WebParameters {
@@ -65,11 +68,22 @@ public class WebParameters {
      * @return a stream of {@link WebPattern} combinations for method/URI
      */
     public Stream<WebPattern> getWebPatterns() {
+        return getWebPatterns("");
+    }
+
+    /**
+     * Expands this configuration into a stream of {@link WebPattern} instances.
+     * <p>
+     * If no URI patterns are provided, a wildcard pattern ({@code ""}) is assumed.
+     *
+     * @return a stream of {@link WebPattern} combinations for method/URI
+     */
+    public Stream<WebPattern> getWebPatterns(String rootPath) {
         Stream<String> methodStream = Arrays.stream(method);
         return methodStream.flatMap(method -> switch (value.length) {
-            case 0 -> Stream.of(new WebPattern("", method));
-            case 1 -> Stream.of(new WebPattern(value[0], method));
-            default -> Arrays.stream(value).map(v -> new WebPattern(v, method));
+            case 0 -> Stream.of(new WebPattern(concatenateUrlParts(rootPath, ""), method));
+            case 1 -> Stream.of(new WebPattern(concatenateUrlParts(rootPath, value[0]), method));
+            default -> Arrays.stream(value).map(v -> new WebPattern(concatenateUrlParts(rootPath, v), method));
         });
     }
 }

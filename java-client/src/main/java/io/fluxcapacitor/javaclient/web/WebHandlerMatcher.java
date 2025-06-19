@@ -22,6 +22,7 @@ import io.fluxcapacitor.common.handling.HandlerMatcher;
 import io.fluxcapacitor.common.handling.ParameterResolver;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
+import io.fluxcapacitor.javaclient.tracking.handling.HandlerFactory;
 import io.fluxcapacitor.javaclient.web.internal.WebUtilsInternal;
 import io.jooby.Router;
 
@@ -33,10 +34,10 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Stream;
 
+import static io.fluxcapacitor.common.reflection.ReflectionUtils.asClass;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAllMethods;
-import static io.fluxcapacitor.common.reflection.ReflectionUtils.getPackageAnnotation;
-import static io.fluxcapacitor.common.reflection.ReflectionUtils.getTypeAnnotation;
 import static io.fluxcapacitor.javaclient.web.DefaultWebRequestContext.getWebRequestContext;
+import static io.fluxcapacitor.javaclient.web.WebUtils.getWebPatterns;
 import static java.util.Arrays.stream;
 import static java.util.stream.Stream.concat;
 
@@ -44,8 +45,8 @@ import static java.util.stream.Stream.concat;
  * Specialized {@link HandlerMatcher} that routes {@link DeserializingMessage}s of type {@link MessageType#WEBREQUEST}
  * to matching handler methods based on annotated URI patterns, HTTP methods, and optional origins.
  * <p>
- * This matcher is created internally by the {@link io.fluxcapacitor.javaclient.tracking.handling.HandlerFactory} when
- * registering a handler class that contains methods annotated for web request handling (e.g., {@code @HandleWeb}).
+ * This matcher is created internally by the {@link HandlerFactory} when registering a handler class that contains
+ * methods annotated for web request handling (e.g., {@code @HandleWeb}).
  *
  * <h2>Routing Logic</h2>
  * The matcher builds a {@link Router} that maps:
@@ -71,41 +72,42 @@ import static java.util.stream.Stream.concat;
  *
  * @see HandlerMatcher
  * @see WebPattern
- * @see io.fluxcapacitor.javaclient.web.WebRequest
- * @see io.fluxcapacitor.javaclient.web.WebUtils#getWebPatterns
+ * @see WebRequest
+ * @see WebUtils#getWebPatterns
  */
 public class WebHandlerMatcher implements HandlerMatcher<Object, DeserializingMessage> {
     private final Router router = WebUtilsInternal.router();
     private final boolean hasAnyHandlers;
 
     public static WebHandlerMatcher create(
-            Class<?> c, List<ParameterResolver<? super DeserializingMessage>> parameterResolvers,
+            Object handler, List<ParameterResolver<? super DeserializingMessage>> parameterResolvers,
             HandlerConfiguration<DeserializingMessage> config) {
-        var matchers = concat(getAllMethods(c).stream(), stream(c.getDeclaredConstructors()))
-                .filter(m -> config.methodMatches(c, m))
-                .flatMap(m -> Stream.of(new MethodHandlerMatcher<>(m, c, parameterResolvers, config))).toList();
-        return new WebHandlerMatcher(matchers);
+        return create(handler, ReflectionUtils.asClass(handler), parameterResolvers, config);
     }
 
-    protected WebHandlerMatcher(List<MethodHandlerMatcher<DeserializingMessage>> methodHandlerMatchers) {
+    protected static WebHandlerMatcher create(Object handler, Class<?> type,
+                                              List<ParameterResolver<? super DeserializingMessage>> parameterResolvers,
+                                              HandlerConfiguration<DeserializingMessage> config) {
+        var matchers = concat(getAllMethods(type).stream(), stream(type.getDeclaredConstructors()))
+                .filter(m -> config.methodMatches(type, m))
+                .flatMap(m -> Stream.of(new MethodHandlerMatcher<>(m, type, parameterResolvers, config))).toList();
+        return new WebHandlerMatcher(handler, matchers);
+    }
+
+    protected WebHandlerMatcher(Object handler,
+                                List<MethodHandlerMatcher<DeserializingMessage>> methodHandlerMatchers) {
         Map<String, Router> subRouters = new HashMap<>();
         boolean hasAnyHandlers = false;
         for (MethodHandlerMatcher<DeserializingMessage> m : methodHandlerMatchers) {
-            String root = ReflectionUtils.<Path>getMethodAnnotation(m.getExecutable(), Path.class)
-                    .or(() -> Optional.ofNullable(getTypeAnnotation(m.getTargetClass(), Path.class)))
-                    .or(() -> getPackageAnnotation(m.getTargetClass().getPackage(), Path.class))
-                    .map(Path::value)
-                    .map(p -> p.endsWith("//") || !p.endsWith("/") ? p : p.substring(0, p.length() - 1))
-                    .orElse("");
-            List<WebPattern> webPatterns = WebUtils.getWebPatterns(m.getExecutable());
-
+            List<WebPattern> webPatterns = getWebPatterns(asClass(handler), handler, m.getExecutable());
             for (WebPattern pattern : webPatterns) {
                 String origin = pattern.getOrigin();
-                var router = origin == null ? this.router : subRouters.computeIfAbsent(origin, __ -> WebUtilsInternal.router());
+                var router = origin == null ? this.router :
+                        subRouters.computeIfAbsent(origin, __ -> WebUtilsInternal.router());
                 if (HttpRequestMethod.ANY.equals(pattern.getMethod())) {
                     hasAnyHandlers = true;
                 }
-                router.route(pattern.getMethod(), root + pattern.getPath(), ctx -> m);
+                router.route(pattern.getMethod(), pattern.getPath(), ctx -> m);
             }
         }
         subRouters.forEach((origin, subRouter) -> this.router.mount(ctx -> {

@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.javaclient.tracking.client;
 
+import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.Metadata;
@@ -218,14 +219,15 @@ public class DefaultTracker implements Runnable, Registration {
             AtomicBoolean notified = new AtomicBoolean();
             Duration duration;
             do {
+                long start = System.currentTimeMillis();
                 duration = flowRegulator.pauseDuration().orElse(null);
                 if (duration != null) {
                     if (notified.compareAndSet(false, true)) {
                         ofNullable(metricsGateway).ifPresent(g -> g.publish(new PauseTrackerEvent(
                                 tracker.getName(), tracker.getTrackerId()), Metadata.of(
-                                        "messageType", trackingClient.getMessageType())));
+                                        "messageType", trackingClient.getMessageType()), Guarantee.SENT).join());
                     }
-                    Thread.sleep(duration);
+                    Thread.sleep(duration.toMillis() - System.currentTimeMillis() + start);
                 }
             } while (duration != null);
         } catch (InterruptedException e) {

@@ -35,7 +35,7 @@ import java.lang.annotation.Target;
 public @interface HandleTrace {
     /**
      * One or more path patterns this handler applies to (e.g. {@code /users}, {@code /accounts/*}). If empty, the
-     * handler is applied to all paths.
+     * path is based on the {@link Path} annotation.
      */
     String[] value() default {};
 

@@ -14,6 +14,8 @@
 
 package io.fluxcapacitor.javaclient.test;
 
+import io.fluxcapacitor.common.ThrowingFunction;
+import io.fluxcapacitor.common.ThrowingPredicate;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.HasMessage;
@@ -25,6 +27,7 @@ import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NonNull;
+import lombok.SneakyThrows;
 import lombok.With;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.builder.EqualsBuilder;
@@ -39,7 +42,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Consumer;
-import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
@@ -123,7 +125,8 @@ public class ResultValidator<R> implements Then<R> {
 
     @SuppressWarnings("unchecked")
     @Override
-    public <MR> Then<MR> mapResult(Function<? super R, ? extends MR> resultMapper) {
+    @SneakyThrows
+    public <MR> Then<MR> mapResult(ThrowingFunction<? super R, ? extends MR> resultMapper) {
         if (result instanceof HasMessage m) {
             try {
                 return (Then<MR>) withResult(resultMapper.apply((R) result));
@@ -277,13 +280,13 @@ public class ResultValidator<R> implements Then<R> {
     }
 
     @Override
-    public <M extends Message> Then<R> expectResultMessage(Predicate<M> messagePredicate, String description) {
+    public <M extends Message> Then<R> expectResultMessage(ThrowingPredicate<M> messagePredicate, String description) {
         if (result instanceof Throwable e) {
             throw new GivenWhenThenAssertionError("An unexpected exception occurred during handling",
                                                   description, describeException(e), e);
         }
         if (result instanceof Message) {
-            if (!testSafely(messagePredicate, result)) {
+            if (!testSafely(messagePredicate.asPredicate(), result)) {
                 if (!errors.isEmpty()) {
                     throw new GivenWhenThenAssertionError(
                             "Handler returned an unexpected result. Probable cause is an exception during handling.",
@@ -300,12 +303,12 @@ public class ResultValidator<R> implements Then<R> {
 
     @SuppressWarnings("unchecked")
     @Override
-    public <R2 extends R> Then<R2> expectResult(Predicate<R2> predicate, String description) {
+    public <R2 extends R> Then<R2> expectResult(ThrowingPredicate<R2> predicate, String description) {
         return fluxCapacitor.apply(fc -> {
             if (result instanceof Throwable e) {
                 throw new GivenWhenThenAssertionError("An unexpected exception occurred during handling", e);
             }
-            if (!matches(predicate, result)) {
+            if (!matches(predicate.asPredicate(), result)) {
                 if (!errors.isEmpty()) {
                     throw new GivenWhenThenAssertionError("Handler returned an unexpected result. "
                                                           + "Probable cause is an exception during handling.",
@@ -368,7 +371,7 @@ public class ResultValidator<R> implements Then<R> {
 
     @SuppressWarnings("unchecked")
     @Override
-    public <T extends Throwable> Then<R> expectExceptionalResult(Predicate<T> predicate, String description) {
+    public <T extends Throwable> Then<R> expectExceptionalResult(ThrowingPredicate<T> predicate, String description) {
         return fluxCapacitor.apply(fc -> {
             if (!(result instanceof Throwable)) {
                 throw new GivenWhenThenAssertionError(
@@ -393,13 +396,13 @@ public class ResultValidator<R> implements Then<R> {
     }
 
     @Override
-    public <T extends Throwable> Then<R> expectError(Predicate<T> predicate, String description) {
+    public <T extends Throwable> Then<R> expectError(ThrowingPredicate<T> predicate, String description) {
         if (errors.isEmpty()) {
             throw new GivenWhenThenAssertionError("An error was expected but none was published",
                                                   description, null);
         }
         try {
-            expect(List.of(predicate), this.errors);
+            expect(List.of(predicate.asPredicate()), this.errors);
         } catch (GivenWhenThenAssertionError e) {
             throw new GivenWhenThenAssertionError("An unexpected error was published",
                                                   description, result);
@@ -450,7 +453,7 @@ public class ResultValidator<R> implements Then<R> {
     }
 
     @Override
-    public Then<R> expectTrue(Predicate<FluxCapacitor> check) {
+    public Then<R> expectTrue(ThrowingPredicate<FluxCapacitor> check) {
         return fluxCapacitor.apply(fc -> {
             if (!check.test(fc)) {
                 throw new GivenWhenThenAssertionError("Predicate test failed");

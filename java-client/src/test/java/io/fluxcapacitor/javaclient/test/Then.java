@@ -15,6 +15,8 @@
 package io.fluxcapacitor.javaclient.test;
 
 import io.fluxcapacitor.common.ThrowingConsumer;
+import io.fluxcapacitor.common.ThrowingFunction;
+import io.fluxcapacitor.common.ThrowingPredicate;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
@@ -27,7 +29,6 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Consumer;
-import java.util.function.Function;
 import java.util.function.Predicate;
 
 import static io.fluxcapacitor.common.ObjectUtils.run;
@@ -94,8 +95,8 @@ public interface Then<R> {
      *
      * @param predicate matcher to apply to published event payloads
      */
-    default <T> Then<R> expectEvent(Predicate<T> predicate) {
-        return expectEvents(predicate);
+    default <T> Then<R> expectEvent(ThrowingPredicate<T> predicate) {
+        return expectEvents(predicate.asPredicate());
     }
 
     /**
@@ -144,8 +145,8 @@ public interface Then<R> {
      *
      * @param predicate Predicate to apply to the published command payloads
      */
-    default <T> Then<R> expectCommand(Predicate<T> predicate) {
-        return expectCommands(predicate);
+    default <T> Then<R> expectCommand(ThrowingPredicate<T> predicate) {
+        return expectCommands(predicate.asPredicate());
     }
 
     /**
@@ -198,8 +199,8 @@ public interface Then<R> {
      * @param topic     the topic to check
      * @param predicate a predicate to apply to published payloads
      */
-    default <T> Then<R> expectCustom(String topic, Predicate<T> predicate) {
-        return expectCustom(topic, (Object) predicate);
+    default <T> Then<R> expectCustom(String topic, ThrowingPredicate<T> predicate) {
+        return expectCustom(topic, predicate.asPredicate());
     }
 
     /**
@@ -255,8 +256,8 @@ public interface Then<R> {
      *
      * @param predicate matcher to apply to query payloads
      */
-    default <T> Then<R> expectQuery(Predicate<T> predicate) {
-        return expectQueries(predicate);
+    default <T> Then<R> expectQuery(ThrowingPredicate<T> predicate) {
+        return expectQueries(predicate.asPredicate());
     }
 
     /**
@@ -308,8 +309,8 @@ public interface Then<R> {
      *
      * @param predicate predicate to apply to web request payloads
      */
-    default Then<R> expectWebRequest(Predicate<WebRequest> predicate) {
-        return expectWebRequests(predicate);
+    default Then<R> expectWebRequest(ThrowingPredicate<WebRequest> predicate) {
+        return expectWebRequests(predicate.asPredicate());
     }
 
     /**
@@ -359,8 +360,8 @@ public interface Then<R> {
      *
      * @param predicate matcher to apply to web response payloads
      */
-    default Then<R> expectWebResponse(Predicate<WebResponse> predicate) {
-        return expectWebResponses(predicate);
+    default Then<R> expectWebResponse(ThrowingPredicate<WebResponse> predicate) {
+        return expectWebResponses(predicate.asPredicate());
     }
 
     /**
@@ -408,8 +409,8 @@ public interface Then<R> {
      *
      * @param predicate a condition to apply to the published {@link Schedule}
      */
-    default Then<R> expectNewSchedule(Predicate<Schedule> predicate) {
-        return expectNewSchedules(predicate);
+    default Then<R> expectNewSchedule(ThrowingPredicate<Schedule> predicate) {
+        return expectNewSchedules(predicate.asPredicate());
     }
 
     /**
@@ -447,8 +448,8 @@ public interface Then<R> {
      *
      * @param predicate matcher to apply to active schedules
      */
-    default Then<R> expectSchedule(Predicate<Schedule> predicate) {
-        return expectSchedules(predicate);
+    default Then<R> expectSchedule(ThrowingPredicate<Schedule> predicate) {
+        return expectSchedules(predicate.asPredicate());
     }
 
     /**
@@ -498,7 +499,7 @@ public interface Then<R> {
     /**
      * Asserts that the result matches the provided predicate.
      */
-    default <R2 extends R> Then<R2> expectResult(Predicate<R2> predicate) {
+    default <R2 extends R> Then<R2> expectResult(ThrowingPredicate<R2> predicate) {
         return expectResult(predicate, "Predicate matcher");
     }
 
@@ -524,19 +525,26 @@ public interface Then<R> {
     /**
      * Asserts that the result matches the given predicate and provides a descriptive label for failures.
      */
-    <R2 extends R> Then<R2> expectResult(Predicate<R2> predicate, String description);
+    <R2 extends R> Then<R2> expectResult(ThrowingPredicate<R2> predicate, String description);
 
     /**
      * Asserts that the result is a {@link Message} that matches the given predicate.
      */
-    default <M extends Message> Then<R> expectResultMessage(Predicate<M> messagePredicate) {
+    default <M extends Message> Then<R> expectResultMessage(ThrowingPredicate<M> messagePredicate) {
         return expectResultMessage(messagePredicate, "Predicate matcher");
     }
 
     /**
      * Asserts that the result is a {@link Message} and matches the given predicate and label.
      */
-    <M extends Message> Then<R> expectResultMessage(Predicate<M> messagePredicate, String description);
+    <M extends Message> Then<R> expectResultMessage(ThrowingPredicate<M> messagePredicate, String description);
+
+    /**
+     * Asserts that the result is a {@link WebResponse} that matches the given predicate.
+     */
+    default Then<R> expectWebResult(ThrowingPredicate<WebResponse> messagePredicate) {
+        return expectResultMessage(messagePredicate, "Predicate matcher");
+    }
 
     /**
      * Verifies the result as a {@link Message} using an imperative assertion.
@@ -588,7 +596,30 @@ public interface Then<R> {
     /**
      * Transforms the result using the provided {@code resultMapper} function for continued assertions.
      */
-    <MR> Then<MR> mapResult(Function<? super R, ? extends MR> resultMapper);
+    <MR> Then<MR> mapResult(ThrowingFunction<? super R, ? extends MR> resultMapper);
+
+    /**
+     * Transforms the result message using the provided {@code resultMapper} function for continued assertions.
+     */
+    default <MR> Then<MR> mapResultMessage(ThrowingFunction<Message, ? extends MR> resultMapper) {
+        return mapResult(r -> resultMapper.apply(castOrFail(r, Message.class)));
+    }
+
+    /**
+     * Transforms the web response result using the provided {@code resultMapper} function for continued assertions.
+     */
+    default <MR> Then<MR> mapWebResultMessage(ThrowingFunction<WebResponse, ? extends MR> resultMapper) {
+        return mapResult(r -> resultMapper.apply(castOrFail(r, WebResponse.class)));
+    }
+
+    private <T> T castOrFail(Object t, Class<T> type) {
+        try {
+            return type.cast(t);
+        } catch (ClassCastException e) {
+            throw new GivenWhenThenAssertionError(format("Expected result of type %s, but was %s", type.getSimpleName(),
+                                                         t == null ? "null" : t.getClass().getSimpleName()));
+        }
+    }
 
     /*
         Exceptions
@@ -630,7 +661,7 @@ public interface Then<R> {
      *
      * @param predicate condition to apply to the thrown exception
      */
-    default <T extends Throwable> Then<R> expectExceptionalResult(Predicate<T> predicate) {
+    default <T extends Throwable> Then<R> expectExceptionalResult(ThrowingPredicate<T> predicate) {
         return expectExceptionalResult(predicate, "Predicate matcher");
     }
 
@@ -641,7 +672,7 @@ public interface Then<R> {
      * @param predicate    a matcher to apply
      * @param errorMessage a description used in case of failure
      */
-    <T extends Throwable> Then<R> expectExceptionalResult(Predicate<T> predicate, String errorMessage);
+    <T extends Throwable> Then<R> expectExceptionalResult(ThrowingPredicate<T> predicate, String errorMessage);
 
     /**
      * Verifies the thrown exception using the given {@link ThrowingConsumer}. The test fails if the consumer throws.
@@ -704,7 +735,7 @@ public interface Then<R> {
      *
      * @param predicate matcher to apply to the error
      */
-    default <T extends Throwable> Then<R> expectError(Predicate<T> predicate) {
+    default <T extends Throwable> Then<R> expectError(ThrowingPredicate<T> predicate) {
         return expectError(predicate, "Predicate matcher");
     }
 
@@ -749,7 +780,7 @@ public interface Then<R> {
      * @param predicate matcher for the error
      * @param errorMessage description for assertion failure
      */
-    <T extends Throwable> Then<R> expectError(Predicate<T> predicate, String errorMessage);
+    <T extends Throwable> Then<R> expectError(ThrowingPredicate<T> predicate, String errorMessage);
 
     /**
      * Asserts that no errors were raised by any handler during the {@code when} phase.
@@ -778,8 +809,8 @@ public interface Then<R> {
      *
      * @param predicate matcher applied to metric payloads
      */
-    default <T> Then<R> expectMetric(Predicate<T> predicate) {
-        return expectMetrics(predicate);
+    default <T> Then<R> expectMetric(ThrowingPredicate<T> predicate) {
+        return expectMetrics(predicate.asPredicate());
     }
 
     /**
@@ -823,7 +854,7 @@ public interface Then<R> {
      *
      * @param check predicate to evaluate
      */
-    Then<R> expectTrue(Predicate<FluxCapacitor> check);
+    Then<R> expectTrue(ThrowingPredicate<FluxCapacitor> check);
 
     /**
      * Asserts that the provided {@link Predicate} evaluates to {@code false} when applied to the current FluxCapacitor instance.
@@ -832,7 +863,7 @@ public interface Then<R> {
      *
      * @param check predicate to evaluate
      */
-    default Then<R> expectFalse(Predicate<FluxCapacitor> check) {
+    default Then<R> expectFalse(ThrowingPredicate<FluxCapacitor> check) {
         return expectTrue(check.negate());
     }
 

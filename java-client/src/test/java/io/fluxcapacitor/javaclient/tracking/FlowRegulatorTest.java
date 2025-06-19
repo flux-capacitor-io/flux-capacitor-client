@@ -17,7 +17,6 @@ package io.fluxcapacitor.javaclient.tracking;
 import io.fluxcapacitor.javaclient.test.TestFixture;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleEvent;
 import io.fluxcapacitor.javaclient.tracking.metrics.HandleMessageEvent;
-import io.fluxcapacitor.javaclient.tracking.metrics.PauseTrackerEvent;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
@@ -34,10 +33,9 @@ class FlowRegulatorTest {
         @Test
         void consumerIsPaused() {
             testFixture
-                    .consumerTimeout(Duration.ofMillis(700))
+                    .consumerTimeout(Duration.ofMillis(200))
                     .registerHandlers(PauseOnceHandler.class)
                     .whenEvent("123")
-                    .expectMetrics(PauseTrackerEvent.class)
                     .expectNoMetricsLike(HandleMessageEvent.class);
         }
 

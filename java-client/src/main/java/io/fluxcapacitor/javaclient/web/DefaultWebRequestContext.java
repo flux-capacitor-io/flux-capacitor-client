@@ -60,7 +60,7 @@ import java.security.cert.Certificate;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -182,7 +182,7 @@ public class DefaultWebRequestContext implements DefaultContext, WebRequestConte
             .stream().findFirst().map(WebUtils::parseRequestCookieHeader).orElseGet(Collections::emptyList)
             .stream().collect(toMap(HttpCookie::getName, HttpCookie::getValue));
     @Getter(lazy = true)
-    Map<String, Object> attributes = new HashMap<>();
+    Map<String, Object> attributes = new LinkedHashMap<>();
     @Getter(lazy = true)
     String remoteAddress = Stream.of("X-Forwarded-For", "Forwarded", "X-Real-IP")
             .flatMap(h -> WebRequest.getHeader(metadata, h).stream())
@@ -195,7 +195,7 @@ public class DefaultWebRequestContext implements DefaultContext, WebRequestConte
     @NonFinal
     @Setter
     @Accessors(chain = true)
-    Map<String, String> pathMap;
+    Map<String, String> pathMap = new LinkedHashMap<>();
     @NonFinal
     @Setter
     @Accessors(chain = true)

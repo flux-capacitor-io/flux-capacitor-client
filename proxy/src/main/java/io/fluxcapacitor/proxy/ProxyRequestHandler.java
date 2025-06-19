@@ -144,7 +144,9 @@ public class ProxyRequestHandler implements HttpHandler, AutoCloseable {
 
     protected void sendWebRequest(HttpServerExchange se, WebRequest webRequest) {
         SerializedMessage requestMessage = webRequest.serialize(serializer);
-        requestHandler.sendRequest(requestMessage, m -> requestGateway.append(Guarantee.SENT, m))
+        requestHandler.sendRequest(
+                        requestMessage, m -> requestGateway.append(Guarantee.SENT, m),
+                        intermediateResponse -> handleResponse(intermediateResponse, webRequest, se))
                 .whenComplete((r, e) -> {
                     try {
                         e = unwrapException(e);
@@ -161,10 +163,12 @@ public class ProxyRequestHandler implements HttpHandler, AutoCloseable {
                         }
                     } catch (Throwable t) {
                         log.error("Failed to process response {} to request {}", e == null ? r : e, webRequest, t);
+                        sendServerError(se);
                     }
                 });
     }
 
+    @SuppressWarnings("resource")
     @SneakyThrows
     protected void handleResponse(SerializedMessage responseMessage, WebRequest webRequest, HttpServerExchange se) {
         int statusCode = WebResponse.getStatusCode(responseMessage.getMetadata());
@@ -174,8 +178,22 @@ public class ProxyRequestHandler implements HttpHandler, AutoCloseable {
             websocketHandler.handleRequest(se);
             return;
         }
-        boolean http2 = se.getProtocol().compareTo(Protocols.HTTP_1_1) > 0;
+        if (responseMessage.chunked()) {
+            if (!se.isBlocking()) {
+                se.startBlocking();
+            }
+            se.getOutputStream().write(responseMessage.getData().getValue());
+            if (responseMessage.lastChunk()) {
+                se.getOutputStream().close();
+            }
+        } else {
+            sendResponse(responseMessage, prepareForSending(responseMessage, se, statusCode));
+        }
+    }
+
+    protected HttpServerExchange prepareForSending(SerializedMessage responseMessage, HttpServerExchange se, int statusCode) {
         se.setStatusCode(statusCode);
+        boolean http2 = se.getProtocol().compareTo(Protocols.HTTP_1_1) > 0;
         WebResponse.getHeaders(responseMessage.getMetadata()).forEach(
                 (key, value) -> {
                     if (http2 || !key.startsWith(":")) {
@@ -184,12 +202,20 @@ public class ProxyRequestHandler implements HttpHandler, AutoCloseable {
                 });
         Optional.ofNullable(responseMessage.getData().getFormat()).ifPresent(
                 format -> se.getResponseHeaders().add(new HttpString("Content-Type"), format));
+        return se;
+    }
+
+    protected void sendResponse(SerializedMessage responseMessage, HttpServerExchange se) {
         se.getResponseSender().send(ByteBuffer.wrap(responseMessage.getData().getValue()));
     }
 
     protected void sendServerError(HttpServerExchange se) {
-        se.setStatusCode(500);
-        se.getResponseSender().send("Request could not be handled due to a server side error");
+        try {
+            se.setStatusCode(500);
+            se.getResponseSender().send("Request could not be handled due to a server side error");
+        } catch (Throwable t) {
+            log.error("Failed to send server error response", t);
+        }
     }
 
     protected void sendGatewayTimeout(HttpServerExchange se) {

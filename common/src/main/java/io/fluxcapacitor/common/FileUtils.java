@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.common;
 
+import lombok.NonNull;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
@@ -23,6 +24,7 @@ import java.io.FileInputStream;
 import java.io.FileWriter;
 import java.io.InputStream;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
@@ -100,6 +102,17 @@ public class FileUtils {
             log.error("Resource {} not found in package {}", fileName, referencePoint.getPackageName());
             throw e;
         }
+    }
+
+    /**
+     * Gets a file from a classpath location using a reference class.
+     *
+     * @throws NullPointerException if the resource cannot be found
+     */
+    @SuppressWarnings("ConstantConditions")
+    @SneakyThrows
+    public static URI getFile(Class<?> referencePoint, String fileName) {
+        return referencePoint.getResource(fileName).toURI();
     }
 
     /**
@@ -211,10 +224,44 @@ public class FileUtils {
      * Safely resolves a relative path against a base URI, including JAR URLs.
      */
     public static URI safeResolve(URI base, String relativePath) {
-        if (base.getScheme().equals("jar")) {
-            return URI.create("jar:" + URI.create(base.getSchemeSpecificPart()).resolve(relativePath));
+        if ("jar".equals(base.getScheme())) {
+            int sep = base.getRawSchemeSpecificPart().indexOf("!/");
+            if (sep != -1) {
+                String jarRoot = base.getRawSchemeSpecificPart().substring(0, sep);
+                String jarEntry = base.getRawSchemeSpecificPart().substring(sep + 2);
+                URI newEntry = URI.create(jarEntry + "/").resolve(relativePath);
+                return URI.create("jar:" + jarRoot + "!/" + newEntry);
+            }
         }
         return base.resolve(relativePath);
+    }
+
+    /**
+     * Retrieves the base URI of a given resource path. The resource is resolved relative to the caller's class loader.
+     * If the resource path does not exist or cannot be resolved to a valid URI, an exception is thrown.
+     */
+    public static URI getResourceBaseUri(@NonNull String resourcePath) {
+        return getResourceBaseUri(resourcePath, getCallerClass().getClassLoader());
+    }
+
+    /**
+     * Retrieves the base URI of a given resource path. The resource is resolved relative to {@code classLoader}. If the
+     * resource path does not exist or cannot be resolved to a valid URI, an exception is thrown.
+     */
+    public static URI getResourceBaseUri(@NonNull String resourcePath, ClassLoader classLoader) {
+        String normalized = resourcePath.startsWith("/") ? resourcePath.substring(1) : resourcePath;
+        if (!normalized.endsWith("/")) {
+            normalized += "/";
+        }
+        URL resourceUrl = classLoader.getResource(normalized);
+        if (resourceUrl == null) {
+            throw new IllegalArgumentException("Resource path not found: " + resourcePath);
+        }
+        try {
+            return resourceUrl.toURI();
+        } catch (URISyntaxException e) {
+            throw new IllegalArgumentException("Invalid URI for resource: " + resourcePath, e);
+        }
     }
 
     /**

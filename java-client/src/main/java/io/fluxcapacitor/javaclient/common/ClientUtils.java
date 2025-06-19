@@ -281,8 +281,7 @@ public class ClientUtils {
      * @return a set of topic names associated with the handler and message type
      */
     public static Set<String> getTopics(MessageType messageType, Object handler) {
-        return getTopics(messageType, Collections.singleton(
-                ReflectionUtils.ifClass(handler) instanceof Class<?> c ? c : handler.getClass()));
+        return getTopics(messageType, Collections.singleton(ReflectionUtils.asClass(handler)));
     }
 
     /**

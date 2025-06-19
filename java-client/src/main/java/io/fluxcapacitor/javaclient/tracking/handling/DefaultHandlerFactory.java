@@ -33,6 +33,7 @@ import io.fluxcapacitor.javaclient.web.HandleWeb;
 import io.fluxcapacitor.javaclient.web.HandleWebResponse;
 import io.fluxcapacitor.javaclient.web.SocketEndpoint;
 import io.fluxcapacitor.javaclient.web.SocketEndpointHandler;
+import io.fluxcapacitor.javaclient.web.StaticFileHandler;
 import io.fluxcapacitor.javaclient.web.WebHandlerMatcher;
 import lombok.AllArgsConstructor;
 import lombok.NonNull;
@@ -45,6 +46,7 @@ import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.handling.HandlerInspector.hasHandlerMethods;
+import static io.fluxcapacitor.common.reflection.ReflectionUtils.asClass;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.ifClass;
 import static io.fluxcapacitor.javaclient.common.ClientUtils.memoize;
 
@@ -125,16 +127,21 @@ public class DefaultHandlerFactory implements HandlerFactory {
     @Override
     public Optional<Handler<DeserializingMessage>> createHandler(Object target, HandlerFilter handlerFilter,
                                                                  List<HandlerInterceptor> extraInterceptors) {
-        Class<?> targetClass = HandlerFactory.getTargetClass(target);
+        Class<?> targetClass = asClass(target);
         HandlerDecorator handlerDecorator =
                 ObjectUtils.concat(extraInterceptors.stream(), Stream.of(defaultDecorator))
                         .reduce(HandlerDecorator::andThen).orElseThrow();
         return Optional.of(handlerAnnotation)
                 .map(a -> HandlerConfiguration.<DeserializingMessage>builder().methodAnnotation(a)
                         .handlerFilter(handlerFilter).messageFilter(messageFilter).build())
-                .filter(config -> hasHandlerMethods(targetClass, config))
+                .filter(config -> isHandler(targetClass, config))
                 .map(config -> buildHandler(target, config))
                 .map(handlerDecorator::wrap);
+    }
+
+    protected boolean isHandler(Class<?> targetClass,
+                                HandlerConfiguration<?> handlerConfiguration) {
+        return hasHandlerMethods(targetClass, handlerConfiguration) || StaticFileHandler.isHandler(targetClass);
     }
 
     protected Handler<DeserializingMessage> buildHandler(@NonNull Object target,
@@ -177,13 +184,21 @@ public class DefaultHandlerFactory implements HandlerFactory {
             return createDefaultHandler(targetClass, m -> targetClass.equals(m.getPayloadClass())
                     ? m.getPayload() : instanceSupplier.get(), config);
         }
-        return createDefaultHandler(target.getClass(), m -> target, config);
+        return createDefaultHandler(target, m -> target, config);
     }
 
     protected Handler<DeserializingMessage> createDefaultHandler(
-            Class<?> targetClass, Function<DeserializingMessage, ?> targetSupplier,
+            Object target, Function<DeserializingMessage, ?> targetSupplier,
             HandlerConfiguration<DeserializingMessage> config) {
-        return new DefaultHandler<>(targetClass, targetSupplier, createHandlerMatcher(targetClass, config));
+        Class<?> targetClass = asClass(target);
+        Handler<DeserializingMessage> handler
+                = new DefaultHandler<>(targetClass, targetSupplier, createHandlerMatcher(target, config));
+        if (messageType == MessageType.WEBREQUEST) {
+            for (StaticFileHandler h : StaticFileHandler.forTargetClass(targetClass)) {
+                handler = handler.or(createDefaultHandler(h, m -> h, config));
+            }
+        }
+        return handler;
     }
 
     protected Class<? extends Annotation> getHandlerAnnotation(MessageType messageType) {
@@ -205,10 +220,10 @@ public class DefaultHandlerFactory implements HandlerFactory {
 
     @SuppressWarnings("SwitchStatementWithTooFewBranches")
     protected HandlerMatcher<Object, DeserializingMessage> createHandlerMatcher(
-            Class<?> targetClass, HandlerConfiguration<DeserializingMessage> config) {
+            Object target, HandlerConfiguration<DeserializingMessage> config) {
         return switch (messageType) {
-            case WEBREQUEST -> WebHandlerMatcher.create(targetClass, parameterResolvers, config);
-            default -> HandlerInspector.inspect(targetClass, parameterResolvers, config);
+            case WEBREQUEST -> WebHandlerMatcher.create(target, parameterResolvers, config);
+            default -> HandlerInspector.inspect(ReflectionUtils.asClass(target), parameterResolvers, config);
         };
     }
 
