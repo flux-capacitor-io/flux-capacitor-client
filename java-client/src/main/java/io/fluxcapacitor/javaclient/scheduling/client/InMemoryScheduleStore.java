@@ -125,8 +125,8 @@ public class InMemoryScheduleStore extends InMemoryMessageStore implements Sched
         }
     }
 
-    public synchronized List<Schedule> getSchedules(Serializer serializer) {
-        return asList(scheduleIdsByIndex, serializer);
+    public synchronized List<Schedule> getFutureSchedules(Serializer serializer) {
+        return asList(scheduleIdsByIndex.tailMap(indexFromMillis(clock.millis()), false), serializer);
     }
 
     public synchronized List<Schedule> removeExpiredSchedules(Serializer serializer) {

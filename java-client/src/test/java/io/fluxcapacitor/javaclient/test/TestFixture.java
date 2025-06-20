@@ -1008,7 +1008,7 @@ public class TestFixture implements Given, When {
 
     protected List<Schedule> getFutureSchedules() {
         return getFluxCapacitor().client().getSchedulingClient() instanceof LocalSchedulingClient local ?
-                local.getSchedules(getFluxCapacitor().serializer()) : emptyList();
+                local.getFutureSchedules(getFluxCapacitor().serializer()) : emptyList();
     }
 
     protected void waitForConsumers() {
