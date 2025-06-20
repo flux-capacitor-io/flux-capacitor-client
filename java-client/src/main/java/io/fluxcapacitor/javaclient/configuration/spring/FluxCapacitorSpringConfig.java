@@ -148,9 +148,12 @@ public class FluxCapacitorSpringConfig implements BeanPostProcessor {
     @EventListener
     public void handle(ContextRefreshedEvent event) {
         FluxCapacitor fluxCapacitor = context.getBean(FluxCapacitor.class);
+        Optional<SpringHandlerRegistry> handlerRegistry = getBean(SpringHandlerRegistry.class);
         List<Object> potentialHandlers = springBeans.stream()
                 .map(bean -> bean instanceof FluxPrototype prototype ? prototype.getType() : bean).toList();
-        handlerRegistration.updateAndGet(r -> r == null ? fluxCapacitor.registerHandlers(potentialHandlers) : r);
+        handlerRegistration.updateAndGet(r -> r == null ?
+                handlerRegistry.map(hr -> hr.registerHandlers(potentialHandlers))
+                        .orElseGet(() -> fluxCapacitor.registerHandlers(potentialHandlers)) : r);
         if (Thread.getDefaultUncaughtExceptionHandler() == null) {
             Thread.setDefaultUncaughtExceptionHandler((t, e) -> log.error("Uncaught exception", e));
         }

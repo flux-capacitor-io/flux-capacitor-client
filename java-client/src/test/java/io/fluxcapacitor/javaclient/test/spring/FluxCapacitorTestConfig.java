@@ -15,6 +15,7 @@
 package io.fluxcapacitor.javaclient.test.spring;
 
 
+import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.configuration.FluxCapacitorBuilder;
 import io.fluxcapacitor.javaclient.configuration.client.Client;
@@ -22,6 +23,7 @@ import io.fluxcapacitor.javaclient.configuration.client.LocalClient;
 import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient;
 import io.fluxcapacitor.javaclient.configuration.spring.FluxCapacitorCustomizer;
 import io.fluxcapacitor.javaclient.configuration.spring.FluxCapacitorSpringConfig;
+import io.fluxcapacitor.javaclient.configuration.spring.SpringHandlerRegistry;
 import io.fluxcapacitor.javaclient.test.TestFixture;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -146,6 +148,14 @@ public class FluxCapacitorTestConfig {
         return synchronous
                 ? TestFixture.create(fluxCapacitorBuilder)
                 : TestFixture.createAsync(fluxCapacitorBuilder, client);
+    }
+
+    @Bean
+    SpringHandlerRegistry springHandlerRegistry(TestFixture testFixture) {
+        return handlers -> {
+            testFixture.registerHandlers(handlers);
+            return Registration.noOp();
+        };
     }
 
     /**

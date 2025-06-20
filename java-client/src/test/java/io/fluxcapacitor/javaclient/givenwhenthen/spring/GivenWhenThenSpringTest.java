@@ -80,6 +80,11 @@ class GivenWhenThenSpringTest {
         testFixture.whenCommand(new DoSomething()).expectCommands(new DoSomethingElse());
     }
 
+    @Test
+    void testRequiresLocal() {
+        testFixture.whenCommand(new RequiresLocal()).expectExceptionalResult(MockException.class);
+    }
+
     @Component
     static class RecordCommandHandler {
         @HandleCommand
@@ -129,15 +134,7 @@ class GivenWhenThenSpringTest {
 
         @Test
         void testSyncEnabled() {
-            testFixture.registerHandlers(new Object() {
-                @HandleCommand
-                void handle(DoSomething command) {
-                    if (Tracker.current().isPresent()) {
-                        throw new MockException("this should not happen");
-                    }
-                    FluxCapacitor.publishEvent("sync");
-                }
-            }).whenCommand(new DoSomething()).expectEvents("sync").expectNoErrors();
+            testFixture.whenCommand(new RequiresLocal()).expectEvents(new RequiresLocal()).expectNoErrors();
         }
     }
 
@@ -260,6 +257,14 @@ class GivenWhenThenSpringTest {
         }
 
         @HandleCommand
+        public void handle(RequiresLocal command) {
+            if (Tracker.current().isPresent()) {
+                throw new MockException("this should not happen");
+            }
+            FluxCapacitor.publishEvent(command);
+        }
+
+        @HandleCommand
         public CompletableFuture<?> handle(SlowCommand command) {
             return CompletableFuture.runAsync(() -> sleepAWhile(500));
         }
@@ -329,5 +334,8 @@ class GivenWhenThenSpringTest {
 
     @Value
     private static class SlowCommand {
+    }
+
+    private record RequiresLocal() {
     }
 }
