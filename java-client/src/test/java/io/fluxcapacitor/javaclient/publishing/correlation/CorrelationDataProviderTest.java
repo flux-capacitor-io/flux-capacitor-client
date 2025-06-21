@@ -53,7 +53,8 @@ class CorrelationDataProviderTest {
                 .expectCommands(command.addMetadata("foo", "bar"))
                 .expectCommands((Predicate<Message>) c -> c.getMetadata().containsKey(defaultProvider.getClientIdKey()))
                 .expectEvents(command.addMetadata("foo", "bar", "msgId", command.getMessageId(),
-                                                  defaultProvider.getCorrelationIdKey(), command.getMessageId()));
+                                                  defaultProvider.getCorrelationIdKey(), command.getMessageId()))
+                .<Message>expectEvent(m -> m.getMetadata().containsKey(defaultProvider.getDelayKey()));
     }
 
     private static class CommandHandler {

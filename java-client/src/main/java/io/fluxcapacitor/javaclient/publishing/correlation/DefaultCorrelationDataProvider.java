@@ -24,10 +24,12 @@ import io.fluxcapacitor.javaclient.tracking.handling.Invocation;
 import jakarta.annotation.Nullable;
 import lombok.Getter;
 
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
+import static io.fluxcapacitor.javaclient.FluxCapacitor.currentTime;
 import static java.util.Optional.ofNullable;
 
 /**
@@ -77,7 +79,8 @@ public enum DefaultCorrelationDataProvider implements CorrelationDataProvider {
     private final String applicationIdKey = "$applicationId",
             clientIdKey = "$clientId", clientNameKey = "$clientName", consumerKey = "$consumer",
             trackerKey = "$tracker", correlationIdKey = "$correlationId", traceIdKey = "$traceId",
-            triggerKey = "$trigger", triggerTypeKey = "$triggerType", invocationKey = "$invocation";
+            triggerKey = "$trigger", triggerTypeKey = "$triggerType", invocationKey = "$invocation",
+            delayKey = "$msDelay";
 
     @Override
     public Map<String, String> getCorrelationData(@Nullable DeserializingMessage currentMessage) {
@@ -90,6 +93,7 @@ public enum DefaultCorrelationDataProvider implements CorrelationDataProvider {
             result.put(triggerKey, m.getType());
             result.put(triggerTypeKey, m.getMessageType().name());
             result.putAll(currentMessage.getMetadata().getTraceEntries());
+            result.put(delayKey, Long.toString(Duration.between(m.getTimestamp(), currentTime()).toMillis()));
         });
         return result;
     }
