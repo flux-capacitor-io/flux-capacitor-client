@@ -214,8 +214,7 @@ public interface FluxCapacitor extends AutoCloseable {
      * published as is. Otherwise the event is published using the passed value as payload without additional metadata.
      *
      * <p><strong>Note:</strong> These events are <em>not</em> persisted for event sourcing. To publish domain events
-     * as
-     * part of an aggregate lifecycle, apply the events using {@link Entity#apply} after loading an entity.</p>
+     * as part of an aggregate lifecycle, apply the events using {@link Entity#apply} after loading an entity.</p>
      *
      * @see #aggregateRepository() if you're interested in publishing events that belong to an aggregate.
      */
@@ -227,8 +226,7 @@ public interface FluxCapacitor extends AutoCloseable {
      * Publishes an event with given payload and metadata.
      *
      * <p><strong>Note:</strong> These events are <em>not</em> persisted for event sourcing. To publish domain events
-     * as
-     * part of an aggregate lifecycle, apply the events using {@link Entity#apply} after loading an entity.</p>
+     * as part of an aggregate lifecycle, apply the events using {@link Entity#apply} after loading an entity.</p>
      *
      * @see #publishEvent(Object) for more info
      */
@@ -241,8 +239,7 @@ public interface FluxCapacitor extends AutoCloseable {
      * published as is. Otherwise, the events are published using the passed value as payload without additional
      * metadata.
      * <p><strong>Note:</strong> These events are <em>not</em> persisted for event sourcing. To publish domain events
-     * as
-     * part of an aggregate lifecycle, apply the events using {@link Entity#apply} after loading an entity.</p>
+     * as part of an aggregate lifecycle, apply the events using {@link Entity#apply} after loading an entity.</p>
      *
      * @see #aggregateRepository() if you're interested in publishing events that belong to an aggregate.
      */
@@ -519,6 +516,15 @@ public interface FluxCapacitor extends AutoCloseable {
     }
 
     /**
+     * Schedule a message object (of type {@link Schedule}) for execution, using the {@link Guarantee#SENT} guarantee.
+     *
+     * @param schedule the message to schedule
+     */
+    static void schedule(Schedule schedule, boolean ifAbsent) {
+        get().messageScheduler().schedule(schedule, ifAbsent);
+    }
+
+    /**
      * Schedules a command for the given timestamp, returning the command schedule's id. The {@code command} parameter
      * may be an instance of a {@link Message} in which case it will be scheduled as is. Otherwise, the command is
      * scheduled using the passed value as payload without additional metadata.
@@ -552,6 +558,21 @@ public interface FluxCapacitor extends AutoCloseable {
      */
     static void scheduleCommand(Object command, String scheduleId, Duration delay) {
         get().messageScheduler().scheduleCommand(command, scheduleId, delay);
+    }
+
+    /**
+     * Schedule a command using the given scheduling settings, using the {@link Guarantee#SENT} guarantee.
+     */
+    static void scheduleCommand(Schedule message) {
+        get().messageScheduler().scheduleCommand(message);
+    }
+
+    /**
+     * Schedule a command using the given scheduling settings if no other with same ID exists, using the
+     * {@link Guarantee#SENT} guarantee.
+     */
+    static void scheduleCommand(Schedule message, boolean ifAbsent) {
+        get().messageScheduler().scheduleCommand(message, ifAbsent);
     }
 
     /**
@@ -889,7 +910,7 @@ public interface FluxCapacitor extends AutoCloseable {
     /**
      * Downcasts the given object to a previous revision.
      *
-     * @param object the object to downcast
+     * @param object          the object to downcast
      * @param desiredRevision the target revision
      * @return a serialized form of the object downcasted to the given revision
      */
@@ -900,7 +921,7 @@ public interface FluxCapacitor extends AutoCloseable {
     /**
      * Downcasts a {@link Data} object to the specified revision level.
      *
-     * @param data the serialized data
+     * @param data            the serialized data
      * @param desiredRevision the target revision number
      * @return a serialized form of the object downcasted to the given revision
      */
