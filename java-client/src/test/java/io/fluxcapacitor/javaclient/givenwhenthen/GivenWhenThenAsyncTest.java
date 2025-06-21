@@ -43,6 +43,7 @@ import java.util.concurrent.TimeoutException;
 import static io.fluxcapacitor.common.MessageType.COMMAND;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class GivenWhenThenAsyncTest {
 
@@ -59,6 +60,12 @@ class GivenWhenThenAsyncTest {
     @Test
     void testExpectFunctionalException() {
         testFixture.whenCommand(new YieldsException()).expectExceptionalResult(MockException.class);
+    }
+
+    @Test
+    void testExceptionFromGiven() {
+        assertThrows(Exception.class, () -> testFixture.givenCommands(new YieldsException()));
+        testFixture.ignoringErrors().givenCommands(new YieldsException());
     }
 
     @Test

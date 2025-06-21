@@ -350,4 +350,10 @@ public interface Given extends When {
      */
     Given withBean(Object bean);
 
+    /**
+     * Instructs the test fixture to ignore any exceptions that occur during the {@code Given} phase.
+     * <p>
+     * Errors in a later phase will still be recorded.
+     */
+    Given ignoringErrors();
 }

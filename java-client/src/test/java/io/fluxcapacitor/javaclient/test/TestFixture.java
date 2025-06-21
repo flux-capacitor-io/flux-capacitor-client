@@ -324,6 +324,7 @@ public class TestFixture implements Given, When {
     private final GivenWhenThenInterceptor interceptor;
     private Duration resultTimeout = defaultResultTimeout;
     private Duration consumerTimeout = defaultConsumerTimeout;
+    private boolean ignoreErrorsInGiven;
     private final boolean synchronous;
     private final boolean spying;
     private final boolean productionUserProvider;
@@ -604,6 +605,11 @@ public class TestFixture implements Given, When {
     @Override
     public TestFixture withBean(Object bean) {
         return modifyFixture(fixture -> fixture.beanParameterResolver.registerBean(bean));
+    }
+
+    @Override
+    public TestFixture ignoringErrors() {
+        return modifyFixture(fixture -> fixture.ignoreErrorsInGiven = true);
     }
 
     protected TestFixture modifyFixture(ThrowingConsumer<TestFixture> modifier) {
@@ -1115,15 +1121,24 @@ public class TestFixture implements Given, When {
     @SuppressWarnings("unchecked")
     protected <R> R getDispatchResult(CompletableFuture<?> dispatchResult) {
         try {
-            return (R) (synchronous
-                    ? dispatchResult.get(0, MILLISECONDS)
-                    : dispatchResult.get(resultTimeout.toMillis(), MILLISECONDS));
-        } catch (ExecutionException e) {
-            throw e.getCause();
-        } catch (TimeoutException e) {
-            throw new TimeoutException("Test fixture did not receive a dispatch result in time. "
-                                       + "Perhaps some messages did not have handlers?");
+            try {
+                return (R) (synchronous
+                        ? dispatchResult.get(0, MILLISECONDS)
+                        : dispatchResult.get(resultTimeout.toMillis(), MILLISECONDS));
+            } catch (ExecutionException e) {
+                throw e.getCause();
+            } catch (TimeoutException e) {
+                throw new TimeoutException("Test fixture did not receive a dispatch result in time. "
+                                           + "Perhaps some messages did not have handlers?");
+            }
+        } catch (Throwable e) {
+            if (ignoreErrorsInGiven && !fixtureResult.isCollectingResults()) {
+                log.info("Ignoring error in given:", e);
+                return null;
+            }
+            throw e;
         }
+
     }
 
     protected Stream<Message> asMessages(Class<?> callerClass, Object... messages) {
