@@ -803,6 +803,10 @@ public class TestFixture implements Given, When {
                 fixture.waitForConsumers();
             });
         } catch (Throwable e) {
+            if (ignoreErrorsInGiven) {
+                log.info("Ignoring error in given:", e);
+                return this;
+            }
             throw new IllegalStateException("Failed to execute given", e);
         }
     }
@@ -1121,24 +1125,15 @@ public class TestFixture implements Given, When {
     @SuppressWarnings("unchecked")
     protected <R> R getDispatchResult(CompletableFuture<?> dispatchResult) {
         try {
-            try {
-                return (R) (synchronous
-                        ? dispatchResult.get(0, MILLISECONDS)
-                        : dispatchResult.get(resultTimeout.toMillis(), MILLISECONDS));
-            } catch (ExecutionException e) {
-                throw e.getCause();
-            } catch (TimeoutException e) {
-                throw new TimeoutException("Test fixture did not receive a dispatch result in time. "
-                                           + "Perhaps some messages did not have handlers?");
-            }
-        } catch (Throwable e) {
-            if (ignoreErrorsInGiven && !fixtureResult.isCollectingResults()) {
-                log.info("Ignoring error in given:", e);
-                return null;
-            }
-            throw e;
+            return (R) (synchronous
+                    ? dispatchResult.get(0, MILLISECONDS)
+                    : dispatchResult.get(resultTimeout.toMillis(), MILLISECONDS));
+        } catch (ExecutionException e) {
+            throw e.getCause();
+        } catch (TimeoutException e) {
+            throw new TimeoutException("Test fixture did not receive a dispatch result in time. "
+                                       + "Perhaps some messages did not have handlers?");
         }
-
     }
 
     protected Stream<Message> asMessages(Class<?> callerClass, Object... messages) {
