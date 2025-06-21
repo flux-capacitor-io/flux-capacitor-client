@@ -70,7 +70,6 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.SneakyThrows;
 import lombok.Value;
-import lombok.experimental.Delegate;
 import lombok.extern.slf4j.Slf4j;
 
 import java.net.HttpCookie;
@@ -332,7 +331,6 @@ public class TestFixture implements Given, When {
 
     private final Map<ActiveConsumer, List<Message>> consumers = new ConcurrentHashMap<>();
 
-    @Delegate
     private FixtureResult fixtureResult = new FixtureResult();
 
     private final BeanParameterResolver beanParameterResolver = new BeanParameterResolver();
@@ -911,7 +909,7 @@ public class TestFixture implements Given, When {
             handleExpiredSchedulesLocally(true);
             waitForConsumers();
             resetMocks();
-            setCollectingResults(true);
+            fixtureResult.setCollectingResults(true);
             Object result;
             try {
                 result = action.apply(fc);
@@ -922,7 +920,7 @@ public class TestFixture implements Given, When {
                 registerError(e);
                 result = e;
             }
-            setResult(result);
+            fixtureResult.setResult(result);
             waitForConsumers();
             handleExpiredSchedulesLocally(true);
             return new ResultValidator<>(this);
@@ -1076,41 +1074,41 @@ public class TestFixture implements Given, When {
     }
 
     protected void registerCommand(Message command) {
-        getCommands().add(command);
+        fixtureResult.getCommands().add(command);
     }
 
     protected void registerQuery(Message query) {
-        getQueries().add(query);
+        fixtureResult.getQueries().add(query);
     }
 
     protected void registerMetric(Message metric) {
-        getMetrics().add(metric);
+        fixtureResult.getMetrics().add(metric);
     }
 
     protected void registerCustom(String topic, Message message) {
-        getCustomMessages().computeIfAbsent(topic, t -> new CopyOnWriteArrayList<>()).add(message);
+        fixtureResult.getCustomMessages().computeIfAbsent(topic, t -> new CopyOnWriteArrayList<>()).add(message);
     }
 
     protected void registerEvent(Message event) {
-        getEvents().add(event);
+        fixtureResult.getEvents().add(event);
     }
 
     protected void registerWebRequest(Message request) {
-        getWebRequests().add(request);
+        fixtureResult.getWebRequests().add(request);
     }
 
     protected void registerWebResponse(WebResponse response) {
         if (!response.getMetadata().contains("function", "ack")) {
-            getWebResponses().add(response);
+            fixtureResult.getWebResponses().add(response);
         }
     }
 
     protected void registerSchedule(Schedule schedule) {
-        getSchedules().add(schedule);
+        fixtureResult.getSchedules().add(schedule);
     }
 
     protected void registerError(Throwable e) {
-        getErrors().addIfAbsent(e);
+        fixtureResult.getErrors().addIfAbsent(e);
     }
 
     @SneakyThrows
@@ -1153,7 +1151,7 @@ public class TestFixture implements Given, When {
     protected <M extends Message> M trace(Object object) {
         Class<?> callerClass = getCallerClass();
         M result = (M) fluxCapacitor.apply(fc -> asMessage(parseObject(object, callerClass)));
-        setTracedMessage(result);
+        fixtureResult.setTracedMessage(result);
         return result;
     }
 
@@ -1166,7 +1164,7 @@ public class TestFixture implements Given, When {
     protected <T> T parseObject(Object object, Class<?> callerClass) {
         if (object instanceof WebRequest message && WebUtils.hasPathParameter(message.getPath())) {
             String replacementUrl = message.getPath();
-            var webParams = getKnownWebParams();
+            var webParams = fixtureResult.getKnownWebParams();
             for (Map.Entry<String, String> entry : webParams.entrySet()) {
                 replacementUrl = WebUtils.replacePathParameter(replacementUrl, entry.getKey(), entry.getValue());
             }
@@ -1204,7 +1202,7 @@ public class TestFixture implements Given, When {
     }
 
     protected Optional<Object> lastResultValue() {
-        if (getPreviousResult() != null && getPreviousResult().getResult() instanceof Object v) {
+        if (fixtureResult.getPreviousResult() != null && fixtureResult.getPreviousResult().getResult() instanceof Object v) {
             var value = v instanceof WebResponse r ? r.getPayload() instanceof Object rv ? rv : null : v;
             return Optional.ofNullable(value);
         }
@@ -1243,7 +1241,7 @@ public class TestFixture implements Given, When {
 
         protected void interceptClientDispatch(MessageType messageType, String topic,
                                                List<SerializedMessage> messages) {
-            if (testFixture.isCollectingResults()) {
+            if (testFixture.fixtureResult.isCollectingResults()) {
                 try {
                     testFixture.fluxCapacitor.serializer()
                             .deserializeMessages(messages.stream()
@@ -1265,7 +1263,7 @@ public class TestFixture implements Given, When {
 
         @Override
         public void monitorDispatch(Message message, MessageType messageType, String topic) {
-            if (testFixture.isCollectingResults()) {
+            if (testFixture.fixtureResult.isCollectingResults()) {
                 interceptedMessageIds.add(message.getMessageId());
             }
 
@@ -1301,7 +1299,7 @@ public class TestFixture implements Given, When {
         }
 
         protected Boolean captureMessage(Message message) {
-            return testFixture.isCollectingResults()
+            return testFixture.fixtureResult.isCollectingResults()
                    && Optional.ofNullable(testFixture.getFixtureResult().getTracedMessage())
                            .map(t -> !Objects.equals(t.getMessageId(), message.getMessageId())).orElse(true);
         }
