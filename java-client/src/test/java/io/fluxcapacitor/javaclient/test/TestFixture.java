@@ -25,6 +25,7 @@ import io.fluxcapacitor.common.ThrowingConsumer;
 import io.fluxcapacitor.common.ThrowingFunction;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.SerializedObject;
+import io.fluxcapacitor.common.api.scheduling.SerializedSchedule;
 import io.fluxcapacitor.common.api.tracking.MessageBatch;
 import io.fluxcapacitor.common.application.SimplePropertySource;
 import io.fluxcapacitor.common.handling.Handler;
@@ -1011,6 +1012,11 @@ public class TestFixture implements Given, When {
                 local.getFutureSchedules(getFluxCapacitor().serializer()) : emptyList();
     }
 
+    protected SerializedSchedule getSchedule(String scheduleId) {
+        return getFluxCapacitor().client().getSchedulingClient() instanceof LocalSchedulingClient local ?
+                local.getSchedule(scheduleId) : null;
+    }
+
     protected void waitForConsumers() {
         if (synchronous) {
             return;
@@ -1210,8 +1216,17 @@ public class TestFixture implements Given, When {
             return true;
         }
         synchronized (consumers) {
+            //either all consumer messages have been processed (aka removed), or they're schedules firing in the future
             if (consumers.values().stream().allMatch(l -> l.stream().allMatch(
-                    m -> m instanceof Schedule && ((Schedule) m).getDeadline().isAfter(getCurrentTime())))) {
+                    m -> {
+                        if (m instanceof Schedule s) {
+                            //ensure schedule isn't canceled or expired
+                            var currentSchedule = getSchedule(s.getScheduleId());
+                            return currentSchedule == null || Instant.ofEpochMilli(currentSchedule.getTimestamp())
+                                    .isAfter(getCurrentTime());
+                        }
+                        return false;
+                    }))) {
                 consumers.notifyAll();
                 return true;
             }
