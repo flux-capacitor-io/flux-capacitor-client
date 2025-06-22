@@ -15,6 +15,7 @@
 package io.fluxcapacitor.javaclient.givenwhenthen;
 
 import io.fluxcapacitor.javaclient.test.TestFixture;
+import io.fluxcapacitor.javaclient.tracking.handling.IllegalCommandException;
 import io.fluxcapacitor.javaclient.web.HandleGet;
 import io.fluxcapacitor.javaclient.web.HandlePost;
 import io.fluxcapacitor.javaclient.web.HandleWeb;
@@ -63,6 +64,13 @@ public class GivenWhenThenWebTest {
         }
 
         @Test
+        void testPostForError() {
+            testFixture.whenPost("/error", "body")
+                    .expectExceptionalResult(IllegalCommandException.class)
+                    .expectWebResponse(r -> r.getStatus() == 403);
+        }
+
+        @Test
         void testPostString_missingParam() {
             assertThrows(IllegalStateException.class, () -> testFixture.whenPost("/followUp/{var1}", null));
         }
@@ -85,6 +93,11 @@ public class GivenWhenThenWebTest {
             @HandleWeb(value = "/string", method = POST)
             String post() {
                 return "val1";
+            }
+
+            @HandlePost("/error")
+            void postForError(String body) {
+                throw new IllegalCommandException("error: " + body);
             }
 
             @HandlePost("/followUp/{var1}")

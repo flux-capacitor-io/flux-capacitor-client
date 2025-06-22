@@ -221,7 +221,8 @@ public class HandleWebTest {
             TestFixture.create(DefaultFluxCapacitor.builder().registerUserProvider(
                             new FixedUserProvider(new MockUser())), new Handler())
                     .whenGet("/getUser")
-                    .expectResult(User.class);
+                    .expectResult(User.class)
+                    .expectWebResponse(r -> r.getStatus() == 200);
         }
 
         @Test

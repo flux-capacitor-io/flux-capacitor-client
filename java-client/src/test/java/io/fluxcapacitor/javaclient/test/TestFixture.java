@@ -880,12 +880,20 @@ public class TestFixture implements Given, When {
     public Then<Object> whenWebRequest(WebRequest request) {
         WebRequest message = trace(request);
         return whenApplying(fc -> {
-            var response = executeWebRequest(message);
-            if (response != null && synchronous
-                && (response.getPayload() != null || !isWebsocket(request.getMethod()))) {
-                registerWebResponse(response);
+            try {
+                var response = executeWebRequest(message);
+                if (response != null && synchronous
+                    && (response.getPayload() != null || !isWebsocket(request.getMethod()))) {
+                    registerWebResponse(response);
+                }
+                return response;
+            } catch (Throwable e) {
+                try {
+                    registerWebResponse(fluxCapacitor.configuration().webResponseMapper().map(e));
+                } catch (Throwable ignored) {
+                }
+                throw e;
             }
-            return response;
         });
     }
 

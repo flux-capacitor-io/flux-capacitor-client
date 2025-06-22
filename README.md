@@ -108,10 +108,9 @@ dependencies {
 
 ---
 
-### 🔖 Tip
-
-You only need to update the version number **once** in the BOM reference. All included modules will automatically align
-with it.
+> 🔖 **Tip:** You only need to update the version number **once** in the BOM reference. All included modules will
+> automatically align
+> with it.
 
 ---
 
@@ -219,7 +218,7 @@ What follows is a summary of the most important features.
 
 ## Table of Contents
 
-### 📦 Messaging
+### Messaging
 
 - [Message Handling](#message-handling)
 - [Tracking Messages](#tracking-messages)
@@ -239,7 +238,7 @@ What follows is a summary of the most important features.
 - [Outbound Web Requests](#outbound-web-requests)
 - [Metrics Messages](#metrics-messages)
 
-### 🧠 Domain Modeling, Persistence, and Search
+### Domain Modeling, Persistence, and Search
 
 - [Domain Modeling](#domain-modeling)
 - [Applying Updates to Entities](#applying-updates-to-entities)
@@ -249,14 +248,14 @@ What follows is a summary of the most important features.
 - [Document Indexing and Search](#document-indexing-and-search)
 - [Tracking and Updating Documents](#tracking-and-updating-documents)
 
-### 🛡️ Data Handling and Serialization
+### Data Handling and Serialization
 
 - [Protecting Sensitive Data](#protecting-sensitive-data)
 - [Serialization, Upcasting, and Downcasting](#serialization-upcasting-and-downcasting)
 - [Filtering Object Content](#filtering-object-content)
 - [Kotlin Support](#kotlin-support)
 
-### 🛠️ Configuration and Extensibility
+### Configuration and Extensibility
 
 - [Configuring Application Properties](#configuring-application-properties)
 - [Parameter Injection with Custom Resolvers](#parameter-injection-with-custom-resolvers)
@@ -2217,8 +2216,10 @@ This will serve all files under `/static` (from the classpath or file system) un
 ### Example: Serving a React App
 
 ```java
+
 @ServeStatic(value = "/app", resourcePath = "/static", fallbackFile = "index.html")
-public class WebFrontend { ... }
+public class WebFrontend { ...
+}
 ```
 
 This will serve files under `/app/**` and fallback to `index.html` for unknown paths—ideal for single-page apps.
@@ -2230,7 +2231,8 @@ This will serve files under `/app/**` and fallback to `index.html` for unknown p
 > If the `resourcePath` starts with `classpath:`, **only classpath resources** are served.  
 > If it starts with `file:`, **only file system resources** are served.
 
-This allows precise control over where content is loaded from and ensures classpath-only or file-system-only resolution depending on the use case.
+This allows precise control over where content is loaded from and ensures classpath-only or file-system-only resolution
+depending on the use case.
 
 #### Combining Static and Dynamic Handlers
 
@@ -2242,6 +2244,7 @@ This is especially useful when your application serves a combination of:
 - **Dynamic endpoints** like REST APIs or view-rendered pages
 
 ```java
+
 @Path("/app")
 @ServeStatic("static") // serves static files from the /static resource directory for web paths /app/static/**
 public class AppController {
@@ -2263,7 +2266,8 @@ This will:
 - Serve `/app/static/index.html`, `/app/static/styles.css`, etc. from the `static/` resource directory
 - Also respond to `/app/status` and `/app/submit` dynamically
 
-The static file handling applies to all routes **not matched** by other methods in the class. This makes it ideal for combining SPAs or hybrid web apps with API endpoints under a shared route prefix.
+The static file handling applies to all routes **not matched** by other methods in the class. This makes it ideal for
+combining SPAs or hybrid web apps with API endpoints under a shared route prefix.
 
 ---
 
@@ -2431,7 +2435,7 @@ As always, the `.json` file is automatically loaded from the classpath, allowing
 
 ---
 
-#### Example: Querying with `GET`
+### Example: Querying with `GET`
 
 You can test GET endpoints just as easily. This example first registers a game via `POST /games`, then fetches the list
 of all games via `GET /games` and checks the result:
@@ -2443,7 +2447,8 @@ void getGames() {
     testFixture
             .givenPost("/games", "/game/game-details.json")   // Precondition: register a game
             .whenGet("/games")                                // Perform GET request
-            .<List<Game>>expectResult(r -> r.size() == 1);    // Assert one game is returned
+            .<List<Game>>expectResult(r -> r.size() == 1)     // Assert one game is returned
+            .expectWebResponse(r -> r.getStatus() == 200);    // Assert the status of the response
 }
 ```
 
@@ -2460,7 +2465,39 @@ CompletableFuture<List<Game>> getGames(@QueryParam String term) {
 
 ---
 
-#### ℹ️ Path Parameter Substitution in Tests
+### Testing Error Responses and Exceptions
+
+Flux Capacitor also allows you to verify how your web endpoints handle exceptional scenarios. This includes asserting
+the type of exception thrown as well as inspecting the resulting HTTP status code or response body.
+
+Here’s a test that triggers a `403 Forbidden` error by throwing an `IllegalCommandException`:
+
+```java
+
+@Test
+void postReturnsError() {
+    testFixture
+            .whenPost("/error", "body")                              // Simulate POST request
+            .expectExceptionalResult(IllegalCommandException.class)  // Assert thrown exception
+            .expectWebResponse(r -> r.getStatus() == 403);           // Assert HTTP 403 response
+}
+```
+
+The corresponding handler might look like:
+
+```java
+
+@HandlePost("/error")
+void postForError(String body) {
+    throw new IllegalCommandException("error: " + body);
+}
+```
+
+This enables robust testing of both successful and failure paths for all your web request handlers.
+
+---
+
+### Path Parameter Substitution in Tests
 
 When simulating web requests, Flux Capacitor automatically substitutes `{...}` placeholders in the request path using
 results from previous steps:
