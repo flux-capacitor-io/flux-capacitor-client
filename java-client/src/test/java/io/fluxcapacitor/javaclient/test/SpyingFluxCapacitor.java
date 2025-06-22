@@ -21,6 +21,7 @@ import io.fluxcapacitor.common.application.PropertySource;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.IdentityProvider;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
+import io.fluxcapacitor.javaclient.configuration.FluxCapacitorConfiguration;
 import io.fluxcapacitor.javaclient.configuration.client.Client;
 import io.fluxcapacitor.javaclient.persisting.caching.Cache;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventStore;
@@ -221,6 +222,11 @@ public class SpyingFluxCapacitor implements FluxCapacitor {
     @Override
     public TaskScheduler taskScheduler() {
         return delegate.taskScheduler();
+    }
+
+    @Override
+    public FluxCapacitorConfiguration configuration() {
+        return delegate.configuration();
     }
 
     @Override

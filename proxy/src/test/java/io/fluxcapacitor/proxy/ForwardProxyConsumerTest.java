@@ -116,8 +116,7 @@ class ForwardProxyConsumerTest {
         });
         testFixture
                 .whenWebRequest(WebRequest.builder().url("http://localhost:" + port).method(GET).build())
-                .<WebResponse>expectResultMessage(
-                        r -> r.getStatus() == 200 && "test".equals(new String(r.<byte[]>getPayload())));
+                .expectWebResult(r -> r.getStatus() == 200 && "test".equals(new String(r.<byte[]>getPayload())));
     }
 
     @Test

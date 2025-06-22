@@ -34,6 +34,7 @@ import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.FilterContent;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
+import io.fluxcapacitor.javaclient.configuration.FluxCapacitorConfiguration;
 import io.fluxcapacitor.javaclient.configuration.client.Client;
 import io.fluxcapacitor.javaclient.configuration.spring.FluxCapacitorSpringConfig;
 import io.fluxcapacitor.javaclient.modeling.Aggregate;
@@ -1101,6 +1102,11 @@ public interface FluxCapacitor extends AutoCloseable {
      * Returns the {@link TaskScheduler} of this FluxCapacitor instance.
      */
     TaskScheduler taskScheduler();
+
+    /**
+     * Returns the {@link FluxCapacitorConfiguration} of this FluxCapacitor instance.
+     */
+    FluxCapacitorConfiguration configuration();
 
     /**
      * Returns the low level client used by this FluxCapacitor instance to interface with the Flux Capacitor service. Of

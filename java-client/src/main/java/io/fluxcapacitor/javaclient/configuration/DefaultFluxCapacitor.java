@@ -179,6 +179,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
     private final PropertySource propertySource;
     private final DelegatingClock clock;
     private final TaskScheduler taskScheduler;
+    private final FluxCapacitorConfiguration configuration;
     private final Client client;
     private final ThrowingRunnable shutdownHandler;
 
@@ -238,6 +239,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         }
     }
 
+    @Getter
     public static class Builder implements FluxCapacitorBuilder {
 
         private Serializer serializer = new JacksonSerializer();
@@ -819,7 +821,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                                             keyValueStore, documentStore,
                                             messageScheduler, userProvider, cache, serializer, correlationDataProvider,
                                             identityProvider, propertySource,
-                                            clock, taskScheduler, client, shutdownHandler);
+                                            clock, taskScheduler, this, client, shutdownHandler);
         }
 
         protected ConsumerConfiguration getDefaultConsumerConfiguration(MessageType messageType) {

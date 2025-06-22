@@ -50,7 +50,7 @@ import java.util.function.UnaryOperator;
  * primarily used via {@link io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor} but can be extended or
  * wrapped for deeper integrations.
  */
-public interface FluxCapacitorBuilder {
+public interface FluxCapacitorBuilder extends FluxCapacitorConfiguration {
 
     /**
      * Update the default consumer configuration for the specified message type.
