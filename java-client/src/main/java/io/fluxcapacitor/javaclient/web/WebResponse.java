@@ -108,15 +108,15 @@ public class WebResponse extends Message {
     /**
      * Constructs a new WebResponse instance using the provided Message object.
      *
-     * @param m the {@code Message} object from which the payload, metadata, message ID, and timestamp are extracted
-     *          to initialize the WebResponse.
+     * @param m the {@code Message} object from which the payload, metadata, message ID, and timestamp are extracted to
+     *          initialize the WebResponse.
      */
     public WebResponse(Message m) {
         this(m.getPayload(), m.getMetadata(), m.getMessageId(), m.getTimestamp());
     }
 
     public static WebResponse ok(Object payload, Map<String, String> headers) {
-        return builder().status(200).payload(payload).singleValuedHeaders(headers).build();
+        return builder().status(200).singleValuedHeaders(headers).payload(payload).build();
     }
 
     public static WebResponse ok(ThrowingSupplier<? extends InputStream> inputStreamSupplier,
@@ -124,8 +124,10 @@ public class WebResponse extends Message {
         return ok(new LazyInputStream(inputStreamSupplier), headers);
     }
 
-    public static WebResponse partial(ThrowingSupplier<? extends InputStream> inputStreamSupplier, Map<String, String> headers) {
-        return builder().status(206).payload(new LazyInputStream(inputStreamSupplier)).singleValuedHeaders(headers).build();
+    public static WebResponse partial(ThrowingSupplier<? extends InputStream> inputStreamSupplier,
+                                      Map<String, String> headers) {
+        return builder().status(206).singleValuedHeaders(headers).payload(new LazyInputStream(inputStreamSupplier))
+                .build();
     }
 
     public static WebResponse notModified(Map<String, String> headers) {
@@ -151,8 +153,8 @@ public class WebResponse extends Message {
      * Constructs a Metadata object containing the provided status code and headers.
      *
      * @param statusCode the HTTP status code to be included in the metadata
-     * @param headers a map of HTTP headers where each key is a header name and the corresponding
-     *                value is a list of header values
+     * @param headers    a map of HTTP headers where each key is a header name and the corresponding value is a list of
+     *                   header values
      * @return a Metadata object containing the status code and headers
      */
     public static Metadata asMetadata(int statusCode, Map<String, List<String>> headers) {
@@ -226,15 +228,14 @@ public class WebResponse extends Message {
     }
 
     /**
-     * Retrieves the headers from the provided metadata.
+     * Retrieves a case-insensitive map of headers from the provided Metadata object.
      *
-     * @param metadata the metadata object from which headers should be retrieved
-     * @return a map containing header names as keys and a list of corresponding header values. If no headers are found,
-     * an empty map is returned.
+     * @param metadata the Metadata object from which headers should be extracted
+     * @return a map of headers where the keys are header names and the values are lists of header values; if no headers
+     * are found, returns an empty case-insensitive map
      */
-    @SuppressWarnings("unchecked")
     public static Map<String, List<String>> getHeaders(Metadata metadata) {
-        return Optional.ofNullable(metadata.get("headers", Map.class)).orElse(Collections.emptyMap());
+        return WebUtils.getHeaders(metadata);
     }
 
     /**

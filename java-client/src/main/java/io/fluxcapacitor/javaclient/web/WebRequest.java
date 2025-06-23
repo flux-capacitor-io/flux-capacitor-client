@@ -47,7 +47,6 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static io.fluxcapacitor.common.api.Data.JSON_FORMAT;
-import static io.fluxcapacitor.javaclient.web.WebUtils.asHeaderMap;
 
 /**
  * Represents a web request message within the Flux platform.
@@ -309,37 +308,63 @@ public class WebRequest extends Message {
         return new Builder(this);
     }
 
+    /**
+     * Extracts the request path from the provided Metadata object.
+     *
+     * @param metadata the metadata object containing the request path information
+     * @return the request path as a string
+     * @throws IllegalStateException if the request path information is missing in the metadata
+     */
     public static String getUrl(Metadata metadata) {
         return Optional.ofNullable(metadata.get("url")).map(u -> u.startsWith("/") || u.contains("://") ? u : "/" + u)
                 .orElseThrow(() -> new IllegalStateException("WebRequest is malformed: url is missing"));
     }
 
+    /**
+     * Extracts the HTTP or WebSocket method (e.g., "GET", "POST", "WS_OPEN") from the provided Metadata object.
+     *
+     * @param metadata the metadata object containing the method information
+     * @return the HTTP or WebSocket method as a string
+     * @throws IllegalStateException if the method information is missing in the metadata
+     */
     public static String getMethod(Metadata metadata) {
         return Optional.ofNullable(metadata.get("method"))
                 .orElseThrow(() -> new IllegalStateException("WebRequest is malformed: http method is missing"));
     }
 
-    @SuppressWarnings("unchecked")
+    /**
+     * Retrieves a case-insensitive map of headers from the provided Metadata object.
+     */
     public static Map<String, List<String>> getHeaders(Metadata metadata) {
-        return Optional.ofNullable(metadata.get("headers", Map.class))
-                .map(map -> asHeaderMap(map))
-                .orElseGet(WebUtils::emptyHeaderMap);
+        return WebUtils.getHeaders(metadata);
     }
 
+    /**
+     * Retrieves the first header value for the given name from the provided Metadata object.
+     */
     public static Optional<String> getHeader(Metadata metadata, String name) {
-        return getHeaders(metadata).getOrDefault(name, Collections.emptyList()).stream().findFirst();
+        return WebUtils.getHeader(metadata, name);
     }
 
+    /**
+     * Retrieves the first cookie with the given name from the provided Metadata object.
+     */
     public static Optional<HttpCookie> getCookie(Metadata metadata, String name) {
         return getHeaders(metadata).getOrDefault("Cookie", Collections.emptyList())
                 .stream().findFirst().map(WebUtils::parseRequestCookieHeader).orElseGet(Collections::emptyList)
                 .stream().filter(c -> Objects.equals(c.getName(), name)).findFirst();
     }
 
+    /**
+     * Retrieves the WebSocket session ID from the provided metadata.
+     */
     public static String getSocketSessionId(Metadata metadata) {
         return metadata.get("sessionId");
     }
 
+    /**
+     * Retrieves the WebSocket session ID from the provided metadata or throws an exception if it is missing.
+     */
     public static String requireSocketSessionId(Metadata metadata) {
         return metadata.getOrThrow("sessionId", () -> new IllegalStateException(
                 "`sessionId` is missing in the metadata of the WebRequest"));

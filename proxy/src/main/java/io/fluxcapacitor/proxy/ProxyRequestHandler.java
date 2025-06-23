@@ -24,6 +24,7 @@ import io.fluxcapacitor.javaclient.publishing.client.GatewayClient;
 import io.fluxcapacitor.javaclient.web.HttpRequestMethod;
 import io.fluxcapacitor.javaclient.web.WebRequest;
 import io.fluxcapacitor.javaclient.web.WebResponse;
+import io.fluxcapacitor.javaclient.web.WebUtils;
 import io.undertow.Undertow;
 import io.undertow.server.DefaultByteBufferPool;
 import io.undertow.server.HttpHandler;
@@ -51,6 +52,7 @@ import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -180,11 +182,12 @@ public class ProxyRequestHandler implements HttpHandler, AutoCloseable {
         }
         if (responseMessage.chunked()) {
             if (!se.isBlocking()) {
-                se.startBlocking();
+                prepareForSending(responseMessage, se, statusCode).startBlocking();
             }
-            se.getOutputStream().write(responseMessage.getData().getValue());
+            var out = se.getOutputStream();
+            out.write(responseMessage.getData().getValue());
             if (responseMessage.lastChunk()) {
-                se.getOutputStream().close();
+                out.close();
             }
         } else {
             sendResponse(responseMessage, prepareForSending(responseMessage, se, statusCode));
@@ -194,14 +197,17 @@ public class ProxyRequestHandler implements HttpHandler, AutoCloseable {
     protected HttpServerExchange prepareForSending(SerializedMessage responseMessage, HttpServerExchange se, int statusCode) {
         se.setStatusCode(statusCode);
         boolean http2 = se.getProtocol().compareTo(Protocols.HTTP_1_1) > 0;
-        WebResponse.getHeaders(responseMessage.getMetadata()).forEach(
+        Map<String, List<String>> headers = WebUtils.getHeaders(responseMessage.getMetadata());
+        headers.forEach(
                 (key, value) -> {
                     if (http2 || !key.startsWith(":")) {
                         se.getResponseHeaders().addAll(new HttpString(key), value);
                     }
                 });
-        Optional.ofNullable(responseMessage.getData().getFormat()).ifPresent(
-                format -> se.getResponseHeaders().add(new HttpString("Content-Type"), format));
+        if (!se.getResponseHeaders().contains("Content-Type")) {
+            Optional.ofNullable(responseMessage.getData().getFormat()).ifPresent(
+                    format -> se.getResponseHeaders().add(new HttpString("Content-Type"), format));
+        }
         return se;
     }
 

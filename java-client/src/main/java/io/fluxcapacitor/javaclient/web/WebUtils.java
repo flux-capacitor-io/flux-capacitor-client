@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.javaclient.web;
 
+import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import jakarta.annotation.Nullable;
 import lombok.NonNull;
@@ -25,6 +26,7 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -177,7 +179,8 @@ public class WebUtils {
                 Stream.of(targetClass).flatMap(mapper),
                 getAnnotatedProperty(handler, Path.class).stream()
                         .filter(p -> getAnnotation(p, Path.class).map(Path::value)
-                                             .filter(String::isBlank).isPresent() && getAnnotation(p, HandleWeb.class).isEmpty())
+                                             .filter(String::isBlank).isPresent() && getAnnotation(p,
+                                                                                                   HandleWeb.class).isEmpty())
                         .flatMap(a -> getAnnotatedPropertyValue(handler, Path.class).map(Object::toString).stream()),
                 Optional.ofNullable(method).stream().flatMap(mapper)).toList();
         return hierarchy.stream().reduce((a, b) -> b.startsWith("/") ? b : concatenateUrlParts(a, b)).orElse("");
@@ -218,6 +221,23 @@ public class WebUtils {
         Map<String, List<String>> result = emptyHeaderMap();
         result.putAll(input);
         return result;
+    }
+
+    /**
+     * Retrieves a case-insensitive map of headers from the provided Metadata object.
+     */
+    @SuppressWarnings("unchecked")
+    public static Map<String, List<String>> getHeaders(Metadata metadata) {
+        return Optional.ofNullable(metadata.get("headers", Map.class))
+                .map(map -> asHeaderMap(map))
+                .orElseGet(WebUtils::emptyHeaderMap);
+    }
+
+    /**
+     * Retrieves the first header value for the given name from the provided Metadata object.
+     */
+    public static Optional<String> getHeader(Metadata metadata, String name) {
+        return getHeaders(metadata).getOrDefault(name, Collections.emptyList()).stream().findFirst();
     }
 
     /**
