@@ -74,6 +74,15 @@ public class EventBatch {
     }
 
     /**
+     * Calculates the total number of bytes in the data across all messages within the batch.
+     */
+    @JsonIgnore
+    public long getBytes() {
+        return events.stream().map(m -> m.getData().getValue().length).map(Long::valueOf)
+                .reduce(0L, Long::sum);
+    }
+
+    /**
      * Returns a human-readable representation of this batch, including its aggregate ID and event count.
      */
     @Override
@@ -90,7 +99,7 @@ public class EventBatch {
      */
     @JsonIgnore
     public Metric toMetric() {
-        return Metric.builder().aggregateId(aggregateId).size(events.size()).storeOnly(storeOnly).build();
+        return new Metric(aggregateId, getSize(), getBytes(), storeOnly);
     }
 
     /**
@@ -99,8 +108,30 @@ public class EventBatch {
     @Value
     @Builder
     public static class Metric {
+        /**
+         * The identifier of the aggregate associated with this operation.
+         * <p>
+         * This field is commonly used to uniquely identify an entity in an event-sourced system, allowing operations
+         * such as event retrieval, appending, or deletion to be scoped to the specific aggregate.
+         */
         String aggregateId;
+
+        /**
+         * The size of the metric, representing the number of events or elements involved in a specific operation or in
+         * the aggregate.
+         */
         int size;
+
+        /**
+         * The total number of bytes in the data across all messages within the batch.
+         */
+        long bytes;
+
+        /**
+         * If {@code true}, the event batch only contained events stored in the event store, without publishing via
+         * the global event log for processing by downstream handlers. If {@code false}, the events were stored and
+         * logged in the global event log.
+         */
         boolean storeOnly;
     }
 }

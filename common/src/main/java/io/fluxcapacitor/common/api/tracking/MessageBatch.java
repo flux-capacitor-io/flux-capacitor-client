@@ -61,8 +61,6 @@ public class MessageBatch {
 
     /**
      * Indicates whether this message batch is empty.
-     *
-     * @return {@code true} if the batch contains no messages; {@code false} otherwise
      */
     @JsonIgnore
     public boolean isEmpty() {
@@ -71,12 +69,19 @@ public class MessageBatch {
 
     /**
      * Returns the number of messages contained in this batch.
-     *
-     * @return the message count
      */
     @JsonIgnore
     public int getSize() {
         return messages.size();
+    }
+
+    /**
+     * Calculates the total number of bytes in the data across all messages within the batch.
+     */
+    @JsonIgnore
+    public long getBytes() {
+        return messages.stream().map(m -> m.getData().getValue().length).map(Long::valueOf)
+                .reduce(0L, Long::sum);
     }
 
     @Override
@@ -95,7 +100,7 @@ public class MessageBatch {
      */
     @JsonIgnore
     public Metric toMetric() {
-        return new Metric(segment, getSize(), lastIndex, position);
+        return new Metric(segment, getSize(), getBytes(), lastIndex, position);
     }
 
     /**
@@ -112,6 +117,11 @@ public class MessageBatch {
          * The number of messages in the batch.
          */
         int size;
+
+        /**
+         * The total number of bytes in the data across all messages within the batch.
+         */
+        long bytes;
 
         /**
          * The last index of the batch, used for progress tracking.
