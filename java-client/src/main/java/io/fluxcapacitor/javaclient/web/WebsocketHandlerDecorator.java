@@ -39,14 +39,17 @@ import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.function.Function;
 
 import static io.fluxcapacitor.common.MessageType.WEBREQUEST;
+import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAllMethods;
 import static io.fluxcapacitor.javaclient.web.DefaultWebRequestContext.getWebRequestContext;
 import static io.fluxcapacitor.javaclient.web.HttpRequestMethod.WS_CLOSE;
 import static io.fluxcapacitor.javaclient.web.HttpRequestMethod.WS_HANDSHAKE;
 import static io.fluxcapacitor.javaclient.web.HttpRequestMethod.WS_MESSAGE;
 import static io.fluxcapacitor.javaclient.web.HttpRequestMethod.isWebsocket;
 import static io.fluxcapacitor.javaclient.web.WebRequest.requireSocketSessionId;
+import static java.util.Arrays.stream;
 import static java.util.Optional.empty;
 import static java.util.Optional.ofNullable;
+import static java.util.stream.Stream.concat;
 
 /**
  * Decorator that adds WebSocket session support to handler classes and enables parameter injection for {@link SocketSession}.
@@ -156,9 +159,10 @@ public class WebsocketHandlerDecorator implements HandlerDecorator, ParameterRes
      */
     @Override
     public Handler<DeserializingMessage> wrap(Handler<DeserializingMessage> handler) {
-        Class<?> targetClass = handler.getTargetClass();
-        var socketPatterns = ReflectionUtils.getAllMethods(targetClass).stream()
-                .flatMap(m -> WebUtils.getWebPatterns(targetClass, null, m).stream())
+        Class<?> type = handler.getTargetClass();
+        var socketPatterns =
+                concat(getAllMethods(type).stream(), stream(type.getDeclaredConstructors()))
+                .flatMap(m -> WebUtils.getWebPatterns(type, null, m).stream())
                 .filter(p -> isWebsocket(p.getMethod())).toList();
         if (!socketPatterns.isEmpty()) {
             handler = enableHandshake(handler, socketPatterns);
