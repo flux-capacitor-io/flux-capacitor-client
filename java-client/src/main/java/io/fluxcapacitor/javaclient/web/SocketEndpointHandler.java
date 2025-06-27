@@ -35,10 +35,14 @@ import java.time.Duration;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getTypeAnnotation;
+import static io.fluxcapacitor.javaclient.web.HttpRequestMethod.WS_CLOSE;
+import static io.fluxcapacitor.javaclient.web.HttpRequestMethod.WS_MESSAGE;
+import static io.fluxcapacitor.javaclient.web.HttpRequestMethod.WS_OPEN;
+import static io.fluxcapacitor.javaclient.web.HttpRequestMethod.WS_PONG;
 import static java.util.Optional.ofNullable;
+import static java.util.stream.Stream.concat;
 
 /**
  * A specialized {@link Handler} that manages lifecycle events and message dispatching for WebSocket endpoints annotated
@@ -89,17 +93,21 @@ public class SocketEndpointHandler implements Handler<DeserializingMessage> {
 
     @Override
     public Optional<HandlerInvoker> getInvoker(DeserializingMessage message) {
-        if (message.getMessageType() == MessageType.WEBREQUEST
-            && HttpRequestMethod.isWebsocket(WebRequest.getMethod(message.getMetadata()))) {
-            return getSocketInvoker(message);
-        } else {
-            return HandlerInvoker.join(Stream.concat(
-                    targetMatcher.getInvoker(null, message).stream(), repository.values().stream().flatMap(
-                            i -> targetMatcher.getInvoker(i.unwrap(), message).stream())).toList());
+        if (message.getMessageType() == MessageType.WEBREQUEST) {
+            switch (WebRequest.getMethod(message.getMetadata())) {
+                case WS_OPEN, WS_MESSAGE, WS_PONG, WS_CLOSE -> {
+                    return getSessionMessageInvoker(message);
+                }
+            }
         }
+        return targetMatcher.canHandle(message)
+                ? HandlerInvoker.join(concat(
+                targetMatcher.getInvoker(null, message).stream(), repository.values().stream().flatMap(
+                        i -> targetMatcher.getInvoker(i.unwrap(), message).stream())).toList())
+                : Optional.empty();
     }
 
-    protected Optional<HandlerInvoker> getSocketInvoker(DeserializingMessage message) {
+    protected Optional<HandlerInvoker> getSessionMessageInvoker(DeserializingMessage message) {
         String sessionId = WebRequest.getSocketSessionId(message.getMetadata());
         if (sessionId == null) {
             log.warn("No sessionId found in message {}", message.getMessageId());

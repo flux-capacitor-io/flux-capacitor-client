@@ -772,8 +772,9 @@ public class TestFixture implements Given, When {
 
     @Override
     public TestFixture withHeader(String headerName, String... headerValues) {
-        if (headerValues.length == 0) {
+        if (headerValues.length == 0 || (headerValues.length == 1 && headerValues[0] == null)) {
             headers.remove(headerName);
+            return this;
         }
         headers.put(headerName, Arrays.asList(headerValues));
         return this;

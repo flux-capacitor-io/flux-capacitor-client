@@ -140,7 +140,7 @@ public class ForwardingWebConsumer implements AutoCloseable {
         try {
             return FluxCapacitor.getOptionally().map(FluxCapacitor::correlationDataProvider).orElse(
                     DefaultCorrelationDataProvider.INSTANCE).getCorrelationData(new DeserializingMessage(
-                    m, type -> null, MessageType.WEBRESPONSE, null));
+                    m, type -> null, MessageType.WEBRESPONSE, null, null));
         } catch (Exception e) {
             log.error("Failed to get correlation data for request message", e);
             return Collections.emptyMap();

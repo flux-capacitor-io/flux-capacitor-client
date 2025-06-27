@@ -129,16 +129,16 @@ public class DeserializingMessage implements HasMessage {
     transient Map<Class<?>, Object> context;
 
     public DeserializingMessage(SerializedMessage message, Function<Type, Object> payload,
-                                MessageType messageType, String topic) {
-        this(new DeserializingObject<>(message, payload), messageType, topic);
+                                MessageType messageType, String topic, Serializer serializer) {
+        this(new DeserializingObject<>(message, payload), messageType, topic, serializer);
     }
 
     public DeserializingMessage(DeserializingObject<byte[], SerializedMessage> delegate, MessageType messageType,
-                                String topic) {
+                                String topic, Serializer serializer) {
         this.delegate = delegate;
         this.messageType = messageType;
         this.topic = topic;
-        this.serializer = null;
+        this.serializer = serializer;
     }
 
     public DeserializingMessage(@NonNull Message message, MessageType messageType, Serializer serializer) {
@@ -208,7 +208,7 @@ public class DeserializingMessage implements HasMessage {
 
     public DeserializingMessage withMetadata(Metadata metadata) {
         return ofNullable(delegate).map(d -> new DeserializingMessage(
-                        d.getSerializedObject().withMetadata(metadata), d.getObjectFunction(), messageType, topic))
+                        d.getSerializedObject().withMetadata(metadata), d.getObjectFunction(), messageType, topic, serializer))
                 .orElseGet(
                         () -> new DeserializingMessage(message.withMetadata(metadata), messageType, topic, serializer));
     }

@@ -126,21 +126,6 @@ public class WebUtils {
     }
 
     /**
-     * Returns all {@link WebPattern} instances declared on the given method.
-     * <p>
-     * This inspects all {@link HandleWeb} annotations on the method and resolves any declared {@link WebParameters} to
-     * extract associated patterns.
-     *
-     * @param method the method to inspect
-     * @return a list of {@link WebPattern} instances associated with the method
-     */
-    public static List<WebPattern> getWebPatterns(Executable method) {
-        return ReflectionUtils.getMethodAnnotations(method, HandleWeb.class)
-                .stream().flatMap(a -> ReflectionUtils.getAnnotationAs(a, HandleWeb.class, WebParameters.class)
-                        .stream().flatMap(WebParameters::getWebPatterns)).toList();
-    }
-
-    /**
      * Returns all {@link WebPattern} instances declared on the given method in the given target class.
      * <p>
      * This inspects all {@link HandleWeb} annotations on the method and resolves any declared {@link WebParameters} to

@@ -126,7 +126,7 @@ public class DefaultMessageScheduler implements MessageScheduler, HasLocalHandle
         var serializedMessage = schedule.serialize(serializer);
         serializedMessage.setIndex(indexFromTimestamp(schedule.getDeadline()));
         var result = localHandlerRegistry.handle(new DeserializingMessage(
-                serializedMessage, type -> serializer.convert(schedule.getPayload(), type), SCHEDULE, null));
+                serializedMessage, type -> serializer.convert(schedule.getPayload(), type), SCHEDULE, null, serializer));
         if (result.isPresent()) {
             result.get().get();
         }

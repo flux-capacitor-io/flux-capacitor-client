@@ -156,8 +156,9 @@ public class WebsocketHandlerDecorator implements HandlerDecorator, ParameterRes
      */
     @Override
     public Handler<DeserializingMessage> wrap(Handler<DeserializingMessage> handler) {
-        var socketPatterns = ReflectionUtils.getAllMethods(handler.getTargetClass()).stream()
-                .flatMap(m -> WebUtils.getWebPatterns(m).stream())
+        Class<?> targetClass = handler.getTargetClass();
+        var socketPatterns = ReflectionUtils.getAllMethods(targetClass).stream()
+                .flatMap(m -> WebUtils.getWebPatterns(targetClass, null, m).stream())
                 .filter(p -> isWebsocket(p.getMethod())).toList();
         if (!socketPatterns.isEmpty()) {
             handler = enableHandshake(handler, socketPatterns);

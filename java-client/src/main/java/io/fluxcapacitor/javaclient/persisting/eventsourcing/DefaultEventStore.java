@@ -76,7 +76,7 @@ public class DefaultEventStore implements EventStore {
                         return;
                     }
                     deserializingMessage = new DeserializingMessage(serializedMessage, type -> m.getPayload(), EVENT,
-                                                                    null);
+                                                                    null, serializer);
                 }
                 messages.add(deserializingMessage);
             });

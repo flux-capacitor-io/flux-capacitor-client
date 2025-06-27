@@ -191,7 +191,8 @@ public interface Serializer extends ContentFilter {
     default Stream<DeserializingMessage> deserializeMessages(Stream<SerializedMessage> dataStream,
                                                              MessageType messageType, String topic,
                                                              UnknownTypeStrategy unknownTypeStrategy) {
-        return deserialize(dataStream, unknownTypeStrategy).map(s -> new DeserializingMessage(s, messageType, topic));
+        return deserialize(dataStream, unknownTypeStrategy).map(s -> new DeserializingMessage(s, messageType, topic,
+                                                                                              this));
     }
 
     /**

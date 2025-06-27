@@ -62,6 +62,7 @@ import static io.fluxcapacitor.javaclient.web.HttpRequestMethod.WS_CLOSE;
 import static io.fluxcapacitor.javaclient.web.HttpRequestMethod.WS_HANDSHAKE;
 import static io.fluxcapacitor.javaclient.web.HttpRequestMethod.WS_MESSAGE;
 import static io.fluxcapacitor.javaclient.web.HttpRequestMethod.WS_OPEN;
+import static io.fluxcapacitor.javaclient.web.HttpRequestMethod.WS_PONG;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 
@@ -702,7 +703,7 @@ public class HandleWebTest {
                 @Test
                 void testMessageWithoutOpenNotPossible() {
                     testFixture.whenWebRequest(toWebRequest(WS_MESSAGE))
-                            .expectExceptionalResult();
+                            .expectError();
                 }
 
                 @Test
@@ -816,6 +817,16 @@ public class HandleWebTest {
                     testFixture.givenWebRequest(toWebRequest(WS_OPEN))
                             .whenTimeElapses(Duration.ofSeconds(pingDelay))
                             .expectWebResponse(r -> "ping".equals(r.getMetadata().get("function")));
+                }
+
+                @Test
+                void testRescheduleAfterPong() {
+                    testFixture.givenWebRequest(toWebRequest(WS_OPEN))
+                            .givenElapsedTime(Duration.ofSeconds(pingDelay))
+                            .givenWebRequest(toWebRequest(WS_PONG))
+                            .whenTimeElapses(Duration.ofSeconds(pingDelay))
+                            .expectWebResponse(r -> "ping".equals(r.getMetadata().get("function")))
+                            .expectNoEvents();
                 }
 
                 @Test
@@ -977,7 +988,7 @@ public class HandleWebTest {
                             .expectEvents("close: testSession")
                             .andThen()
                             .whenWebRequest(toWebRequest(WS_MESSAGE))
-                            .expectExceptionalResult();
+                            .expectError();
                 }
 
                 @SocketEndpoint

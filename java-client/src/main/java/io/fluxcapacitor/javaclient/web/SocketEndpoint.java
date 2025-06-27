@@ -73,11 +73,11 @@ public @interface SocketEndpoint {
         /**
          * Interval between pings in {@link #timeUnit()}.
          */
-        long pingDelay() default 60;
+        long pingDelay() default 50;
 
         /**
          * Time allowed to receive a pong after a ping. If exceeded, the session is closed.
          */
-        long pingTimeout() default 60;
+        long pingTimeout() default 20;
     }
 }
