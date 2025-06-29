@@ -12,7 +12,7 @@
  * limitations under the License.
  */
 
-@ForbidsAnyRole("admin")
+@ForbidsAnyRole(value = "admin")
 package io.fluxcapacitor.javaclient.givenwhenthen.forbidsadmin;
 
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.ForbidsAnyRole;

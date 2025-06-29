@@ -19,8 +19,8 @@ import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
 import io.fluxcapacitor.javaclient.givenwhenthen.forbidsadmin.ForbidsAdminViaPackage;
 import io.fluxcapacitor.javaclient.givenwhenthen.requiresadmin.RequiresAdminViaPackage;
 import io.fluxcapacitor.javaclient.givenwhenthen.requiresadmin.subpackage.RequiresAdminViaParentPackage;
+import io.fluxcapacitor.javaclient.givenwhenthen.requiresuser.NoUserRequiredOverride;
 import io.fluxcapacitor.javaclient.givenwhenthen.requiresuser.RequiresAdminOverride;
-import io.fluxcapacitor.javaclient.givenwhenthen.requiresuser.RequiresNoUserOverride;
 import io.fluxcapacitor.javaclient.givenwhenthen.requiresuser.RequiresUserViaPackage;
 import io.fluxcapacitor.javaclient.test.TestFixture;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
@@ -28,6 +28,7 @@ import io.fluxcapacitor.javaclient.tracking.handling.HandleQuery;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.AbstractUserProvider;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.FixedUserProvider;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.ForbidsAnyRole;
+import io.fluxcapacitor.javaclient.tracking.handling.authentication.ForbidsUser;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.MockUser;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.RequiresAnyRole;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.RequiresUser;
@@ -89,9 +90,9 @@ public class GivenWhenThenAuthenticationTest {
         }
 
         @Test
-        void requiresNoUserOverrideSuccess() {
+        void noUserRequiredOverrideSuccess() {
             user = null;
-            testFixture.whenQuery(new RequiresNoUserOverride()).expectResult("success");
+            testFixture.whenQuery(new NoUserRequiredOverride()).expectResult("success");
         }
 
         @Test
@@ -130,6 +131,16 @@ public class GivenWhenThenAuthenticationTest {
     void testQueryThatRequiresNoRoles() {
         user = new MockUser();
         testFixture.whenQuery(new RequiresAuthentication()).expectResult("success");
+    }
+
+    @Test
+    void testQueryThatForbidsUser() {
+        testFixture
+                .given(fc -> user = null)
+                .whenQuery(new ForbidsCurrentUser()).expectResult("success")
+                .andThen()
+                .given(fc -> user = new MockUser())
+                .whenQuery(new ForbidsCurrentUser()).expectExceptionalResult(UnauthorizedException.class);
     }
 
     @Test
@@ -272,9 +283,14 @@ public class GivenWhenThenAuthenticationTest {
         String handle(RequiresAuthentication query) {
             return "success";
         }
+
+        @HandleQuery
+        String handle(ForbidsCurrentUser query) {
+            return "success";
+        }
     }
 
-    @ForbidsAnyRole("system")
+    @ForbidsAnyRole(value = "system", throwIfUnauthorized = false)
     private static class MockHandler {
         @HandleQuery
         String handle(Get query) {
@@ -294,7 +310,7 @@ public class GivenWhenThenAuthenticationTest {
         }
     }
 
-    @RequiresAnyRole("system")
+    @RequiresAnyRole(value = "system", throwIfUnauthorized = false)
     private static class MockSystemHandler {
         @HandleQuery
         String handle(Get query) {
@@ -314,6 +330,11 @@ public class GivenWhenThenAuthenticationTest {
     @Value
     @RequiresUser
     private static class RequiresAuthentication {
+    }
+
+    @Value
+    @ForbidsUser
+    private static class ForbidsCurrentUser {
     }
 
     @Value

@@ -24,16 +24,15 @@ import java.lang.annotation.Target;
 /**
  * Declares role-based access control for message handlers or payload types.
  * <p>
- * When placed on a handler method, class, or package, the {@code @RequiresAnyRole} annotation restricts invocation of
- * that handler to users possessing at least one of the specified roles. If the current user (or the user associated
- * with the incoming message) lacks a matching role, the handler is silently skipped. This allows other eligible
+ * When placed on a handler method, class, or package, or on the payload class the {@code @RequiresAnyRole} annotation
+ * restricts invocation of that handler to users possessing at least one of the specified roles. If the current user (or
+ * the user associated with the incoming message) lacks a matching role, an exception is thrown or the handler is
+ * silently skipped, depending on the value of {@link #throwIfUnauthorized()}. Silent skipping allows other eligible
  * handlers to take over, enabling flexible delegation.
  * <p>
- * In contrast, if this annotation is present on the <strong>payload class</strong> itself, and the user lacks a
- * required role, message handling will be actively blocked and an {@link UnauthorizedException} is thrown.
- * <p>
  * This annotation supports meta-annotations. It can be applied to a custom annotation that expresses roles using an
- * enum or another abstraction, allowing more structured or type-safe role definitions.
+ * enum, allowing more structured or type-safe role definitions. Role names are obtained from the
+ * {@code toString()} method of the enum.
  *
  * <h2>Example (on handler method):</h2>
  * <pre>{@code
@@ -51,7 +50,7 @@ import java.lang.annotation.Target;
  * <h2>Meta-annotation usage (with enum roles):</h2>
  * <pre>{@code
  * @RequiresAnyRole
- * @Target({ElementType.TYPE, ElementType.METHOD})
+ * @Target({ElementType.PACKAGE, ElementType.TYPE, ElementType.CONSTRUCTOR, ElementType.METHOD})
  * public @interface RequiresRole {
  *     Role[] value();
  * }
@@ -67,4 +66,20 @@ public @interface RequiresAnyRole {
      * user for access to be granted.
      */
     String[] value() default {};
+
+    /**
+     * Determines whether an exception should be thrown when the authorization check fails.
+     * <p>
+     * If {@code true} (the default), an exception will be thrown when the user is unauthorized:
+     * <ul>
+     *   <li>{@link UnauthenticatedException} – if no authenticated user is present</li>
+     *   <li>{@link UnauthorizedException} – if the user is present but lacks required roles</li>
+     * </ul>
+     * <p>
+     * If {@code false}, the annotated handler or message will be silently skipped instead. This opt-out strategy is
+     * useful for conditionally invoked handlers where fallback behavior or a timeout is preferred.
+     * <p>
+     * Defaults to {@code true}.
+     */
+    boolean throwIfUnauthorized() default true;
 }

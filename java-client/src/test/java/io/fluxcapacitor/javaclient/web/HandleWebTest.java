@@ -227,8 +227,14 @@ public class HandleWebTest {
         }
 
         @Test
-        void testGetUser_timeoutWithoutUser() {
+        void testGetUser_exceptionWithoutUser() {
             testFixture.whenGet("/getUser")
+                    .expectExceptionalResult(UnauthenticatedException.class);
+        }
+
+        @Test
+        void testGetUserIfAuthenticated_timeoutWithoutUser() {
+            testFixture.whenGet("/getUserIfAuthenticated")
                     .expectExceptionalResult(TimeoutException.class);
         }
 
@@ -309,6 +315,12 @@ public class HandleWebTest {
             @HandleGet("/getUser")
             @RequiresUser
             Object getUser(User user) {
+                return user;
+            }
+
+            @HandleGet("/getUserIfAuthenticated")
+            @RequiresUser(throwIfUnauthorized = false)
+            Object getUserIfAuthenticated(User user) {
                 return user;
             }
 

@@ -28,18 +28,18 @@ import java.lang.annotation.Target;
  * </p>
  *
  * <p>
- * {@code @RequiresNoUser} is particularly useful in applications where most handlers require authentication,
+ * {@code @NoUserRequired} is particularly useful in applications where most handlers require authentication,
  * but you want to selectively permit anonymous access to specific messages or operations (e.g., public APIs, health checks).
  * </p>
  *
  * <p>
- * Note that {@code @RequiresNoUser} is not the inverse of {@link RequiresUser} — it does not forbid authenticated users,
+ * Note that {@code @NoUserRequired} is not the inverse of {@link RequiresUser} — it does not forbid authenticated users,
  * nor does it prevent handling if a user is present. It simply removes the requirement for authentication in the context where it is applied.
  * </p>
  *
  * <p><strong>Example usage:</strong></p>
  * <pre>{@code
- * @RequiresNoUser
+ * @NoUserRequired
  * @HandleCommand
  * void handle(SignUpUser command) {
  *     // This can be invoked by anonymous users
@@ -50,10 +50,5 @@ import java.lang.annotation.Target;
 @Target({ElementType.TYPE, ElementType.CONSTRUCTOR, ElementType.METHOD, ElementType.ANNOTATION_TYPE, ElementType.PACKAGE})
 @Retention(RetentionPolicy.RUNTIME)
 @Inherited
-@RequiresAnyRole(RequiresNoUser.RESERVED_ROLE)
-public @interface RequiresNoUser {
-    /**
-     * Reserved internal role to indicate that a message or handler is permitted even for unauthenticated users.
-     */
-    String RESERVED_ROLE = "$RequiresNoUser";
+public @interface NoUserRequired {
 }

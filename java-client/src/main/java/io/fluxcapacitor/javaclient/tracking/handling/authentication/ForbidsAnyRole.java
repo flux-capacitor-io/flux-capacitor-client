@@ -52,7 +52,7 @@ import java.lang.annotation.Target;
  * @HandleCommand
  * void handleAsUserOnly(MyCommand command) { ... }
  *
- * @RequiresAnyRole("admin")
+ * @RequiresAnyRole(value = "admin", throwIfUnauthorized = false)
  * @HandleCommand
  * void handleAsAdmin(MyCommand command) { ... }
  * }</pre>
@@ -73,7 +73,24 @@ import java.lang.annotation.Target;
 @Inherited
 public @interface ForbidsAnyRole {
     /**
-     * One or more roles that should be excluded. If the user has any of these roles, the handler or payload will not be used.
+     * One or more roles that should be excluded. If the user has any of these roles, the handler or payload will not be
+     * used.
      */
     String[] value() default {};
+
+    /**
+     * Determines whether an exception should be thrown when the authorization check fails.
+     * <p>
+     * If {@code true} (the default), an exception will be thrown when the user is unauthorized:
+     * <ul>
+     *   <li>{@link UnauthenticatedException} – if no authenticated user is present</li>
+     *   <li>{@link UnauthorizedException} – if the user is present but has forbidden roles</li>
+     * </ul>
+     * <p>
+     * If {@code false}, the annotated handler or message will be silently skipped instead.
+     * This opt-out strategy is useful for conditionally invoked handlers where fallback behavior is preferred.
+     * <p>
+     * Defaults to {@code true}.
+     */
+    boolean throwIfUnauthorized() default true;
 }

@@ -28,7 +28,6 @@ import java.util.function.Function;
 
 import static io.fluxcapacitor.common.MessageType.WEBREQUEST;
 import static io.fluxcapacitor.javaclient.tracking.handling.validation.ValidationUtils.assertAuthorized;
-import static io.fluxcapacitor.javaclient.tracking.handling.validation.ValidationUtils.isAuthorized;
 import static java.util.Optional.ofNullable;
 
 @AllArgsConstructor
@@ -94,7 +93,7 @@ public class AuthenticatingInterceptor implements DispatchInterceptor, HandlerIn
                         if (user == null) {
                             user = userProvider.getActiveUser();
                         }
-                        return isAuthorized(i.getTargetClass(), i.getMethod(), user);
+                        return assertAuthorized(i.getTargetClass(), i.getMethod(), user);
                     });
         }
 

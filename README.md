@@ -994,9 +994,9 @@ on `HandlerInterceptors`.
 Flux Capacitor allows you to restrict message handling based on the authenticated user's roles. This access control
 happens **before** the message reaches the handler — similar to how payload validation is enforced.
 
-There are several annotations for declaring role requirements:
+There are several annotations for declaring user and role requirements:
 
-#### `@RequiresAnyRole`
+### `@RequiresAnyRole`
 
 Use this annotation to ensure that a handler is only invoked if the user has **at least one** of the
 specified roles.
@@ -1015,20 +1015,7 @@ public record DeleteAccount(String userId) {
 }
 ```
 
-- **On a handler method, class, or package**: the handler is *skipped* if the user lacks a required role. Other handlers
-  may still process the message.
-- **On a payload class**: message handling is *blocked*, and an `UnauthorizedException` or `UnauthenticatedException` is
-  thrown.
-
-> ⚠️ **Authentication vs Authorization errors**
-> - If a **user is expected but not present** (e.g. due to `@RequiresUser` or a payload requiring a role), a
-    `UnauthenticatedException` is thrown.
-> - If a **user is present but lacks required roles**, a `UnauthorizedException` is thrown.
->
-> This applies especially when annotations are placed on the **payload class**. If the handler itself is annotated
-> instead, unauthorized users will simply skip that handler (allowing delegation to others).
-
-#### `@ForbidsAnyRole`
+### `@ForbidsAnyRole`
 
 This annotation works the other way around — it **prevents** message handling if the user has any of the specified
 roles.
@@ -1040,7 +1027,7 @@ roles.
 void handle(SensitiveOperation command) { ...}
 ```
 
-#### `@RequiresUser`
+### `@RequiresUser`
 
 Ensures that a message can only be handled if an **authenticated user** is present. If no user is found, the message is
 rejected with an `UnauthenticatedException`.
@@ -1054,17 +1041,44 @@ This is useful for requiring login in scenarios like user account updates, sensi
 void handle(UpdateProfile command) { ...}
 ```
 
-#### `@RequiresNoUser`
+### `@NoUserRequired`
 
-Allows a message to be processed even if **no authenticated user** is present — ideal for public APIs, sign-up flows, or
-health checks.
+Allows a message to be processed even if **no authenticated user** is present — ideal for public APIs, or health checks.
 
 ```java
 
-@RequiresNoUser
+@NoUserRequired
 @HandleCommand
 void handle(SignUpUser command) { ...}
 ```
+
+### `@ForbidsUser`
+
+Prevents message handling if an **authenticated user is present**. This is useful for restricting certain flows to
+unauthenticated users — such as registration endpoints, or guest-only operations.
+
+```java
+@ForbidsUser
+@HandleCommand
+void handle(SignUpAsGuest command) { ... }
+```
+
+---
+
+### Controlling Behavior on Unauthorized Access
+
+All authorization annotations include an optional `throwIfUnauthorized()` property (default: `true`) that controls what
+happens when access is denied:
+
+- If `throwIfUnauthorized = true`:
+    - If a user is required but **not present**, an `UnauthenticatedException` is thrown.
+    - If a user is present but **lacks the required roles**, an `UnauthorizedException` is thrown.
+
+- If `throwIfUnauthorized = false`:
+    - The handler or message is silently **skipped**, allowing delegation to other eligible handlers (if any).
+
+This mechanism allows fine-grained control over how authentication and authorization failures are handled across your
+system.
 
 ---
 
@@ -1075,7 +1089,7 @@ Flux evaluates these annotations hierarchically. For example:
 - If `@RequiresAnyRole("admin")` is placed on a **package**, it applies to all handlers and payloads in that package by
   default.
 - You can override that requirement on a specific method or class using `@RequiresAnyRole(...)`, `@ForbidsAnyRole(...)`,
-  or `@RequiresNoUser`.
+  or `@NoUserRequired`.
 
 ```java
 // package-info.java
@@ -1085,7 +1099,7 @@ package com.myapp.handlers;
 
 ```java
 
-@RequiresNoUser
+@NoUserRequired
 @HandleCommand
 void handle(PublicPing ping) { ...} // Overrides the package-level requirement
 ```

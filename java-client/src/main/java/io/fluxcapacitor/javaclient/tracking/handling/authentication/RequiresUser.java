@@ -90,4 +90,15 @@ import java.lang.annotation.Target;
 @Inherited
 @RequiresAnyRole
 public @interface RequiresUser {
+    /**
+     * Determines whether an exception should be thrown when the authorization check fails.
+     * <p>
+     * If {@code true} (the default), an UnauthenticatedException will be thrown if no user is present.
+     * <p>
+     * If {@code false}, the annotated handler or message will be silently skipped instead. This opt-out strategy is
+     * useful for conditionally invoked handlers where fallback behavior or a timeout is preferred.
+     * <p>
+     * Defaults to {@code true}.
+     */
+    boolean throwIfUnauthorized() default true;
 }

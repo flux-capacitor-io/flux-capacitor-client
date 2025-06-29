@@ -15,12 +15,12 @@
 package io.fluxcapacitor.javaclient.givenwhenthen.requiresuser;
 
 import io.fluxcapacitor.javaclient.tracking.handling.HandleQuery;
-import io.fluxcapacitor.javaclient.tracking.handling.authentication.RequiresNoUser;
+import io.fluxcapacitor.javaclient.tracking.handling.authentication.NoUserRequired;
 import lombok.Value;
 
 @Value
-@RequiresNoUser
-public class RequiresNoUserOverride {
+@NoUserRequired
+public class NoUserRequiredOverride {
 
     @HandleQuery
     String handle() {

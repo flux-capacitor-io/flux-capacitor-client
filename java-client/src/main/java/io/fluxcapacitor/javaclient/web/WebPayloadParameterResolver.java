@@ -58,16 +58,34 @@ public class WebPayloadParameterResolver implements ParameterResolver<HasMessage
     public Function<HasMessage, Object> resolve(Parameter p, Annotation methodAnnotation) {
         return m -> {
             Object payload = m.getPayloadAs(p.getType());
-            if (payload != null && validatePayload) {
-                assertValid(payload);
-            }
-            if (authoriseUser) {
-                if (payload != null) {
+            if (payload != null) {
+                if (validatePayload) {
+                    assertValid(payload);
+                }
+                if (authoriseUser) {
                     assertAuthorized(payload.getClass(), User.getCurrent());
                 }
             }
             return payload;
         };
+    }
+
+    @Override
+    public boolean filterMessage(HasMessage m, Parameter p) {
+        if (authoriseUser) {
+            Object payload = m.getPayloadAs(p.getType());
+            if (payload != null) {
+                try {
+                    boolean authorized = assertAuthorized(payload.getClass(), User.getCurrent());
+                    if (!authorized) {
+                        //ignore silently if the user is not authorized and no exception should be thrown
+                        return false;
+                    }
+                } catch (Exception ignored) {
+                }
+            }
+        }
+        return ParameterResolver.super.filterMessage(m, p);
     }
 
     /**
