@@ -39,6 +39,7 @@ import lombok.experimental.FieldDefaults;
 import org.springframework.util.function.ThrowingSupplier;
 
 import java.beans.ConstructorProperties;
+import java.beans.Transient;
 import java.io.InputStream;
 import java.lang.reflect.Type;
 import java.net.HttpCookie;
@@ -315,6 +316,7 @@ public class WebResponse extends Message {
      * @return a list of {@code HttpCookie} objects parsed from the "Set-Cookie" headers; an empty list if there are no
      * cookies or the headers are absent
      */
+    @Transient
     public List<HttpCookie> getCookies() {
         return WebUtils.parseResponseCookieHeader(getHeaders("Set-Cookie"));
     }
@@ -374,7 +376,6 @@ public class WebResponse extends Message {
             payload(response.getEncodedPayload());
             status(response.getStatus());
             headers(response.getHeaders());
-            cookies.addAll(WebUtils.parseResponseCookieHeader(headers.remove("Set-Cookie")));
         }
 
         public Builder payload(Object payload) {
