@@ -155,4 +155,11 @@ public class SerializedMessage implements SerializedObject<byte[]>, HasMetadata 
     public String getType() {
         return SerializedObject.super.getType();
     }
+
+    /**
+     * Returns the number of bytes of the serialized message payload.
+     */
+    public long bytes() {
+        return data.getValue().length;
+    }
 }

@@ -36,4 +36,18 @@ public class GetScheduleResult implements RequestResult {
      * The system time when this result was generated (milliseconds since epoch).
      */
     long timestamp = System.currentTimeMillis();
+
+    @Override
+    public Object toMetric() {
+        return new Metric(schedule.getScheduleId(), schedule.getMessage().bytes());
+    }
+
+    /**
+     * Metric payload used for internal monitoring and logging.
+     */
+    @Value
+    public static class Metric {
+        String scheduleId;
+        long bytes;
+    }
 }

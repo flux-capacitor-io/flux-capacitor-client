@@ -80,8 +80,7 @@ public class MessageBatch {
      */
     @JsonIgnore
     public long getBytes() {
-        return messages.stream().map(m -> m.getData().getValue().length).map(Long::valueOf)
-                .reduce(0L, Long::sum);
+        return messages.stream().mapToLong(m -> m.getData().getValue().length).sum();
     }
 
     @Override

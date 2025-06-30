@@ -51,7 +51,7 @@ public class SearchDocumentsResult implements RequestResult {
      */
     @Override
     public Metric toMetric() {
-        return new Metric(matches.size(), timestamp);
+        return new Metric(matches.size(), matches.stream().mapToLong(SerializedDocument::bytes).sum(), timestamp);
     }
 
     /**
@@ -75,7 +75,19 @@ public class SearchDocumentsResult implements RequestResult {
      */
     @Value
     public static class Metric {
+        /**
+         * The number of documents that matched the search query.
+         */
         int size;
+
+        /**
+         * The total size of all documents in bytes.
+         */
+        long bytes;
+
+        /**
+         * The timestamp (epoch millis) indicating when this result was created.
+         */
         long timestamp;
     }
 }

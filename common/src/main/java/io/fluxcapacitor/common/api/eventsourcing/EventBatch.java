@@ -78,8 +78,7 @@ public class EventBatch {
      */
     @JsonIgnore
     public long getBytes() {
-        return events.stream().map(m -> m.getData().getValue().length).map(Long::valueOf)
-                .reduce(0L, Long::sum);
+        return events.stream().mapToLong(m -> m.getData().getValue().length).sum();
     }
 
     /**
