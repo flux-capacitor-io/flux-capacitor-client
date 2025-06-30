@@ -242,42 +242,28 @@ public class ValidationUtils {
      * @throws UnauthenticatedException if authentication is required but the user is {@code null}
      * @throws UnauthorizedException    if the user lacks required roles
      */
-    public static boolean assertAuthorized(Class<?> payloadType,
-                                           User user) throws UnauthenticatedException, UnauthorizedException {
+    public static boolean assertAuthorized(Class<?> payloadType, @Nullable User user) throws UnauthenticatedException, UnauthorizedException {
         return assertAuthorized(payloadType.getSimpleName(), user, requiredRolesCache.apply(payloadType));
     }
 
     /**
-     * Returns {@code true} if the given user is authorized to issue the given payload.
-     *
-     * @param payloadType the class of the payload
-     * @param user        the user to check
-     * @return {@code true} if authorized, {@code false} otherwise
-     */
-    public static boolean isAuthorized(Class<?> payloadType, User user) {
-        try {
-            return assertAuthorized(payloadType, user);
-        } catch (Exception e) {
-            return false;
-        }
-    }
-
-    /**
-     * Returns {@code true} if the given user is authorized to invoke the given method on the given target.
+     * Determines whether a particular operation on a payload type should be ignored without raising an exception.
      * <p>
-     * Role requirements may be defined via annotations on the method, class, or package.
+     * <strong>Note: </strong>If the user is not authorized and an error occurs during the authorization check,
+     * the error is caught silently, and the method invocation is allowed to proceed.
      *
-     * @param target the class declaring the method
-     * @param method the method to check
-     * @param user   the user to check
-     * @return {@code true} if authorized, {@code false} otherwise
+     * @param payloadType the class of the payload to be evaluated
+     * @param user        the user whose authorization is being evaluated; may be null for unauthenticated access
+     * @return {@code true} if the operation should be ignored silently, {@code false} otherwise
      */
-    public static boolean isAuthorized(Class<?> target, Executable method, User user) {
+    public static boolean ignoreSilently(Class<?> payloadType, @Nullable User user) {
         try {
-            return assertAuthorized(method.getName(), user, requiredRolesForMethodCache.apply(target, method));
-        } catch (Exception e) {
-            return false;
+            if (!assertAuthorized(payloadType, user)) {
+                return true;
+            }
+        } catch (Throwable ignored) {
         }
+        return false;
     }
 
     /**
@@ -297,11 +283,35 @@ public class ValidationUtils {
      * @throws UnauthenticatedException if authentication is required but the user is {@code null}
      * @throws UnauthorizedException    if the user lacks required roles
      */
-    public static boolean assertAuthorized(Class<?> target, Executable method, User user) {
-        return assertAuthorized(method.getName(), user, requiredRolesForMethodCache.apply(target, method));
+    public static boolean assertAuthorized(Class<?> target, Executable method, @Nullable User user) {
+        return assertAuthorized("%s#%s".formatted(target.getSimpleName(), method.getName()),
+                                user, requiredRolesForMethodCache.apply(target, method));
     }
 
-    protected static boolean assertAuthorized(String action, User user, RequiredRole[] requiredRoles) {
+    /**
+     * Determines whether a specific method invocation on a target class by a given user should be ignored without
+     * raising an exception, based on the user's authorization.
+     * <p>
+     * <strong>Note: </strong>If the user is not authorized and an error occurs during the authorization check,
+     * the error is caught silently, and the method invocation is allowed to proceed.
+     *
+     * @param target the class declaring the method to be checked
+     * @param method the executable method to be checked
+     * @param user   the user whose authorization is being evaluated
+     * @return {@code true} if the method invocation should be ignored without raising an exception, {@code false}
+     * otherwise
+     */
+    public static boolean ignoreSilently(Class<?> target, Executable method, @Nullable User user) {
+        try {
+            if (!assertAuthorized(target, method, user)) {
+                return true;
+            }
+        } catch (Throwable ignored) {
+        }
+        return false;
+    }
+
+    protected static boolean assertAuthorized(String action, @Nullable User user, RequiredRole[] requiredRoles) {
         if (requiredRoles == null || Arrays.asList(requiredRoles).contains(noUserRequired)) {
             return true;
         }
@@ -402,7 +412,8 @@ public class ValidationUtils {
             return new RequiredRole[0];
         }
         if (annotation instanceof ForbidsAnyRole a) {
-            return Arrays.stream(a.value()).map(s -> "!" + s).map(s -> new RequiredRole(s, a.throwIfUnauthorized(), true, false))
+            return Arrays.stream(a.value()).map(s -> "!" + s)
+                    .map(s -> new RequiredRole(s, a.throwIfUnauthorized(), true, false))
                     .toArray(RequiredRole[]::new);
         }
         if (annotation.annotationType().isAnnotationPresent(ForbidsAnyRole.class)) {
@@ -433,7 +444,8 @@ public class ValidationUtils {
                 .map(m -> (boolean) m.invoke(holder));
     }
 
-    protected record RequiredRole(@Nullable String value, boolean throwIfUnauthorized, boolean requiresUser, boolean forbidsUser) {
+    protected record RequiredRole(@Nullable String value, boolean throwIfUnauthorized, boolean requiresUser,
+                                  boolean forbidsUser) {
     }
 
 

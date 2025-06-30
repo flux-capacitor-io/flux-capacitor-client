@@ -315,7 +315,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         }
 
         @Override
-        public FluxCapacitorBuilder registerUserProvider(@NonNull UserProvider userProvider) {
+        public FluxCapacitorBuilder registerUserProvider(UserProvider userProvider) {
             this.userProvider = userProvider;
             return this;
         }
@@ -624,7 +624,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
 
             //add websocket request handler decorator
             var websocketHandlerDecorator = new WebsocketHandlerDecorator(webResponseGateway, serializer, taskScheduler);
-            handlerDecorators.computeIfPresent(WEBREQUEST, (t, i) -> i.andThen(websocketHandlerDecorator));
+            handlerDecorators.computeIfPresent(WEBREQUEST, (t, i) -> websocketHandlerDecorator.andThen(i));
 
             List<ParameterResolver<? super DeserializingMessage>> parameterResolvers =
                     new ArrayList<>(customParameterResolvers);

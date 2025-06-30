@@ -24,6 +24,7 @@ import io.fluxcapacitor.javaclient.tracking.handling.HandlerInterceptor;
 import lombok.AllArgsConstructor;
 
 import java.util.Optional;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 
 import static io.fluxcapacitor.common.MessageType.WEBREQUEST;
@@ -39,9 +40,10 @@ public class AuthenticatingInterceptor implements DispatchInterceptor, HandlerIn
     public Message interceptDispatch(Message m, MessageType messageType, String topic) {
         if (!userProvider.containsUser(m.getMetadata())) {
             Optional<DeserializingMessage> currentMessage = ofNullable(DeserializingMessage.getCurrent());
-            User user = currentMessage.isPresent()
-                    ? currentMessage.get().getMessageType() == WEBREQUEST ? userProvider.getActiveUser() : userProvider.getSystemUser()
-                    : ofNullable(userProvider.getActiveUser()).orElseGet(userProvider::getSystemUser);
+            User user = currentMessage.isPresent() ?
+                    currentMessage.get().getMessageType() == WEBREQUEST ? userProvider.getActiveUser() :
+                            userProvider.getSystemUser() :
+                    ofNullable(userProvider.getActiveUser()).orElseGet(userProvider::getSystemUser);
             if (user != null) {
                 m = m.withMetadata(userProvider.addToMetadata(m.getMetadata(), user));
             }
@@ -78,11 +80,11 @@ public class AuthenticatingInterceptor implements DispatchInterceptor, HandlerIn
 
         @Override
         public Optional<HandlerInvoker> getInvoker(DeserializingMessage m) {
-            return delegate.getInvoker(m).filter(
+            return delegate.getInvoker(m).flatMap(
                     i -> {
                         if (Optional.ofNullable(m.getPayloadClass())
                                 .map(c -> i.getTargetClass().isAssignableFrom(c)).orElse(false)) {
-                            return true;
+                            return Optional.of(i);
                         }
                         User user;
                         try {
@@ -93,7 +95,17 @@ public class AuthenticatingInterceptor implements DispatchInterceptor, HandlerIn
                         if (user == null) {
                             user = userProvider.getActiveUser();
                         }
-                        return assertAuthorized(i.getTargetClass(), i.getMethod(), user);
+                        try {
+                            return assertAuthorized(i.getTargetClass(), i.getMethod(), user)
+                                    ? Optional.of(i) : Optional.empty();
+                        } catch (Throwable e) {
+                            return Optional.of(new HandlerInvoker.DelegatingHandlerInvoker(i) {
+                                @Override
+                                public Object invoke(BiFunction<Object, Object, Object> resultCombiner) {
+                                    throw e;
+                                }
+                            });
+                        }
                     });
         }
 

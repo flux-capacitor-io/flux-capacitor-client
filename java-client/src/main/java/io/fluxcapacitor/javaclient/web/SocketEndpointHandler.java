@@ -35,6 +35,7 @@ import java.time.Duration;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.BiFunction;
 
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getTypeAnnotation;
 import static io.fluxcapacitor.javaclient.web.HttpRequestMethod.WS_CLOSE;
@@ -96,7 +97,31 @@ public class SocketEndpointHandler implements Handler<DeserializingMessage> {
         if (message.getMessageType() == MessageType.WEBREQUEST) {
             switch (WebRequest.getMethod(message.getMetadata())) {
                 case WS_OPEN, WS_MESSAGE, WS_PONG, WS_CLOSE -> {
-                    return getSessionMessageInvoker(message);
+                    String sessionId = WebRequest.getSocketSessionId(message.getMetadata());
+                    if (sessionId == null) {
+                        log.warn("No sessionId found in message {}", message.getMessageId());
+                        return Optional.empty();
+                    }
+                    return ofNullable(repository.computeIfAbsent(
+                            sessionId, sId -> !targetMatcher.canHandle(message) ? null : new SocketEndpointWrapper(
+                                    getSocketEndpoint(), new MutableHandler<>(targetClass, targetMatcher, false, null),
+                                    () -> repository.remove(sId))))
+                            .flatMap(wrapper -> {
+                                Optional<HandlerInvoker> wrapperInvoker = wrapperMatcher.getInvoker(wrapper, message);
+                                return wrapperInvoker.map(w -> {
+                                    var targetInvoker = wrapper.targetHandler.getInvoker(message);
+                                    if (targetInvoker.isEmpty()) {
+                                        return w;
+                                    }
+                                    var t = targetInvoker.get();
+                                    return new HandlerInvoker.DelegatingHandlerInvoker(t) {
+                                        @Override
+                                        public Object invoke(BiFunction<Object, Object, Object> resultCombiner) {
+                                            return w.invoke(resultCombiner);
+                                        }
+                                    };
+                                });
+                            });
                 }
             }
         }
@@ -105,19 +130,6 @@ public class SocketEndpointHandler implements Handler<DeserializingMessage> {
                 targetMatcher.getInvoker(null, message).stream(), repository.values().stream().flatMap(
                         i -> targetMatcher.getInvoker(i.unwrap(), message).stream())).toList())
                 : Optional.empty();
-    }
-
-    protected Optional<HandlerInvoker> getSessionMessageInvoker(DeserializingMessage message) {
-        String sessionId = WebRequest.getSocketSessionId(message.getMetadata());
-        if (sessionId == null) {
-            log.warn("No sessionId found in message {}", message.getMessageId());
-            return Optional.empty();
-        }
-        return ofNullable(repository.computeIfAbsent(
-                sessionId, sId -> !targetMatcher.canHandle(message) ? null : new SocketEndpointWrapper(
-                        getSocketEndpoint(), new MutableHandler<>(targetClass, targetMatcher, false, null),
-                        () -> repository.remove(sId))))
-                .flatMap(wrapper -> wrapperMatcher.getInvoker(wrapper, message));
     }
 
     @Override

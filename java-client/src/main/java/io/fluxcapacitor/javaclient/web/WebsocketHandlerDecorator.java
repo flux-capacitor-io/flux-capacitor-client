@@ -36,6 +36,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArraySet;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 
 import static io.fluxcapacitor.common.MessageType.WEBREQUEST;
@@ -44,6 +45,7 @@ import static io.fluxcapacitor.javaclient.web.DefaultWebRequestContext.getWebReq
 import static io.fluxcapacitor.javaclient.web.HttpRequestMethod.WS_CLOSE;
 import static io.fluxcapacitor.javaclient.web.HttpRequestMethod.WS_HANDSHAKE;
 import static io.fluxcapacitor.javaclient.web.HttpRequestMethod.WS_MESSAGE;
+import static io.fluxcapacitor.javaclient.web.HttpRequestMethod.WS_OPEN;
 import static io.fluxcapacitor.javaclient.web.HttpRequestMethod.isWebsocket;
 import static io.fluxcapacitor.javaclient.web.WebRequest.requireSocketSessionId;
 import static java.util.Arrays.stream;
@@ -52,11 +54,12 @@ import static java.util.Optional.ofNullable;
 import static java.util.stream.Stream.concat;
 
 /**
- * Decorator that adds WebSocket session support to handler classes and enables parameter injection for {@link SocketSession}.
+ * Decorator that adds WebSocket session support to handler classes and enables parameter injection for
+ * {@link SocketSession}.
  * <p>
- * This decorator supports {@code @HandleWeb}-annotated methods that interact over WebSocket connections, and transparently
- * manages the lifecycle of {@link SocketSession} instances. It implements both {@link HandlerDecorator} and
- * {@link ParameterResolver} to provide the following capabilities:
+ * This decorator supports {@code @HandleWeb}-annotated methods that interact over WebSocket connections, and
+ * transparently manages the lifecycle of {@link SocketSession} instances. It implements both {@link HandlerDecorator}
+ * and {@link ParameterResolver} to provide the following capabilities:
  *
  * <ul>
  *   <li>
@@ -76,7 +79,7 @@ import static java.util.stream.Stream.concat;
  *     Resolves {@link SocketSession} method parameters in applicable WebSocket handler methods.
  *   </li>
  * </ul>
- *
+ * <p>
  * This decorator also tracks open WebSocket sessions and ensures that message dispatch is session-aware. It works
  * transparently with the Flux client’s message routing and tracking infrastructure.
  */
@@ -94,16 +97,20 @@ public class WebsocketHandlerDecorator implements HandlerDecorator, ParameterRes
     /**
      * Resolves a {@link SocketSession} parameter from the current {@link HasMessage} context.
      * <p>
-     * The session is tracked per session ID and reused for subsequent requests over the same connection.
-     * If no session exists for the current message's session ID, a new one is created.
+     * The session is tracked per session ID and reused for subsequent requests over the same connection. If no session
+     * exists for the current message's session ID, a new one is created.
      *
-     * @param p the method parameter being resolved
+     * @param p                the method parameter being resolved
      * @param methodAnnotation the handler method's annotation (e.g. {@code @HandleWeb})
      * @return a function that resolves the {@link SocketSession} from the message
      */
     @Override
     public Function<HasMessage, Object> resolve(Parameter p, Annotation methodAnnotation) {
-        return m -> openSessions.computeIfAbsent(requireSocketSessionId(m.getMetadata()), sId -> {
+        return this::getOrCreateSocketSession;
+    }
+
+    protected DefaultSocketSession getOrCreateSocketSession(HasMessage m) {
+        return openSessions.computeIfAbsent(requireSocketSessionId(m.getMetadata()), sId -> {
             String target = m instanceof DeserializingMessage dm ? dm.getSerializedObject().getSource() : null;
             return new DefaultSocketSession(sId, target,
                                             WebRequest.getUrl(m.getMetadata()),
@@ -115,12 +122,12 @@ public class WebsocketHandlerDecorator implements HandlerDecorator, ParameterRes
     /**
      * Determines whether this resolver supports injecting a {@link SocketSession} for the given method parameter.
      * <p>
-     * The parameter must be assignable from {@link SocketSession}, and the method must be annotated
-     * with {@link HandleWeb} (or a compatible meta-annotation).
+     * The parameter must be assignable from {@link SocketSession}, and the method must be annotated with
+     * {@link HandleWeb} (or a compatible meta-annotation).
      *
-     * @param parameter the parameter being resolved
+     * @param parameter        the parameter being resolved
      * @param methodAnnotation the annotation present on the handler method
-     * @param value the current message
+     * @param value            the current message
      * @return {@code true} if the parameter should be resolved by this resolver
      */
     @Override
@@ -150,9 +157,9 @@ public class WebsocketHandlerDecorator implements HandlerDecorator, ParameterRes
     /**
      * Wraps a websocket-compatible handler with websocket-specific functionality.
      * <p>
-     * If the target handler supports websocket patterns (e.g., {@code WS_HANDSHAKE} or {@code WS_MESSAGE}),
-     * it is wrapped with logic to support automatic handshake negotiation, websocket message dispatch,
-     * and session cleanup on close.
+     * If the target handler supports websocket patterns (e.g., {@code WS_HANDSHAKE} or {@code WS_MESSAGE}), it is
+     * wrapped with logic to support automatic handshake negotiation, websocket message dispatch, and session cleanup on
+     * close.
      *
      * @param handler the original handler
      * @return the wrapped handler with websocket support if applicable
@@ -162,11 +169,12 @@ public class WebsocketHandlerDecorator implements HandlerDecorator, ParameterRes
         Class<?> type = handler.getTargetClass();
         var socketPatterns =
                 concat(getAllMethods(type).stream(), stream(type.getDeclaredConstructors()))
-                .flatMap(m -> WebUtils.getWebPatterns(type, null, m).stream())
-                .filter(p -> isWebsocket(p.getMethod())).toList();
+                        .flatMap(m -> WebUtils.getWebPatterns(type, null, m).stream())
+                        .filter(p -> isWebsocket(p.getMethod())).toList();
         if (!socketPatterns.isEmpty()) {
             handler = enableHandshake(handler, socketPatterns);
             handler = handleRequest(handler);
+            handler = closeOnError(handler);
             handler = cleanUpOnClose(handler);
             websocketHandlers.add(handler);
         }
@@ -213,6 +221,44 @@ public class WebsocketHandlerDecorator implements HandlerDecorator, ParameterRes
             boolean matches(DeserializingMessage message) {
                 return message.getMessageType() == WEBREQUEST
                        && WS_MESSAGE.equals(WebRequest.getMethod(message.getMetadata()));
+            }
+        };
+    }
+
+    protected Handler<DeserializingMessage> closeOnError(Handler<DeserializingMessage> handler) {
+        return new DelegatingHandler<DeserializingMessage>(handler) {
+            @Override
+            public Optional<HandlerInvoker> getInvoker(DeserializingMessage message) {
+                if (!matches(message)) {
+                    return delegate.getInvoker(message);
+                }
+                return delegate.getInvoker(message)
+                        .map(i -> new HandlerInvoker.DelegatingHandlerInvoker(i) {
+                            @Override
+                            public Object invoke(BiFunction<Object, Object, Object> resultCombiner) {
+                                try {
+                                    return delegate.invoke(resultCombiner);
+                                } catch (Throwable e) {
+                                    try {
+                                        getOrCreateSocketSession(message).close();
+                                    } catch (Throwable t) {
+                                        e.addSuppressed(t);
+                                    }
+                                    throw e;
+                                }
+                            }
+                        });
+            }
+
+            boolean matches(DeserializingMessage message) {
+                if (message.getMessageType() == WEBREQUEST) {
+                    switch (WebRequest.getMethod(message.getMetadata())) {
+                        case WS_OPEN, WS_MESSAGE -> {
+                            return true;
+                        }
+                    }
+                }
+                return false;
             }
         };
     }

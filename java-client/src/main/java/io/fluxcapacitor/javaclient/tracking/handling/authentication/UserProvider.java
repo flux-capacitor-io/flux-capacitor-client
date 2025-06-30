@@ -44,7 +44,8 @@ public interface UserProvider {
      * chained using {@link #andThen(UserProvider)}. May be {@code null} if no provider is registered.
      */
     UserProvider defaultUserProvider = Optional.of(ServiceLoader.load(UserProvider.class))
-            .flatMap(loader -> loader.stream().map(Provider::get).reduce(UserProvider::andThen)).orElse(null);
+            .flatMap(loader -> loader.stream().map(Provider::get).reduce(UserProvider::andThen))
+            .orElse(NoOpUserProvider.INSTANCE);
 
     /**
      * Returns the currently active user, typically injected by the current context.

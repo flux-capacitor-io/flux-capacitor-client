@@ -114,6 +114,7 @@ import static io.fluxcapacitor.javaclient.common.ClientUtils.getLocalHandlerAnno
 import static io.fluxcapacitor.javaclient.common.Message.asMessage;
 import static io.fluxcapacitor.javaclient.web.HttpRequestMethod.isWebsocket;
 import static java.util.Collections.emptyList;
+import static java.util.Optional.ofNullable;
 import static java.util.concurrent.Executors.newFixedThreadPool;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.stream.Collectors.toCollection;
@@ -350,7 +351,7 @@ public class TestFixture implements Given, When {
             fixtures.forEach(fixture -> shutdownExecutor.execute(
                     tryCatch(() -> fixture.fluxCapacitor.execute(
                             fc -> fixture.fluxCapacitor.close(true)))));
-            Optional.ofNullable(FluxCapacitor.instance.get()).ifPresent(fc -> FluxCapacitor.instance.remove());
+            ofNullable(FluxCapacitor.instance.get()).ifPresent(fc -> FluxCapacitor.instance.remove());
         }
     }
 
@@ -360,11 +361,10 @@ public class TestFixture implements Given, When {
         this.synchronous = synchronous;
         this.spying = false;
         this.productionUserProvider = false;
-        Optional<TestUserProvider> userProvider =
-                Optional.ofNullable(UserProvider.defaultUserProvider).map(TestUserProvider::new);
-        if (userProvider.isPresent()) {
-            fluxCapacitorBuilder = fluxCapacitorBuilder.registerUserProvider(userProvider.get());
-        }
+        fluxCapacitorBuilder.registerUserProvider(
+                ofNullable(fluxCapacitorBuilder.userProvider())
+                        .or(() -> Optional.ofNullable(UserProvider.defaultUserProvider))
+                        .map(TestUserProvider::new).orElse(null));
         if (synchronous) {
             fluxCapacitorBuilder.disableScheduledCommandHandler();
         }
@@ -411,9 +411,13 @@ public class TestFixture implements Given, When {
         this.productionUserProvider = productionUserProvider;
 
         this.fluxCapacitorBuilder = currentFixture.fluxCapacitorBuilder;
-        Optional.ofNullable(UserProvider.defaultUserProvider)
-                .map(provider -> productionUserProvider ? provider : new TestUserProvider(provider))
-                .ifPresent(this.fluxCapacitorBuilder::registerUserProvider);
+        if (productionUserProvider != currentFixture.productionUserProvider) {
+            this.fluxCapacitorBuilder.registerUserProvider(
+                    ofNullable(UserProvider.defaultUserProvider)
+                            .map(provider -> productionUserProvider
+                                    ? provider : new TestUserProvider(provider))
+                            .orElse(null));
+        }
         (this.interceptor = currentFixture.interceptor).testFixture = this;
         var currentClient = currentFixture.fluxCapacitor.client().unwrap();
         var newClient = currentClient instanceof LocalClient
@@ -890,7 +894,9 @@ public class TestFixture implements Given, When {
                 return response;
             } catch (Throwable e) {
                 try {
-                    registerWebResponse(fluxCapacitor.configuration().webResponseMapper().map(e));
+                    if (synchronous && !isWebsocket(request.getMethod())) {
+                        registerWebResponse(fluxCapacitor.configuration().webResponseMapper().map(e));
+                    }
                 } catch (Throwable ignored) {
                 }
                 throw e;
@@ -1223,7 +1229,7 @@ public class TestFixture implements Given, When {
     protected Optional<Object> lastResultValue() {
         if (fixtureResult.getPreviousResult() != null && fixtureResult.getPreviousResult().getResult() instanceof Object v) {
             var value = v instanceof WebResponse r ? r.getPayload() instanceof Object rv ? rv : null : v;
-            return Optional.ofNullable(value);
+            return ofNullable(value);
         }
         return Optional.empty();
     }
@@ -1297,7 +1303,7 @@ public class TestFixture implements Given, When {
                             return (((consumer.getMessageType() == messageType && Objects.equals(consumer.getTopic(),
                                                                                                  topic))
                                      || (consumer.getMessageType() == NOTIFICATION && messageType == EVENT))
-                                    && Optional.ofNullable(consumer.getConfiguration().getTypeFilter())
+                                    && ofNullable(consumer.getConfiguration().getTypeFilter())
                                             .map(f -> message.getPayload().getClass().getName().matches(f))
                                             .orElse(true));
                         }).forEach(e -> addMessage(e.getValue(), message));
@@ -1319,7 +1325,7 @@ public class TestFixture implements Given, When {
 
         protected Boolean captureMessage(Message message) {
             return testFixture.fixtureResult.isCollectingResults()
-                   && Optional.ofNullable(testFixture.getFixtureResult().getTracedMessage())
+                   && ofNullable(testFixture.getFixtureResult().getTracedMessage())
                            .map(t -> !Objects.equals(t.getMessageId(), message.getMessageId())).orElse(true);
         }
 
@@ -1339,7 +1345,7 @@ public class TestFixture implements Given, When {
                         new ActiveConsumer(tracker.getConfiguration(), tracker.getMessageType(), tracker.getTopic()),
                         c -> (c.getMessageType() == SCHEDULE
                                 ? publishedSchedules : Collections.<Message>emptyList()).stream().filter(
-                                        m -> Optional.ofNullable(c.getConfiguration().getTypeFilter())
+                                        m -> ofNullable(c.getConfiguration().getTypeFilter())
                                                 .map(f -> m.getPayload().getClass()
                                                         .getName().matches(f)).orElse(true))
                                 .collect(toCollection(CopyOnWriteArrayList::new)));

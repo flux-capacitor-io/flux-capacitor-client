@@ -23,6 +23,7 @@ import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.serialization.JsonUtils;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
+import io.fluxcapacitor.javaclient.MockException;
 import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
 import io.fluxcapacitor.javaclient.modeling.Id;
 import io.fluxcapacitor.javaclient.test.TestFixture;
@@ -694,7 +695,7 @@ public class HandleWebTest {
         }
 
         @Nested
-        class EndpointTests {
+        class SocketEndpointTests {
             static final String endpointUrl = "/endpoint";
             private final TestFixture testFixture = TestFixture.create();
 
@@ -983,6 +984,28 @@ public class HandleWebTest {
                 }
 
                 @Test
+                void testCloseOnThrow() {
+                    testFixture.whenWebRequest(toWebRequest(WS_OPEN).toBuilder().url(endpointUrl + "/throw").build())
+                            .expectWebResponse(r -> r.getMetadata().get("function").equals("close"));
+                }
+
+                @Test
+                void testOpenRequiresUser_withUser() {
+                    TestFixture.create(DefaultFluxCapacitor.builder().registerUserProvider(new FixedUserProvider(new MockUser())), Endpoint.class)
+                            .whenWebRequest(toWebRequest(WS_OPEN).toBuilder().url(endpointUrl + "/user").build())
+                            .expectSuccessfulResult()
+                            .expectWebResponses("open with user: testSession");
+                }
+
+                @Test
+                void testOpenRequiresUser_withoutUser() {
+                    testFixture.withProductionUserProvider()
+                            .whenWebRequest(toWebRequest(WS_OPEN).toBuilder().url(endpointUrl + "/user").build())
+                            .expectExceptionalResult(UnauthenticatedException.class)
+                            .expectWebResponse(r -> "close".equals(r.getMetadata().get("function")));
+                }
+
+                @Test
                 void testMessage() {
                     testFixture
                             .givenWebRequest(toWebRequest(WS_OPEN))
@@ -1009,6 +1032,18 @@ public class HandleWebTest {
                 static class Endpoint {
 
                     private final String name;
+
+                    @HandleSocketOpen("throw")
+                    static Endpoint throwOnOpen(SocketSession session) {
+                        throw new MockException("error");
+                    }
+
+                    @HandleSocketOpen("user")
+                    @RequiresUser
+                    static Endpoint onOpenWithUser(SocketSession session) {
+                        session.sendMessage("open with user: " + session.sessionId());
+                        return new Endpoint("withUser");
+                    }
 
                     @HandleSocketOpen
                     static Endpoint onOpen(SocketSession session) {

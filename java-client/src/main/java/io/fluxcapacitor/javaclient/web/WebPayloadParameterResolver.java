@@ -26,6 +26,7 @@ import java.util.function.Function;
 
 import static io.fluxcapacitor.javaclient.tracking.handling.validation.ValidationUtils.assertAuthorized;
 import static io.fluxcapacitor.javaclient.tracking.handling.validation.ValidationUtils.assertValid;
+import static io.fluxcapacitor.javaclient.tracking.handling.validation.ValidationUtils.ignoreSilently;
 
 /**
  * Resolves a method parameter from the payload of a {@link io.fluxcapacitor.javaclient.web.WebRequest}.
@@ -74,15 +75,8 @@ public class WebPayloadParameterResolver implements ParameterResolver<HasMessage
     public boolean filterMessage(HasMessage m, Parameter p) {
         if (authoriseUser) {
             Object payload = m.getPayloadAs(p.getType());
-            if (payload != null) {
-                try {
-                    boolean authorized = assertAuthorized(payload.getClass(), User.getCurrent());
-                    if (!authorized) {
-                        //ignore silently if the user is not authorized and no exception should be thrown
-                        return false;
-                    }
-                } catch (Exception ignored) {
-                }
+            if (payload != null && ignoreSilently(payload.getClass(), User.getCurrent())) {
+                return false;
             }
         }
         return ParameterResolver.super.filterMessage(m, p);
