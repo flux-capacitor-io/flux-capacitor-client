@@ -20,6 +20,7 @@ import io.fluxcapacitor.common.api.Command;
 import lombok.EqualsAndHashCode;
 import lombok.Value;
 
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -54,6 +55,21 @@ public class IndexDocuments extends Command {
         return documents.size();
     }
 
+    @JsonIgnore
+    long getBytes() {
+        return documents.stream().mapToLong(SerializedDocument::bytes).sum();
+    }
+
+    @JsonIgnore
+    Set<String> getCollections() {
+        return documents.stream().map(SerializedDocument::getCollection).collect(Collectors.toSet());
+    }
+
+    @JsonIgnore
+    Set<String> getIds() {
+        return documents.stream().map(SerializedDocument::getId).collect(Collectors.toCollection(LinkedHashSet::new));
+    }
+
     @Override
     public String toString() {
         return "IndexDocuments of length " + documents.size();
@@ -61,9 +77,7 @@ public class IndexDocuments extends Command {
 
     @Override
     public Metric toMetric() {
-        return new Metric(getSize(), ifNotExists, guarantee,
-                          documents.stream().map(SerializedDocument::getCollection).collect(Collectors.toSet()),
-                          documents.stream().map(SerializedDocument::getId).toList());
+        return new Metric(getSize(), ifNotExists, guarantee, getCollections(), getIds(), getBytes());
     }
 
     @Override
@@ -77,6 +91,7 @@ public class IndexDocuments extends Command {
         boolean ifNotExists;
         Guarantee guarantee;
         Set<String> collections;
-        List<String> ids;
+        Set<String> ids;
+        long bytes;
     }
 }

@@ -48,7 +48,7 @@ public class ReadFromIndexResult implements RequestResult {
      */
     @Override
     public Metric toMetric() {
-        return new Metric(messages.size(), timestamp);
+        return new Metric(messages.size(), messages.stream().mapToLong(SerializedMessage::bytes).sum(), timestamp);
     }
 
     /**
@@ -61,6 +61,11 @@ public class ReadFromIndexResult implements RequestResult {
          * The number of messages included in the result.
          */
         int size;
+
+        /**
+         * The total number of bytes in the message payloads.
+         */
+        long bytes;
 
         /**
          * The timestamp at which the result was generated.

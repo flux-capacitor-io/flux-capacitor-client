@@ -62,6 +62,11 @@ public class Append extends Command {
         return messages.size();
     }
 
+    @JsonIgnore
+    long getBytes() {
+        return messages.stream().mapToLong(SerializedMessage::bytes).sum();
+    }
+
     public Guarantee getGuarantee() {
         return ofNullable(guarantee).orElse(Guarantee.NONE);
     }
@@ -78,7 +83,7 @@ public class Append extends Command {
 
     @Override
     public Metric toMetric() {
-        return new Metric(getMessageType(), getSize(), getGuarantee());
+        return new Metric(getMessageType(), getSize(), getBytes(), getGuarantee());
     }
 
     /**
@@ -88,6 +93,7 @@ public class Append extends Command {
     public static class Metric {
         MessageType messageType;
         int size;
+        long bytes;
         Guarantee guarantee;
     }
 }

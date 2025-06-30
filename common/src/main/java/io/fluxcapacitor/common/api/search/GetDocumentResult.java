@@ -51,7 +51,7 @@ public class GetDocumentResult implements RequestResult {
      */
     @Override
     public Metric toMetric() {
-        return new Metric(timestamp, document != null);
+        return new Metric(timestamp, document != null, document != null ? document.bytes() : 0);
     }
 
     /**
@@ -69,5 +69,10 @@ public class GetDocumentResult implements RequestResult {
          * Whether a document was found in the search store.
          */
         boolean found;
+
+        /**
+         * The size of the document in bytes.
+         */
+        int bytes;
     }
 }
