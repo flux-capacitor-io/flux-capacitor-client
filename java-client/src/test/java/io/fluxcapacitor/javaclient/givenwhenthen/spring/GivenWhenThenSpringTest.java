@@ -30,8 +30,6 @@ import io.fluxcapacitor.javaclient.tracking.handling.Stateful;
 import lombok.Builder;
 import lombok.SneakyThrows;
 import lombok.Value;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -53,22 +51,15 @@ import static org.springframework.test.annotation.DirtiesContext.ClassMode.AFTER
 @ExtendWith(SpringExtension.class)
 @DirtiesContext(classMode = AFTER_EACH_TEST_METHOD)
 @ContextConfiguration(classes = {FluxCapacitorTestConfig.class, GivenWhenThenSpringTest.FooConfig.class, GivenWhenThenSpringTest.BarConfig.class})
+@TestPropertySource(properties = {"stateful-disabled=true", "trackself-disabled=true"})
 class GivenWhenThenSpringTest {
 
-    @BeforeAll
-    static void beforeAll() {
-        System.setProperty("stateful-disabled", "true");
-        System.setProperty("trackself-disabled", "true");
-    }
-
-    @AfterAll
-    static void afterAll() {
-        System.clearProperty("stateful-disabled");
-        System.clearProperty("trackself-disabled");
-    }
+    private final TestFixture testFixture;
 
     @Autowired
-    private TestFixture testFixture;
+    public GivenWhenThenSpringTest(TestFixture testFixture) {
+        this.testFixture = testFixture;
+    }
 
     @Test
     void testFoo() {
@@ -138,8 +129,10 @@ class GivenWhenThenSpringTest {
         }
     }
 
+    //For some bizarre reason, from junit 5.13 the *name* of this nested class matters!
+    // If renamed to e.g.: StatefulHandlersTests one of the tests fails.
     @Nested
-    class StatefulHandlerTest {
+    class StatefulHandlersTest {
         @Test
         void staticHandlerIsCreated() {
             testFixture.whenEvent(new StaticEvent("bla"))
@@ -233,7 +226,6 @@ class GivenWhenThenSpringTest {
         static class StaticEvent {
             String someId;
         }
-
     }
 
     @SneakyThrows
