@@ -53,7 +53,8 @@ import org.springframework.core.env.Environment;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.Set;
+import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.ifClass;
@@ -118,7 +119,7 @@ public class FluxCapacitorSpringConfig implements BeanPostProcessor {
     }
 
     private final ApplicationContext context;
-    private final List<Object> springBeans = new CopyOnWriteArrayList<>();
+    private final Set<Object> springBeans = new CopyOnWriteArraySet<>();
     private final AtomicReference<Registration> handlerRegistration = new AtomicReference<>();
 
     /**
