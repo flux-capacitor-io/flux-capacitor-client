@@ -353,6 +353,16 @@ public class Metadata {
     }
 
     /**
+     * Retrieves the value associated with the provided key, if it exists, wrapped in an Optional.
+     *
+     * @param key the key whose associated value is to be returned, must not be null
+     * @return an Optional containing the value associated with the key, or an empty Optional if no value is found
+     */
+    public Optional<String> getOptionally(Object key) {
+        return Optional.ofNullable(get(key));
+    }
+
+    /**
      * Retrieves the value associated with the given key and attempts to deserialize it into the specified type.
      *
      * @param <T>  the type into which the value should be deserialized
@@ -381,8 +391,21 @@ public class Metadata {
     }
 
     /**
-     * Retrieves a value associated with the given key from storage, deserializes it to the specified type, and returns
-     * it.
+     * Retrieves an object associated with the given key, attempts to deserialize it to the specified type, and returns
+     * it wrapped in an {@code Optional}. If the object is not present, an empty {@code Optional} is returned.
+     *
+     * @param <T>  the type of the object to be retrieved
+     * @param key  the key used to identify the object
+     * @param type the class of the type to cast the retrieved object to
+     * @return an {@code Optional} containing the object if present and of the specified type, or an empty
+     * {@code Optional} otherwise
+     */
+    public <T> Optional<T> getOptionally(Object key, Class<T> type) {
+        return Optional.ofNullable(get(key, type));
+    }
+
+    /**
+     * Retrieves a value associated with the given key, deserializes it to the specified type, and returns it.
      *
      * @param key  The key whose associated value is to be retrieved.
      * @param type The type reference indicating the type to which the retrieved value should be deserialized.
@@ -402,6 +425,19 @@ public class Metadata {
             throw new IllegalStateException(format("Failed to deserialize value %s to a %s for key %s",
                                                    value, type, key), e);
         }
+    }
+
+    /**
+     * Retrieves an object associated with the given key, deserializes it to the specified type, and returns it wrapped
+     * in an {@code Optional}. If the object is not present, an empty {@code Optional} is returned.
+     *
+     * @param <T>  the type of the object to be retrieved
+     * @param key  the key associated with the object to retrieve
+     * @param type the type reference indicating the expected type of the object
+     * @return an {@link Optional} containing the object if found, or an empty {@link Optional} if not found
+     */
+    public <T> Optional<T> getOptionally(Object key, TypeReference<T> type) {
+        return Optional.ofNullable(get(key, type));
     }
 
     /**
