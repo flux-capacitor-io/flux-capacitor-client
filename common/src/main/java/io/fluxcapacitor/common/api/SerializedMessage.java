@@ -14,10 +14,11 @@
 
 package io.fluxcapacitor.common.api;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.AllArgsConstructor;
 import lombok.NonNull;
 import lombok.With;
+
+import java.beans.Transient;
 
 /**
  * Represents a fully serialized message for transmission or storage within the Flux platform.
@@ -145,21 +146,23 @@ public class SerializedMessage implements SerializedObject<byte[]>, HasMetadata 
     }
 
     @Override
-    @JsonIgnore
+    @Transient
     public int getRevision() {
         return SerializedObject.super.getRevision();
     }
 
     @Override
-    @JsonIgnore
+    @Transient
     public String getType() {
         return SerializedObject.super.getType();
     }
 
     /**
-     * Returns the number of bytes of the serialized message payload.
+     * Returns the length of bytes in the serialized payload. If the amount cannot be determined, {@code 0} is returned.
      */
-    public long bytes() {
-        return data.getValue().length;
+    @Transient
+    public long getBytes() {
+        byte[] value = data.getValue();
+        return value == null ? 0 : value.length;
     }
 }
