@@ -48,7 +48,7 @@ public class ReadFromIndexResult implements RequestResult {
      */
     @Override
     public Metric toMetric() {
-        return new Metric(messages.size(), messages.stream().mapToLong(SerializedMessage::bytes).sum(), timestamp);
+        return new Metric(messages.size(), messages.stream().mapToLong(SerializedMessage::getBytes).sum(), timestamp);
     }
 
     /**

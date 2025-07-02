@@ -282,14 +282,14 @@ public class DefaultTracker implements Runnable, Registration {
                     minIndex == null ? batch.getLastIndex() : Math.max(minIndex, batch.getLastIndex());
             batch = new MessageBatch(batch.getSegment(),
                                      batch.getMessages().stream().filter(filter).collect(toList()),
-                                     newLastIndex, batch.getPosition());
+                                     newLastIndex, batch.getPosition(), batch.isCaughtUp());
         }
         return batch;
     }
 
     private boolean shouldFilterBatch(MessageBatch batch) {
         return isMaxIndexReached(batch.getLastIndex()) || (minIndex != null && !batch.getMessages().isEmpty()
-                                                           && minIndex > batch.getMessages().get(0).getIndex());
+                                                           && minIndex > batch.getMessages().getFirst().getIndex());
     }
 
     private Predicate<SerializedMessage> messageIndexFilter() {

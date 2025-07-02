@@ -39,7 +39,7 @@ public class GetScheduleResult implements RequestResult {
 
     @Override
     public Object toMetric() {
-        return new Metric(schedule.getScheduleId(), schedule.getMessage().bytes());
+        return new Metric(schedule.getScheduleId(), schedule.getMessage().getBytes());
     }
 
     /**

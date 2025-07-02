@@ -91,7 +91,7 @@ public class DefaultTrackingStrategy implements TrackingStrategy {
         int[] newSegment = claimSegment(tracker);
         try {
             if (newSegment[0] == newSegment[1]) {
-                waitForMessages(tracker, new MessageBatch(newSegment, emptyList(), null, newPosition()), positionStore);
+                waitForMessages(tracker, new MessageBatch(newSegment, emptyList(), null, newPosition(), true), positionStore);
                 return;
             }
             int batchSize = adjustMaxSize(tracker, tracker.getMaxSize());
@@ -105,12 +105,12 @@ public class DefaultTrackingStrategy implements TrackingStrategy {
                 filtered = filter(unfiltered, newSegment, position, tracker);
 
                 if (!unfiltered.isEmpty() && filtered.isEmpty()) {
-                    long batchIndex = unfiltered.get(unfiltered.size() - 1).getIndex();
+                    long batchIndex = unfiltered.getLast().getIndex();
 
                     if (batchIndex < indexFromMillis(System.currentTimeMillis() - tracker.maxTimeout())) {
                         //if the index is old, send back an empty batch.
                         // Prevents rushing through potentially billions of messages
-                        MessageBatch emptyBatch = new MessageBatch(newSegment, filtered, batchIndex, position);
+                        MessageBatch emptyBatch = new MessageBatch(newSegment, filtered, batchIndex, position, false);
                         tracker.send(emptyBatch);
                         return;
                     } else {
@@ -121,8 +121,8 @@ public class DefaultTrackingStrategy implements TrackingStrategy {
                 }
             } while (!unfiltered.isEmpty() && filtered.isEmpty() && !tracker.hasMissedDeadline());
 
-            MessageBatch messageBatch = new MessageBatch(newSegment, filtered, getLastIndex(unfiltered), position);
-            if (messageBatch.isEmpty()) {
+            if (filtered.isEmpty()) {
+                MessageBatch messageBatch = new MessageBatch(newSegment, filtered, getLastIndex(unfiltered), position, true);
                 waitForMessages(tracker, messageBatch, positionStore);
                 if (lastIndex < lastSeenIndex
                     && (messageBatch.getLastIndex() == null || messageBatch.getLastIndex() < lastSeenIndex)) {
@@ -132,11 +132,13 @@ public class DefaultTrackingStrategy implements TrackingStrategy {
                     }
                 }
             } else {
+                MessageBatch messageBatch = new MessageBatch(newSegment, filtered, getLastIndex(unfiltered), position,
+                                                             unfiltered.size() < batchSize);
                 tracker.send(messageBatch);
             }
         } catch (Throwable e) {
             log.error("Failed to get a batch for tracker {}", tracker, e);
-            waitForMessages(tracker, new MessageBatch(newSegment, emptyList(), null, newPosition()), positionStore);
+            waitForMessages(tracker, new MessageBatch(newSegment, emptyList(), null, newPosition(), false), positionStore);
         } finally {
             if (oldCluster != null && !Objects.deepEquals(oldCluster.getSegment(tracker), newSegment)) {
                 onClusterUpdate(oldCluster);
@@ -148,11 +150,11 @@ public class DefaultTrackingStrategy implements TrackingStrategy {
     public void claimSegment(Tracker tracker, PositionStore positionStore) {
         int[] newSegment = claimSegment(tracker);
         if (newSegment[0] == newSegment[1]) {
-            waitForUpdate(tracker, new MessageBatch(newSegment, emptyList(), null, newPosition()),
+            waitForUpdate(tracker, new MessageBatch(newSegment, emptyList(), null, newPosition(), true),
                           () -> claimSegment(tracker, positionStore));
         } else {
             tracker.send(new MessageBatch(newSegment, emptyList(), null,
-                                          position(tracker, positionStore, newSegment)));
+                                          position(tracker, positionStore, newSegment), true));
         }
     }
 
@@ -270,7 +272,7 @@ public class DefaultTrackingStrategy implements TrackingStrategy {
             if (sendFinalEmptyBatch) {
                 removedAndWaiting.forEach(tracker -> {
                     try {
-                        tracker.send(new MessageBatch(new int[]{0, 0}, emptyList(), null, newPosition()));
+                        tracker.send(new MessageBatch(new int[]{0, 0}, emptyList(), null, newPosition(), true));
                     } catch (Exception e) {
                         log.error("Failed to send final empty batch to disconnecting tracker: {}", predicate, e);
                     }

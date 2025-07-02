@@ -60,6 +60,11 @@ public class MessageBatch {
     Position position;
 
     /**
+     * Indicates whether the tracker has caught up with all available messages in the log.
+     */
+    boolean caughtUp;
+
+    /**
      * Indicates whether this message batch is empty.
      */
     @JsonIgnore
@@ -99,7 +104,7 @@ public class MessageBatch {
      */
     @JsonIgnore
     public Metric toMetric() {
-        return new Metric(segment, getSize(), getBytes(), lastIndex, position);
+        return new Metric(segment, getSize(), getBytes(), lastIndex, position, caughtUp);
     }
 
     /**
@@ -131,5 +136,10 @@ public class MessageBatch {
          * The consumer's position when this batch was read.
          */
         Position position;
+
+        /**
+         * Indicates whether the tracker has caught up with all available messages in the log.
+         */
+        boolean caughtUp;
     }
 }

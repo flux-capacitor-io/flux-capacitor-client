@@ -60,7 +60,7 @@ class BatchInterceptorTest {
         Consumer<MessageBatch> invocation = BatchInterceptor.join(Arrays.asList(outerInterceptor, innerInterceptor))
                 .intercept(function, new Tracker("0", COMMAND, null, configuration, null));
         assertEquals(emptyList(), invokedInstances);
-        invocation.accept(new MessageBatch(new int[]{0, 128}, emptyList(), 0L, Position.newPosition()));
+        invocation.accept(new MessageBatch(new int[]{0, 128}, emptyList(), 0L, Position.newPosition(), true));
         assertEquals(Arrays.asList(outerInterceptor, innerInterceptor, function), invokedInstances);
     }
 }

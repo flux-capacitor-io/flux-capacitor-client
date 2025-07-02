@@ -64,7 +64,7 @@ public class Append extends Command {
 
     @JsonIgnore
     long getBytes() {
-        return messages.stream().mapToLong(SerializedMessage::bytes).sum();
+        return messages.stream().mapToLong(SerializedMessage::getBytes).sum();
     }
 
     public Guarantee getGuarantee() {
