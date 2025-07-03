@@ -161,7 +161,14 @@ public class CachingAggregateRepository implements AggregateRepository {
                     cache.<Entity<?>>computeIfPresent(
                             id, (i, before) -> {
                                 Long lastIndex = before.highestEventIndex();
-                                if (lastIndex == null || lastIndex < index) {
+                                if (lastIndex == null) {
+                                    //The cached aggregate was last updated by this client, but we received an event
+                                    // from another client. If we would apply the event, the version ordering of this
+                                    // aggregate would not be consistent with the global event index order. To prevent
+                                    // this, we delete this aggregate from the cache.
+                                    return null;
+                                }
+                                if (lastIndex < index) {
                                     boolean wasLoading = Entity.isLoading();
                                     try {
                                         Entity.loading.set(true);
