@@ -19,6 +19,7 @@ import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.Value;
 import lombok.extern.slf4j.Slf4j;
 
 import java.lang.ref.Reference;
@@ -81,6 +82,7 @@ public class DefaultCache implements Cache, AutoCloseable {
 
     private final Executor evictionNotifier;
     private final Duration expiry;
+    private final boolean softReferences;
     private final Clock clock;
 
     private final Collection<Consumer<CacheEvictionEvent>> evictionListeners = new CopyOnWriteArrayList<>();
@@ -116,14 +118,14 @@ public class DefaultCache implements Cache, AutoCloseable {
      * Constructs a cache with specified size, executor for eviction notifications and expiration.
      */
     public DefaultCache(int maxSize, Executor evictionNotifier, Duration expiry) {
-        this(maxSize, evictionNotifier, expiry, Duration.ofMinutes(1));
+        this(maxSize, evictionNotifier, expiry, Duration.ofMinutes(1), true);
     }
 
     /**
      * Constructs a cache with full configuration of size, eviction executor, expiration delay, and expiration check
      * frequency.
      */
-    public DefaultCache(int maxSize, Executor evictionNotifier, Duration expiry, Duration expiryCheckDelay) {
+    public DefaultCache(int maxSize, Executor evictionNotifier, Duration expiry, Duration expiryCheckDelay, boolean softReferences) {
         this.valueMap = Collections.synchronizedMap(new LinkedHashMap<>(Math.min(128, maxSize), 0.75f, true) {
             @Override
             protected boolean removeEldestEntry(Map.Entry<Object, CacheReference> eldest) {
@@ -137,6 +139,7 @@ public class DefaultCache implements Cache, AutoCloseable {
                 }
             }
         });
+        this.softReferences = softReferences;
         this.evictionNotifier = evictionNotifier;
         this.clock = FluxCapacitor.getOptionally().map(FluxCapacitor::clock).orElseGet(Clock::systemUTC);
         this.referencePurger.execute(this::pollReferenceQueue);
@@ -237,7 +240,8 @@ public class DefaultCache implements Cache, AutoCloseable {
     }
 
     protected CacheReference wrap(Object id, Object value) {
-        return value == null ? null : new CacheReference(id, value);
+        return value == null ? null : softReferences
+                ? new SoftCacheReference(id, value) : new HardCacheReference(id, value);
     }
 
     @SuppressWarnings("unchecked")
@@ -245,7 +249,7 @@ public class DefaultCache implements Cache, AutoCloseable {
         if (ref == null) {
             return null;
         }
-        if (ref.hasExpired()) {
+        if (ref.hasExpired(clock)) {
             return null;
         }
         Object result = ref.get();
@@ -259,9 +263,9 @@ public class DefaultCache implements Cache, AutoCloseable {
         try {
             Reference<?> reference;
             while ((reference = referenceQueue.remove()) != null) {
-                if (reference instanceof CacheReference cacheReference) {
-                    remove(cacheReference.id);
-                    notifyEvictionListeners(cacheReference.id, memoryPressure);
+                if (reference instanceof CacheReference r) {
+                    remove(r.getId());
+                    notifyEvictionListeners(r.getId(), memoryPressure);
                 }
             }
         } catch (InterruptedException e) {
@@ -271,7 +275,7 @@ public class DefaultCache implements Cache, AutoCloseable {
 
     protected void removeExpiredReferences() {
         valueMap.entrySet().removeIf(e -> {
-            if (e.getValue().hasExpired()) {
+            if (e.getValue().hasExpired(clock)) {
                 notifyEvictionListeners(e.getKey(), CacheEvictionEvent.Reason.expiry);
                 return true;
             }
@@ -284,18 +288,38 @@ public class DefaultCache implements Cache, AutoCloseable {
         evictionNotifier.execute(() -> evictionListeners.forEach(l -> l.accept(event)));
     }
 
-    protected class CacheReference extends SoftReference<Object> {
+    @Getter
+    protected class SoftCacheReference extends SoftReference<Object> implements CacheReference {
         private final Object id;
-        private final Instant deadline;
+        private final Instant deadline = expiry == null ? null : clock.instant().plus(expiry);
 
-        public CacheReference(Object id, Object value) {
+        public SoftCacheReference(Object id, Object value) {
             super(value, referenceQueue);
             this.id = id;
-            this.deadline = expiry == null ? null : clock.instant().plus(expiry);
         }
+    }
 
-        boolean hasExpired() {
-            return deadline != null && deadline.isBefore(clock.instant());
+    @Value
+    public class HardCacheReference implements CacheReference {
+        Object id;
+        Object value;
+        Instant deadline = expiry == null ? null : clock.instant().plus(expiry);
+
+        @Override
+        public Object get() {
+            return value;
+        }
+    }
+
+    protected interface CacheReference {
+        Object getId();
+
+        Object get();
+
+        Instant getDeadline();
+
+        default boolean hasExpired(Clock clock) {
+            return getDeadline() != null && getDeadline().isBefore(clock.instant());
         }
     }
 }

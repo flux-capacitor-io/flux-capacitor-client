@@ -16,13 +16,13 @@ package io.fluxcapacitor.javaclient.persisting.caching;
 
 import io.fluxcapacitor.common.DirectExecutorService;
 import io.fluxcapacitor.common.ObjectUtils;
+import io.fluxcapacitor.javaclient.persisting.caching.DefaultCache.SoftCacheReference;
 import io.fluxcapacitor.javaclient.test.TestFixture;
 import lombok.SneakyThrows;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import java.lang.ref.Reference;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -199,7 +199,7 @@ class DefaultCacheTest {
         @Test
         void simulatedMemoryEviction() {
             subject.put("a", new Object());
-            Reference<?> ref = subject.getValueMap().get("a");
+            SoftCacheReference ref = (SoftCacheReference) subject.getValueMap().get("a");
             ref.clear();
             ref.enqueue();
             Thread.sleep(10);
@@ -212,7 +212,7 @@ class DefaultCacheTest {
         @Test
         void expiryEviction() {
             var testFixture = TestFixture.create();
-            subject = new DefaultCache(2, DirectExecutorService.newInstance(), Duration.ofSeconds(10), Duration.ofMillis(1));
+            subject = new DefaultCache(2, DirectExecutorService.newInstance(), Duration.ofSeconds(10), Duration.ofMillis(1), false);
             setUp();
             subject.put("a", new Object());
             assertNotNull(subject.get("a"));
