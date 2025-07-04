@@ -44,7 +44,7 @@ import java.util.function.Consumer;
  * @see MetricsGateway
  */
 @AllArgsConstructor
-public class CacheEvictionsLogger implements Consumer<CacheEvictionEvent> {
+public class CacheEvictionsLogger implements Consumer<CacheEviction> {
 
     private final MetricsGateway metricsGateway;
 
@@ -66,7 +66,7 @@ public class CacheEvictionsLogger implements Consumer<CacheEvictionEvent> {
      * @param evictionEvent the event to report.
      */
     @Override
-    public void accept(CacheEvictionEvent evictionEvent) {
-        metricsGateway.publish(evictionEvent);
+    public void accept(CacheEviction evictionEvent) {
+        metricsGateway.publish(new CacheEvictionEvent(evictionEvent.getId(), evictionEvent.getReason()));
     }
 }

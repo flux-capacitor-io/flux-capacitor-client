@@ -45,9 +45,9 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 
 import static io.fluxcapacitor.common.ObjectUtils.newThreadFactory;
-import static io.fluxcapacitor.javaclient.persisting.caching.CacheEvictionEvent.Reason.manual;
-import static io.fluxcapacitor.javaclient.persisting.caching.CacheEvictionEvent.Reason.memoryPressure;
-import static io.fluxcapacitor.javaclient.persisting.caching.CacheEvictionEvent.Reason.size;
+import static io.fluxcapacitor.javaclient.persisting.caching.CacheEviction.Reason.manual;
+import static io.fluxcapacitor.javaclient.persisting.caching.CacheEviction.Reason.memoryPressure;
+import static io.fluxcapacitor.javaclient.persisting.caching.CacheEviction.Reason.size;
 
 /**
  * Default implementation of the {@link Cache} interface using key-level synchronized access and soft references for
@@ -58,7 +58,7 @@ import static io.fluxcapacitor.javaclient.persisting.caching.CacheEvictionEvent.
  *     <li><strong>Automatic eviction</strong> based on max size (LRU policy)</li>
  *     <li><strong>Reference-based eviction</strong> when values are no longer strongly reachable (via {@link SoftReference})</li>
  *     <li><strong>Expiration</strong> after a configurable duration</li>
- *     <li><strong>Eviction notification</strong> via registered {@link CacheEvictionEvent} listeners</li>
+ *     <li><strong>Eviction notification</strong> via registered {@link CacheEviction} listeners</li>
  * </ul>
  *
  * <p>
@@ -70,7 +70,7 @@ import static io.fluxcapacitor.javaclient.persisting.caching.CacheEvictionEvent.
  * The {@code valueMap} itself is backed by a synchronized {@link LinkedHashMap} with LRU eviction behavior.</p>
  *
  * @see Cache
- * @see CacheEvictionEvent
+ * @see CacheEviction
  */
 @AllArgsConstructor
 @Slf4j
@@ -85,7 +85,7 @@ public class DefaultCache implements Cache, AutoCloseable {
     private final boolean softReferences;
     private final Clock clock;
 
-    private final Collection<Consumer<CacheEvictionEvent>> evictionListeners = new CopyOnWriteArrayList<>();
+    private final Collection<Consumer<CacheEviction>> evictionListeners = new CopyOnWriteArrayList<>();
 
     private final ScheduledExecutorService referencePurger = Executors.newScheduledThreadPool(
             2, newThreadFactory("DefaultCache-referencePurger"));
@@ -134,7 +134,7 @@ public class DefaultCache implements Cache, AutoCloseable {
                     return remove;
                 } finally {
                     if (remove) {
-                        notifyEvictionListeners(eldest.getKey(), size);
+                        registerEviction(eldest.getValue(), size);
                     }
                 }
             }
@@ -162,7 +162,7 @@ public class DefaultCache implements Cache, AutoCloseable {
             if (next == null) {
                 valueMap.remove(id);
                 if (previous != null && previous.get() != null) {
-                    notifyEvictionListeners(id, manual);
+                    registerEviction(previous, manual);
                 }
             } else {
                 valueMap.put(id, next);
@@ -214,7 +214,7 @@ public class DefaultCache implements Cache, AutoCloseable {
     @Override
     public void clear() {
         valueMap.clear();
-        notifyEvictionListeners(null, manual);
+        registerEviction(null, manual);
     }
 
     @Override
@@ -223,7 +223,7 @@ public class DefaultCache implements Cache, AutoCloseable {
     }
 
     @Override
-    public Registration registerEvictionListener(Consumer<CacheEvictionEvent> listener) {
+    public Registration registerEvictionListener(Consumer<CacheEviction> listener) {
         evictionListeners.add(listener);
         return () -> evictionListeners.remove(listener);
     }
@@ -265,7 +265,7 @@ public class DefaultCache implements Cache, AutoCloseable {
             while ((reference = referenceQueue.remove()) != null) {
                 if (reference instanceof CacheReference r) {
                     remove(r.getId());
-                    notifyEvictionListeners(r.getId(), memoryPressure);
+                    registerEviction(r, memoryPressure);
                 }
             }
         } catch (InterruptedException e) {
@@ -276,15 +276,16 @@ public class DefaultCache implements Cache, AutoCloseable {
     protected void removeExpiredReferences() {
         valueMap.entrySet().removeIf(e -> {
             if (e.getValue().hasExpired(clock)) {
-                notifyEvictionListeners(e.getKey(), CacheEvictionEvent.Reason.expiry);
+                registerEviction(e.getValue(), CacheEviction.Reason.expiry);
                 return true;
             }
             return false;
         });
     }
 
-    protected void notifyEvictionListeners(Object id, CacheEvictionEvent.Reason reason) {
-        var event = new CacheEvictionEvent(id, reason);
+    protected void registerEviction(CacheReference reference, CacheEviction.Reason reason) {
+        var event = new CacheEviction(reference == null ? null : reference.getId(),
+                                           reference == null ? null : reference.get(), reason);
         evictionNotifier.execute(() -> evictionListeners.forEach(l -> l.accept(event)));
     }
 

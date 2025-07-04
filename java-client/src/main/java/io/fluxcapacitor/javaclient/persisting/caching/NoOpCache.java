@@ -80,7 +80,7 @@ public enum NoOpCache implements Cache {
     }
 
     @Override
-    public Registration registerEvictionListener(Consumer<CacheEvictionEvent> listener) {
+    public Registration registerEvictionListener(Consumer<CacheEviction> listener) {
         return Registration.noOp();
     }
 

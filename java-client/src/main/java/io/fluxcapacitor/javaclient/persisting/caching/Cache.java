@@ -159,10 +159,10 @@ public interface Cache {
     /**
      * Registers a listener to be notified whenever a cache entry is evicted or removed.
      *
-     * @param listener a function that consumes {@link CacheEvictionEvent}s
+     * @param listener a function that consumes {@link CacheEviction}s
      * @return a registration that can be used to cancel the listener
      */
-    Registration registerEvictionListener(Consumer<CacheEvictionEvent> listener);
+    Registration registerEvictionListener(Consumer<CacheEviction> listener);
 
     /**
      * Closes the cache and releases all associated resources.

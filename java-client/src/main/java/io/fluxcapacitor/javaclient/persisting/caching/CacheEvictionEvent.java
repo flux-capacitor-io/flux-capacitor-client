@@ -41,30 +41,5 @@ public class CacheEvictionEvent {
     /**
      * The cause for the eviction.
      */
-    Reason reason;
-
-    /**
-     * Indicates the cause for a cache entry eviction.
-     */
-    public enum Reason {
-        /**
-         * The entry was manually evicted by application logic.
-         */
-        manual,
-
-        /**
-         * The eviction occurred due to exceeding the configured cache size.
-         */
-        size,
-
-        /**
-         * The JVM experienced memory pressure and the cache purged entries to free up space.
-         */
-        memoryPressure,
-
-        /**
-         * The entry expired due to time-based eviction policy.
-         */
-        expiry
-    }
+    CacheEviction.Reason reason;
 }

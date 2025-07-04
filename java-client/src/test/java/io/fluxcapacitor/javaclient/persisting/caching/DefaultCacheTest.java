@@ -29,10 +29,10 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 
-import static io.fluxcapacitor.javaclient.persisting.caching.CacheEvictionEvent.Reason.expiry;
-import static io.fluxcapacitor.javaclient.persisting.caching.CacheEvictionEvent.Reason.manual;
-import static io.fluxcapacitor.javaclient.persisting.caching.CacheEvictionEvent.Reason.memoryPressure;
-import static io.fluxcapacitor.javaclient.persisting.caching.CacheEvictionEvent.Reason.size;
+import static io.fluxcapacitor.javaclient.persisting.caching.CacheEviction.Reason.expiry;
+import static io.fluxcapacitor.javaclient.persisting.caching.CacheEviction.Reason.manual;
+import static io.fluxcapacitor.javaclient.persisting.caching.CacheEviction.Reason.memoryPressure;
+import static io.fluxcapacitor.javaclient.persisting.caching.CacheEviction.Reason.size;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -167,7 +167,7 @@ class DefaultCacheTest {
 
         @BeforeEach
         void setUp() {
-            subject.registerEvictionListener(evictionEvents::add);
+            subject.registerEvictionListener(e -> evictionEvents.add(new CacheEvictionEvent(e.getId(), e.getReason())));
         }
 
         @Test
