@@ -108,7 +108,7 @@ public class TimingUtils {
      * @param delay the delay between retries
      */
     public static void retryOnFailure(Runnable task, Duration delay) {
-        retryOnFailure(task, delay, e -> true);
+        retryOnFailure(task, delay, e -> !(e instanceof Error));
     }
 
     /**
@@ -118,7 +118,7 @@ public class TimingUtils {
      * @param delay     the delay between retries
      * @param predicate predicate to determine which exceptions are retryable
      */
-    public static void retryOnFailure(Runnable task, Duration delay, Predicate<Exception> predicate) {
+    public static void retryOnFailure(Runnable task, Duration delay, Predicate<Throwable> predicate) {
         retryOnFailure(() -> {
             task.run();
             return new Object();
@@ -134,7 +134,7 @@ public class TimingUtils {
      * @return the successful result
      */
     public static <T> T retryOnFailure(Callable<T> task, Duration delay) {
-        return retryOnFailure(task, delay, e -> true);
+        return retryOnFailure(task, delay, e -> !(e instanceof Error));
     }
 
     /**
@@ -146,7 +146,7 @@ public class TimingUtils {
      * @param <T>       the result type
      * @return the successful result, or {@code null} if not retryable and throwOnFailingErrorTest is false
      */
-    public static <T> T retryOnFailure(Callable<T> task, Duration delay, Predicate<Exception> errorTest) {
+    public static <T> T retryOnFailure(Callable<T> task, Duration delay, Predicate<Throwable> errorTest) {
         return retryOnFailure(task, RetryConfiguration.builder().delay(delay).errorTest(errorTest).build());
     }
 
@@ -173,7 +173,7 @@ public class TimingUtils {
                     configuration.getSuccessLogger().accept(retryStatus);
                 }
                 return result;
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 retryStatus = retryStatus == null ?
                         RetryStatus.builder().retryConfiguration(configuration).exception(e).task(task).build() :
                         retryStatus.afterRetry(e);
@@ -192,12 +192,9 @@ public class TimingUtils {
                     Thread.sleep(configuration.getDelay().toMillis());
                 } catch (InterruptedException e1) {
                     currentThread().interrupt();
-                    log.info("Thread interrupted while retrying task {}", task, e1);
+                    log.warn("Thread interrupted while retrying task {}", task, e1);
                     break;
                 }
-            } catch (Error e) {
-                log.error("Task {} failed with error. Will not retry.", task, e);
-                throw e;
             }
         }
         throw retryStatus.getException();

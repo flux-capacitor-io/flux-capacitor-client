@@ -203,7 +203,12 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
                 () -> container.connectToServer(this, endpointUri),
                 RetryConfiguration.builder()
                         .delay(reconnectDelay)
-                        .errorTest(e -> !closed.get())
+                        .errorTest(e -> {
+                            if (e instanceof Error) {
+                                log().error("Error while connecting to endpoint {}", endpointUri, e);
+                            }
+                            return !closed.get();
+                        })
                         .successLogger(s -> log().info("Successfully reconnected to endpoint {}", endpointUri))
                         .exceptionLogger(status -> {
                             if (status.getNumberOfTimesRetried() == 0) {

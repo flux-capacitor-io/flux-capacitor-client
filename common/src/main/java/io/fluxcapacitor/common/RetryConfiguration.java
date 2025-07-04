@@ -72,7 +72,7 @@ public class RetryConfiguration {
      * Defaults to always returning true (retry any exception).
      */
     @Default
-    Predicate<Exception> errorTest = e -> true;
+    Predicate<Throwable> errorTest = e -> !(e instanceof Error);
 
     /**
      * Whether to throw the exception if it fails the {@link #errorTest}.

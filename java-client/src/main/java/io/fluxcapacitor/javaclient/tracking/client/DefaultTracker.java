@@ -225,7 +225,7 @@ public class DefaultTracker implements Runnable, Registration {
                     if (notified.compareAndSet(false, true)) {
                         ofNullable(metricsGateway).ifPresent(g -> g.publish(new PauseTrackerEvent(
                                 tracker.getName(), tracker.getTrackerId()), Metadata.of(
-                                        "messageType", trackingClient.getMessageType()), Guarantee.SENT).join());
+                                "messageType", trackingClient.getMessageType()), Guarantee.SENT).join());
                     }
                     Thread.sleep(duration.toMillis() - System.currentTimeMillis() + start);
                 }
@@ -238,7 +238,13 @@ public class DefaultTracker implements Runnable, Registration {
     protected MessageBatch fetch(Long lastIndex) {
         return retryOnFailure(() -> trackingClient.readAndWait(tracker.getTrackerId(),
                                                                lastIndex, tracker.getConfiguration()),
-                              retryDelay, e -> running.get());
+                              retryDelay, e -> {
+                    if (e instanceof Error) {
+                        log.error("Error while fetching messages for tracker {}, consumer {}", tracker.getTrackerId(),
+                                  tracker.getName(), e);
+                    }
+                    return running.get();
+                });
     }
 
     protected void process(MessageBatch batch) {
@@ -261,12 +267,7 @@ public class DefaultTracker implements Runnable, Registration {
         } finally {
             processing = false;
             if (isMaxIndexReached(lastIndex)) {
-                try {
-                    cancel();
-                } finally {
-                    trackingClient.disconnectTracker(
-                            tracker.getName(), tracker.getTrackerId(), false);
-                }
+                cancelAndDisconnect();
             }
         }
     }
@@ -317,14 +318,12 @@ public class DefaultTracker implements Runnable, Registration {
                                    .filter(i -> e.getMessageIndex() != null && i != null
                                                 && i < e.getMessageIndex())
                                    .max(naturalOrder()).orElse(null), messageBatch.getSegment());
-            processing = false;
-            cancel();
+            cancelAndDisconnect();
             return;
         } catch (Exception e) {
             log.error("Consumer {} failed to handle batch of {} messages and did not handle exception. "
                       + "Tracker will be stopped.", tracker.getName(), messages.size(), e);
-            processing = false;
-            cancel();
+            cancelAndDisconnect();
             return;
         }
         updatePosition(messageBatch.getLastIndex(), messageBatch.getSegment());
@@ -344,6 +343,15 @@ public class DefaultTracker implements Runnable, Registration {
                                            Arrays.toString(segment), tracker, index), e);
                         }
                     }, retryDelay, e2 -> running.get());
+        }
+    }
+
+    protected void cancelAndDisconnect() {
+        try {
+            processing = false;
+            cancel();
+        } finally {
+            trackingClient.disconnectTracker(tracker.getName(), tracker.getTrackerId(), false);
         }
     }
 

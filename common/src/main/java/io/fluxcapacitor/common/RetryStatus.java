@@ -47,7 +47,7 @@ public class RetryStatus {
     /**
      * The most recent exception that caused a retry attempt.
      */
-    Exception exception;
+    Throwable exception;
 
     /**
      * The number of times the task has been retried (not including the initial attempt).
@@ -65,7 +65,7 @@ public class RetryStatus {
      * @param exception the new exception encountered during retry
      * @return a new {@code RetryStatus} instance with updated retry count and exception
      */
-    public RetryStatus afterRetry(Exception exception) {
+    public RetryStatus afterRetry(Throwable exception) {
         return toBuilder().exception(exception).numberOfTimesRetried(numberOfTimesRetried + 1).build();
     }
 }
