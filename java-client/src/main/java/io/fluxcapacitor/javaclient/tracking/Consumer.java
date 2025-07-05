@@ -199,6 +199,21 @@ public @interface Consumer {
     boolean clientControlledIndex() default false;
 
     /**
+     * Whether this consumer is taking manual control over storing its position in the log.
+     * <p>
+     * When {@code true}, the consumer is responsible for explicitly storing its position after processing one or more
+     * message batches. This allows for greater control — for example, when handling long-running workflows that span
+     * multiple batches, or when committing position should be deferred until post-processing is complete.
+     * <p>
+     * When {@code false} (the default), the position is automatically updated after each message batch is processed,
+     * ensuring progress is recorded and avoiding reprocessing on restart.
+     * <p>
+     * Note: Even with manual position tracking enabled, the consumer will continue to receive "new" messages as long as
+     * the tracking process remains active. However, its persisted position will not be updated unless explicitly stored.
+     */
+    boolean storePositionManually() default false;
+
+    /**
      * Determines whether handlers assigned to this consumer are excluded from other consumers.
      * <p>
      * If {@code true} (default), a handler will only be active in this consumer.

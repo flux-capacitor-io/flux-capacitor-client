@@ -91,7 +91,8 @@ public class DefaultTrackingStrategy implements TrackingStrategy {
         int[] newSegment = claimSegment(tracker);
         try {
             if (newSegment[0] == newSegment[1]) {
-                waitForMessages(tracker, new MessageBatch(newSegment, emptyList(), null, newPosition(), true), positionStore);
+                waitForMessages(tracker, new MessageBatch(newSegment, emptyList(), null, newPosition(), true),
+                                positionStore);
                 return;
             }
             int batchSize = adjustMaxSize(tracker, tracker.getMaxSize());
@@ -122,7 +123,8 @@ public class DefaultTrackingStrategy implements TrackingStrategy {
             } while (!unfiltered.isEmpty() && filtered.isEmpty() && !tracker.hasMissedDeadline());
 
             if (filtered.isEmpty()) {
-                MessageBatch messageBatch = new MessageBatch(newSegment, filtered, getLastIndex(unfiltered), position, true);
+                MessageBatch messageBatch =
+                        new MessageBatch(newSegment, filtered, getLastIndex(unfiltered), position, true);
                 waitForMessages(tracker, messageBatch, positionStore);
                 if (lastIndex < lastSeenIndex
                     && (messageBatch.getLastIndex() == null || messageBatch.getLastIndex() < lastSeenIndex)) {
@@ -138,7 +140,8 @@ public class DefaultTrackingStrategy implements TrackingStrategy {
             }
         } catch (Throwable e) {
             log.error("Failed to get a batch for tracker {}", tracker, e);
-            waitForMessages(tracker, new MessageBatch(newSegment, emptyList(), null, newPosition(), false), positionStore);
+            waitForMessages(tracker, new MessageBatch(newSegment, emptyList(), null, newPosition(), false),
+                            positionStore);
         } finally {
             if (oldCluster != null && !Objects.deepEquals(oldCluster.getSegment(tracker), newSegment)) {
                 onClusterUpdate(oldCluster);
@@ -196,11 +199,11 @@ public class DefaultTrackingStrategy implements TrackingStrategy {
         }
         Position position = positionStore.position(tracker.getConsumerName());
         if (position.isNew(segment)) {
-            return new Position(segment, tracker.getLastTrackerIndex() == null
-                    ? indexFromMillis(currentTimeMillis() - 1000L)
-                    : tracker.getLastTrackerIndex());
+            return new Position(segment, ofNullable(tracker.getLastTrackerIndex())
+                    .orElseGet(() -> indexFromMillis(currentTimeMillis() - 1000L)));
         }
-        return position;
+        return ofNullable(tracker.getLastTrackerIndex()).map(
+                lastIndex -> new Position(segment, lastIndex).merge(position)).orElse(position);
     }
 
     protected List<SerializedMessage> filter(List<SerializedMessage> messages, int[] segmentRange,

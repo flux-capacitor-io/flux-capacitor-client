@@ -87,8 +87,9 @@ public class DefaultTracker implements Runnable, Registration {
     private final AtomicBoolean running = new AtomicBoolean();
     private final AtomicReference<Thread> thread = new AtomicReference<>();
     private final Duration retryDelay;
-    private final Long maxIndexExclusive;
     private final Long minIndex;
+    private final Long maxIndexExclusive;
+    private final boolean autoStorePosition;
     private final FlowRegulator flowRegulator;
     private final MetricsGateway metricsGateway;
     private volatile Long lastProcessedIndex;
@@ -187,6 +188,7 @@ public class DefaultTracker implements Runnable, Registration {
         this.lastProcessedIndex = ofNullable(config.getMinIndex()).map(i -> i - 1).orElse(null);
         this.minIndex = config.getMinIndex();
         this.maxIndexExclusive = config.getMaxIndexExclusive();
+        this.autoStorePosition = !config.storePositionManually();
         this.flowRegulator = config.getFlowRegulator();
         this.metricsGateway = FluxCapacitor.getOptionally().map(FluxCapacitor::metricsGateway).orElse(null);
     }
@@ -255,12 +257,12 @@ public class DefaultTracker implements Runnable, Registration {
                 return;
             }
             if (batch.getMessages().isEmpty()) {
-                updatePosition(batch.getLastIndex(), batch.getSegment());
+                storePosition(batch.getLastIndex(), batch.getSegment());
                 return;
             }
             batch = filterBatchIfNeeded(batch);
             if (batch.getMessages().isEmpty()) {
-                updatePosition(batch.getLastIndex(), batch.getSegment());
+                storePosition(batch.getLastIndex(), batch.getSegment());
                 return;
             }
             doProcess(consumer, batch);
@@ -314,7 +316,7 @@ public class DefaultTracker implements Runnable, Registration {
                     "Consumer {} failed to handle batch of {} messages at index {} and did not handle exception. "
                     + "Consumer will be updated to the last processed index and then stopped.",
                     tracker.getName(), messages.size(), e.getMessageIndex());
-            updatePosition(messages.stream().map(SerializedMessage::getIndex)
+            storePosition(messages.stream().map(SerializedMessage::getIndex)
                                    .filter(i -> e.getMessageIndex() != null && i != null
                                                 && i < e.getMessageIndex())
                                    .max(naturalOrder()).orElse(null), messageBatch.getSegment());
@@ -326,12 +328,12 @@ public class DefaultTracker implements Runnable, Registration {
             cancelAndDisconnect();
             return;
         }
-        updatePosition(messageBatch.getLastIndex(), messageBatch.getSegment());
+        storePosition(messageBatch.getLastIndex(), messageBatch.getSegment());
     }
 
 
-    private void updatePosition(Long index, int[] segment) {
-        if (index != null) {
+    private void storePosition(Long index, int[] segment) {
+        if (index != null && autoStorePosition) {
             lastProcessedIndex = index;
             retryOnFailure(
                     () -> {
