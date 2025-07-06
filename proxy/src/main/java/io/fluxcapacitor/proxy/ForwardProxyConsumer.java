@@ -196,12 +196,21 @@ public class ForwardProxyConsumer implements Consumer<List<SerializedMessage>> {
                     client, request, MessageType.WEBREQUEST));
             var metricsMessage = new Message(new HandleMessageEvent(
                     consumerName, ForwardProxyConsumer.class.getSimpleName(),
-                    request.getIndex(), request.getType(),
-                    exceptionalResult, start.until(Instant.now(), NANOS), true), metadata);
+                    request.getIndex(), MessageType.WEBREQUEST, null, formatType(request), exceptionalResult,
+                    start.until(Instant.now(), NANOS), true), metadata);
             var metricsGateway = client.getGatewayClient(MessageType.METRICS);
             metricsGateway.append(Guarantee.NONE, metricsMessage.serialize(metricsSerializer));
         } catch (Throwable e) {
             log.error("Failed to publish HandleMessage metrics", e);
+        }
+    }
+
+    protected String formatType(SerializedMessage request) {
+        try {
+            return "%s %s" .formatted(WebRequest.getMethod(request.getMetadata()),
+                                      WebRequest.getUrl(request.getMetadata()));
+        } catch (Exception ignored) {
+            return request.getType();
         }
     }
 
@@ -211,7 +220,8 @@ public class ForwardProxyConsumer implements Consumer<List<SerializedMessage>> {
                     client, null, null));
             var tracker = Tracker.current().orElseThrow();
             var metricsMessage = new Message(new ProcessBatchEvent(
-                    consumerName, tracker.getTrackerId(), tracker.getMessageBatch().getSegment(),
+                    consumerName, tracker.getTrackerId(), MessageType.WEBREQUEST, null,
+                    tracker.getMessageBatch().getSegment(),
                     tracker.getMessageBatch().getLastIndex(), tracker.getMessageBatch().getSize(),
                     start.until(Instant.now(), NANOS)), metadata);
             var metricsGateway = client.getGatewayClient(MessageType.METRICS);

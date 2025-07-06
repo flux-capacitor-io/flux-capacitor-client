@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.javaclient.tracking.metrics;
 
+import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.JsonType;
 import lombok.Value;
 
@@ -22,6 +23,8 @@ public class HandleMessageEvent implements JsonType {
     String consumer;
     String handler;
     Long messageIndex;
+    MessageType messageType;
+    String topic;
     String payloadType;
     boolean exceptionalResult;
     long nanosecondDuration;

@@ -86,6 +86,9 @@ import static io.fluxcapacitor.common.api.Data.JSON_FORMAT;
 @EqualsAndHashCode(callSuper = true)
 @ToString(exclude = {"headers", "cookies"})
 public class WebRequest extends Message {
+
+    public static final String urlKey = "url", methodKey = "method", headersKey = "headers", sessionIdKey = "sessionId";
+
     /**
      * Creates a new {@link Builder} instance for constructing a {@link WebRequest}.
      */
@@ -146,8 +149,8 @@ public class WebRequest extends Message {
             .map(WebUtils::parseRequestCookieHeader).orElse(Collections.emptyList());
 
     private WebRequest(Builder builder) {
-        super(builder.payload(), builder.metadata.with("url", builder.url(), "method", builder.method(),
-                                                       "headers", builder.headers()));
+        super(builder.payload(), builder.metadata.with(urlKey, builder.url(), methodKey, builder.method(),
+                                                       headersKey, builder.headers()));
         this.path = builder.url();
         this.method = builder.method();
         this.headers = builder.headers();
@@ -316,7 +319,7 @@ public class WebRequest extends Message {
      * @throws IllegalStateException if the request path information is missing in the metadata
      */
     public static String getUrl(Metadata metadata) {
-        return Optional.ofNullable(metadata.get("url")).map(u -> u.startsWith("/") || u.contains("://") ? u : "/" + u)
+        return Optional.ofNullable(metadata.get(urlKey)).map(u -> u.startsWith("/") || u.contains("://") ? u : "/" + u)
                 .orElseThrow(() -> new IllegalStateException("WebRequest is malformed: url is missing"));
     }
 
@@ -328,7 +331,7 @@ public class WebRequest extends Message {
      * @throws IllegalStateException if the method information is missing in the metadata
      */
     public static String getMethod(Metadata metadata) {
-        return Optional.ofNullable(metadata.get("method"))
+        return Optional.ofNullable(metadata.get(methodKey))
                 .orElseThrow(() -> new IllegalStateException("WebRequest is malformed: http method is missing"));
     }
 
@@ -356,17 +359,17 @@ public class WebRequest extends Message {
     }
 
     /**
-     * Retrieves the WebSocket session ID from the provided metadata.
+     * Retrieves the WebSocket session ID from the provided metadata, or {@code null} if it is missing.
      */
     public static String getSocketSessionId(Metadata metadata) {
-        return metadata.get("sessionId");
+        return metadata.get(sessionIdKey);
     }
 
     /**
      * Retrieves the WebSocket session ID from the provided metadata or throws an exception if it is missing.
      */
     public static String requireSocketSessionId(Metadata metadata) {
-        return metadata.getOrThrow("sessionId", () -> new IllegalStateException(
+        return metadata.getOrThrow(sessionIdKey, () -> new IllegalStateException(
                 "`sessionId` is missing in the metadata of the WebRequest"));
     }
 

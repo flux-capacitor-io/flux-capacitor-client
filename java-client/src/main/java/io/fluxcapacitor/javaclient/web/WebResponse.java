@@ -82,6 +82,8 @@ import static java.util.stream.Collectors.toList;
 @EqualsAndHashCode(callSuper = true)
 @ToString(callSuper = true)
 public class WebResponse extends Message {
+    public static final String headersKey = WebRequest.headersKey, statusKey = "status";
+    
     private static final List<String> gzipEncoding = List.of("gzip");
 
     @NonNull
@@ -92,7 +94,7 @@ public class WebResponse extends Message {
     Object decodedPayload = decodePayload();
 
     private WebResponse(Builder builder) {
-        super(builder.payload(), Metadata.of("status", builder.status(), "headers", builder.headers()));
+        super(builder.payload(), Metadata.of(statusKey, builder.status(), headersKey, builder.headers()));
         this.status = builder.status();
         this.headers = builder.headers();
     }
@@ -101,9 +103,9 @@ public class WebResponse extends Message {
     @ConstructorProperties({"payload", "metadata", "messageId", "timestamp"})
     WebResponse(Object payload, Metadata metadata, String messageId, Instant timestamp) {
         super(payload, metadata, messageId, timestamp);
-        this.headers = Optional.ofNullable(metadata.get("headers", Map.class))
+        this.headers = Optional.ofNullable(metadata.get(headersKey, Map.class))
                 .map(map -> asHeaderMap(map)).orElseGet(WebUtils::emptyHeaderMap);
-        this.status = Optional.ofNullable(metadata.get("status")).map(Integer::valueOf).orElse(null);
+        this.status = Optional.ofNullable(metadata.get(statusKey)).map(Integer::valueOf).orElse(null);
     }
 
     /**
@@ -159,7 +161,7 @@ public class WebResponse extends Message {
      * @return a Metadata object containing the status code and headers
      */
     public static Metadata asMetadata(int statusCode, Map<String, List<String>> headers) {
-        return Metadata.of("status", statusCode, "headers", headers);
+        return Metadata.of(statusKey, statusCode, headersKey, headers);
     }
 
     @Override
@@ -246,7 +248,7 @@ public class WebResponse extends Message {
      * @return the status code as an Integer if present; otherwise, null
      */
     public static Integer getStatusCode(Metadata metadata) {
-        return Optional.ofNullable(metadata.get("status")).map(Integer::valueOf).orElse(null);
+        return Optional.ofNullable(metadata.get(statusKey)).map(Integer::valueOf).orElse(null);
     }
 
     /**

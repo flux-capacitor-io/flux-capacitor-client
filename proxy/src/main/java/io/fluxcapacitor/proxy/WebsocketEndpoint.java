@@ -99,7 +99,7 @@ public class WebsocketEndpoint extends Endpoint {
     }
 
     protected void sendRequest(Session session, String method, byte[] payload) {
-        Metadata metadata = getContext(session).metadata().with("method", method);
+        Metadata metadata = getContext(session).metadata().with(WebRequest.methodKey, method);
         var request = new SerializedMessage(new Data<>(payload, null, 0, "unknown"),
                                             metadata, FluxCapacitor.generateId(),
                                             FluxCapacitor.currentClock().millis());

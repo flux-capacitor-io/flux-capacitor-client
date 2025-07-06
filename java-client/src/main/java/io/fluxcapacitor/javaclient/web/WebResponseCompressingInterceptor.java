@@ -156,7 +156,7 @@ public class WebResponseCompressingInterceptor implements DispatchInterceptor {
         var headers = WebUtils.getHeaders(result.getMetadata());
         headers.put("Content-Encoding", List.of("gzip"));
         headers.put("Content-Length", List.of(String.valueOf(result.getData().getValue().length)));
-        result.setMetadata(result.getMetadata().with("headers", headers));
+        result.setMetadata(result.getMetadata().with(WebResponse.headersKey, headers));
         return result;
     }
 

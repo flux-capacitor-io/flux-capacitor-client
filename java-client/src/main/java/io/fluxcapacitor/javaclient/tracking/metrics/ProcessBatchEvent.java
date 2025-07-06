@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.javaclient.tracking.metrics;
 
+import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.JsonType;
 import lombok.Value;
 
@@ -21,6 +22,8 @@ import lombok.Value;
 public class ProcessBatchEvent implements JsonType {
     String consumer;
     String trackerId;
+    MessageType messageType;
+    String topic;
     int[] segment;
     Long lastIndex;
     int batchSize;

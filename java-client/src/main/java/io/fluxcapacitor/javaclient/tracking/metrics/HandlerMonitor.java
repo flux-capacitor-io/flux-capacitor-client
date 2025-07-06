@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.javaclient.tracking.metrics;
 
+import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.handling.HandlerInvoker;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
@@ -22,6 +23,7 @@ import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.tracking.Tracker;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerInterceptor;
 import io.fluxcapacitor.javaclient.tracking.handling.LocalHandler;
+import io.fluxcapacitor.javaclient.web.WebRequest;
 import lombok.extern.slf4j.Slf4j;
 
 import java.time.Instant;
@@ -61,14 +63,12 @@ public class HandlerMonitor implements HandlerInterceptor {
     protected void publishMetrics(HandlerInvoker invoker, DeserializingMessage message,
                                   boolean exceptionalResult, Instant start, Object result) {
         try {
-            String consumer = Tracker.current().map(Tracker::getName)
-                    .orElseGet(() -> "local-" + message.getMessageType());
-            boolean completed =
-                    !(result instanceof CompletableFuture<?>) || ((CompletableFuture<?>) result).isDone();
+            String consumer = Tracker.current().map(Tracker::getName).orElseGet(() -> "local-" + message.getMessageType());
+            boolean completed = !(result instanceof CompletableFuture<?>) || ((CompletableFuture<?>) result).isDone();
             FluxCapacitor.getOptionally().ifPresent(fc -> fc.metricsGateway().publish(new HandleMessageEvent(
                     consumer, invoker.getTargetClass().getSimpleName(),
-                    message.getIndex(),
-                    message.getType(), exceptionalResult, start.until(Instant.now(), NANOS), completed)));
+                    message.getIndex(), message.getMessageType(), message.getTopic(),
+                    formatType(message), exceptionalResult, start.until(Instant.now(), NANOS), completed)));
             if (!completed) {
                 Map<String, String> correlationData = FluxCapacitor.currentCorrelationData();
                 ((CompletionStage<?>) result).whenComplete((r, e) -> message.run(
@@ -82,6 +82,15 @@ public class HandlerMonitor implements HandlerInterceptor {
         } catch (Exception e) {
             log.error("Failed to publish handler metrics", e);
         }
+    }
+
+    protected String formatType(DeserializingMessage message) {
+        if (message.getMessageType() == MessageType.WEBREQUEST) {
+            try {
+                return "%s %s".formatted(WebRequest.getMethod(message.getMetadata()), WebRequest.getUrl(message.getMetadata()));
+            } catch (Exception ignored) {}
+        }
+        return message.getType();
     }
 
     protected boolean metricsDisabled(HandlerInvoker invoker) {

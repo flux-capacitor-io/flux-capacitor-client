@@ -213,7 +213,7 @@ public class WebUtils {
      */
     @SuppressWarnings("unchecked")
     public static Map<String, List<String>> getHeaders(Metadata metadata) {
-        return Optional.ofNullable(metadata.get("headers", Map.class))
+        return Optional.ofNullable(metadata.get(WebRequest.headersKey, Map.class))
                 .map(map -> asHeaderMap(map))
                 .orElseGet(WebUtils::emptyHeaderMap);
     }
