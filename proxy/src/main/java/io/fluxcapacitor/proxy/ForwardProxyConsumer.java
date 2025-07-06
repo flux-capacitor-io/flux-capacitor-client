@@ -207,7 +207,8 @@ public class ForwardProxyConsumer implements Consumer<List<SerializedMessage>> {
 
     protected void publishProcessBatchMetrics(Instant start) {
         try {
-            var metadata = Metadata.of(DefaultCorrelationDataProvider.INSTANCE.getCorrelationData());
+            var metadata = Metadata.of(DefaultCorrelationDataProvider.INSTANCE.getCorrelationData(
+                    client, null, null));
             var tracker = Tracker.current().orElseThrow();
             var metricsMessage = new Message(new ProcessBatchEvent(
                     consumerName, tracker.getTrackerId(), tracker.getMessageBatch().getSegment(),

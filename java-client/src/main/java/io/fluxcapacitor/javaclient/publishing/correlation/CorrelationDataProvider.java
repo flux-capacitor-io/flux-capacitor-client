@@ -118,8 +118,8 @@ public interface CorrelationDataProvider {
      * @return a map of correlation metadata entries
      */
     default Map<String, String> getCorrelationData(@Nullable Client client,
-                                           @Nullable SerializedMessage currentMessage,
-                                           @Nullable MessageType messageType) {
+                                                   @Nullable SerializedMessage currentMessage,
+                                                   @Nullable MessageType messageType) {
         Map<String, String> result = getBasicCorrelationData(client);
         ofNullable(currentMessage).ifPresent(m -> {
             String correlationId = ofNullable(m.getIndex()).map(Object::toString).orElse(m.getMessageId());
