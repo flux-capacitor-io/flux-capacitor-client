@@ -333,18 +333,20 @@ public class DefaultTracker implements Runnable, Registration {
 
 
     private void storePosition(Long index, int[] segment) {
-        if (index != null && autoStorePosition) {
+        if (index != null) {
             lastProcessedIndex = index;
-            retryOnFailure(
-                    () -> {
-                        try {
-                            trackingClient.storePosition(tracker.getName(), segment, index).get();
-                        } catch (Exception e) {
-                            throw new TrackingException(
-                                    format("Failed to store position of segments %s for tracker %s to index %s",
-                                           Arrays.toString(segment), tracker, index), e);
-                        }
-                    }, retryDelay, e2 -> running.get());
+            if (autoStorePosition) {
+                retryOnFailure(
+                        () -> {
+                            try {
+                                trackingClient.storePosition(tracker.getName(), segment, index).get();
+                            } catch (Exception e) {
+                                throw new TrackingException(
+                                        format("Failed to store position of segments %s for tracker %s to index %s",
+                                               Arrays.toString(segment), tracker, index), e);
+                            }
+                        }, retryDelay, e2 -> running.get());
+            }
         }
     }
 
