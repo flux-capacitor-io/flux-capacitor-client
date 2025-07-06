@@ -269,6 +269,9 @@ public class Metadata {
             }
             value = optional.get();
         }
+        if (value instanceof Enum<?> e) {
+            value = e.name();
+        }
         entries.put(keyString, value instanceof String ? (String) value : objectMapper.writeValueAsString(value));
         return entries;
     }
@@ -372,7 +375,7 @@ public class Metadata {
      * or the value is null
      * @throws IllegalStateException if deserialization fails
      */
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({"unchecked", "rawtypes"})
     @SneakyThrows
     public <T> T get(Object key, Class<T> type) {
         String value = get(key);
@@ -381,6 +384,9 @@ public class Metadata {
         }
         if (String.class.isAssignableFrom(type)) {
             return (T) value;
+        }
+        if (type.isEnum()) {
+            return (T) Enum.valueOf((Class<Enum>) type, value);
         }
         try {
             return objectMapper.readValue(value, type);
