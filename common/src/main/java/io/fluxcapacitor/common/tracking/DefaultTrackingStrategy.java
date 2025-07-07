@@ -202,8 +202,12 @@ public class DefaultTrackingStrategy implements TrackingStrategy {
             return new Position(segment, ofNullable(tracker.getLastTrackerIndex())
                     .orElseGet(() -> indexFromMillis(currentTimeMillis() - 1000L)));
         }
-        return ofNullable(tracker.getLastTrackerIndex()).map(
-                lastIndex -> new Position(segment, lastIndex).merge(position)).orElse(position);
+        if (tracker.singleTracker()) {
+            return ofNullable(tracker.getLastTrackerIndex()).map(
+                    lastIndex -> new Position(segment, lastIndex).merge(position)).orElse(position);
+        } else {
+            return position;
+        }
     }
 
     protected List<SerializedMessage> filter(List<SerializedMessage> messages, int[] segmentRange,

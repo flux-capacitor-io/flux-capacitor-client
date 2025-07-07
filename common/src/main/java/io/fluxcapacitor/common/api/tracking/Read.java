@@ -82,7 +82,9 @@ public class Read extends Request {
     boolean clientControlledIndex;
 
     /**
-     * The last known index from which to continue reading.
+     * The last known index of the tracker, from which to start reading messages in case {@link #clientControlledIndex}
+     * is {@code true} or when a new consumer is added. If {@code null}, the last known index will be queried from the
+     * Flux platform.
      */
     Long lastIndex;
 

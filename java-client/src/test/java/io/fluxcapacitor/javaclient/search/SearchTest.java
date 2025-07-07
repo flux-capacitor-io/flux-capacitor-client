@@ -16,6 +16,8 @@ package io.fluxcapacitor.javaclient.search;
 
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.IntNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.api.search.BulkUpdate;
@@ -34,6 +36,7 @@ import io.fluxcapacitor.common.search.Facet;
 import io.fluxcapacitor.common.search.Sortable;
 import io.fluxcapacitor.common.serialization.JsonUtils;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
+import io.fluxcapacitor.javaclient.common.serialization.casting.Upcast;
 import io.fluxcapacitor.javaclient.common.serialization.jackson.JacksonSerializer;
 import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
 import io.fluxcapacitor.javaclient.modeling.Id;
@@ -279,6 +282,26 @@ public class SearchTest {
         TestFixture.create().givenDocuments("test", "metrics-message.json")
                 .<JsonNode>whenSearching("test", query("106193501828612100", "messageIndex"))
                 .expectResult(r -> !r.isEmpty() && r.getFirst().get("payload") != null);
+    }
+
+    @Test
+    void testDeserializingKnownType() {
+        TestFixture testFixture = TestFixture.create().registerCasters(new ReadUpcaster());
+        var read = JsonUtils.fromFile("read-payload.json", Read.class);
+        var document = testFixture.getFluxCapacitor().documentStore().getSerializer().toDocument(
+                read, "foo", "test", null, null);
+        testFixture.given(fc -> fc.client().getSearchClient().index(List.of(document), STORED, false).get())
+                .whenApplying(fc -> FluxCapacitor.search("test").fetchAll())
+                .expectResult(r -> r.size() == 1)
+                .mapResult(r -> (Read) r.getFirst())
+                .expectResult(r -> r.getTrackerId().equals(read.getTrackerId()) && r.getRequestId() == 12345);
+    }
+
+    static class ReadUpcaster {
+        @Upcast(type = "io.fluxcapacitor.common.api.tracking.Read", revision = 0)
+        ObjectNode upcast(ObjectNode read) {
+            return read.set("requestId", IntNode.valueOf(12345));
+        }
     }
 
     @Test
