@@ -85,7 +85,7 @@ public class MessageBatch {
      */
     @JsonIgnore
     public long getBytes() {
-        return messages.stream().mapToLong(m -> m.getData().getValue().length).sum();
+        return messages.stream().mapToLong(SerializedMessage::getBytes).sum();
     }
 
     @Override

@@ -174,7 +174,8 @@ public class SerializedDocument {
      * Returns the number of bytes in the serialized representation of the document.
      */
     public int bytes() {
-        return getDocument().getValue().length;
+        byte[] value = getDocument().getValue();
+        return value == null ? 0 : value.length;
     }
 
     /**
