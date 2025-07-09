@@ -43,7 +43,8 @@ public class AuthenticatingInterceptor implements DispatchInterceptor, HandlerIn
             User user = currentMessage.isPresent() ?
                     currentMessage.get().getMessageType() == WEBREQUEST ? userProvider.getActiveUser() :
                             userProvider.getSystemUser() :
-                    ofNullable(userProvider.getActiveUser()).orElseGet(userProvider::getSystemUser);
+                    ofNullable(userProvider.getActiveUser())
+                            .orElseGet(() -> messageType == WEBREQUEST ? null : userProvider.getSystemUser());
             if (user != null) {
                 m = m.withMetadata(userProvider.addToMetadata(m.getMetadata(), user));
             }
