@@ -103,12 +103,23 @@ public class TestServer {
 
         for (MessageType messageType : MessageType.values()) {
             switch (messageType) {
-                case DOCUMENT, CUSTOM -> pathHandler = deployFromSession(
-                        ObjectUtils.<String, String, Endpoint>memoize((projectId, topic) -> new ConsumerEndpoint(
-                                getMessageStore(projectId, messageType, topic), messageType)
-                                        .metricsLog(metricsLogSupplier.apply(projectId)))
-                                .compose(s -> new SimpleEntry<>(getProjectId(s), getTopic(s))),
-                        format("/%s/", trackingPath(messageType)), pathHandler);
+                case CUSTOM: {
+                    pathHandler = deployFromSession(
+                            ObjectUtils.<String, String, Endpoint>memoize((projectId, topic) -> new ProducerEndpoint(
+                                            getMessageStore(projectId, messageType, topic))
+                                            .metricsLog(metricsLogSupplier.apply(projectId)))
+                                    .compose(s -> new SimpleEntry<>(getProjectId(s), getTopic(s))),
+                            format("/%s/", gatewayPath(messageType)), pathHandler);
+                }
+                case DOCUMENT: {
+                    pathHandler = deployFromSession(
+                            ObjectUtils.<String, String, Endpoint>memoize((projectId, topic) -> new ConsumerEndpoint(
+                                            getMessageStore(projectId, messageType, topic), messageType)
+                                            .metricsLog(metricsLogSupplier.apply(projectId)))
+                                    .compose(s -> new SimpleEntry<>(getProjectId(s), getTopic(s))),
+                            format("/%s/", trackingPath(messageType)), pathHandler);
+                    break;
+                }
             }
         }
 

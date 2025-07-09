@@ -24,8 +24,10 @@ import io.fluxcapacitor.javaclient.test.TestFixture;
 import io.fluxcapacitor.javaclient.test.spring.FluxCapacitorTestConfig;
 import io.fluxcapacitor.javaclient.tracking.Consumer;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
+import io.fluxcapacitor.javaclient.tracking.handling.HandleCustom;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleDocument;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleEvent;
+import io.fluxcapacitor.javaclient.tracking.handling.HandleSchedule;
 import io.fluxcapacitor.javaclient.tracking.metrics.DisableMetrics;
 import io.fluxcapacitor.javaclient.tracking.metrics.ProcessBatchEvent;
 import lombok.Value;
@@ -135,6 +137,22 @@ class TestServerTest {
                 .expectEvents("testDoc");
     }
 
+    @Test
+    void handleCustom() {
+        testFixture.whenCustom("test", "testCustom")
+                .expectEvents("testCustom");
+    }
+
+    @Test
+    void handleSchedule() {
+        testFixture
+                .whenExecuting(fc -> {
+                    FluxCapacitor.schedule("foo", FluxCapacitor.currentTime().minusSeconds(1));
+                    Thread.sleep(500);
+                })
+                .expectEvents("foo");
+    }
+
     @Configuration
     static class FooConfig {
         @Bean
@@ -155,6 +173,16 @@ class TestServerTest {
         DocumentHandler documentHandler() {
             return new DocumentHandler();
         }
+
+        @Bean
+        CustomHandler customHandler() {
+            return new CustomHandler();
+        }
+
+        @Bean
+        SchedulingHandler schedulingHandler() {
+            return new SchedulingHandler();
+        }
     }
 
     private static class FooHandler {
@@ -168,6 +196,20 @@ class TestServerTest {
         @HandleDocument("test")
         void handle(String doc) {
             FluxCapacitor.publishEvent(doc);
+        }
+    }
+
+    static class CustomHandler {
+        @HandleCustom("test")
+        void handle(String doc) {
+            FluxCapacitor.publishEvent(doc);
+        }
+    }
+
+    static class SchedulingHandler {
+        @HandleSchedule
+        public void handle(String schedule) {
+            FluxCapacitor.publishEvent(schedule);
         }
     }
 
