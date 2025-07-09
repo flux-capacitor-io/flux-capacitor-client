@@ -66,6 +66,7 @@ import static io.fluxcapacitor.common.ServicePathBuilder.keyValuePath;
 import static io.fluxcapacitor.common.ServicePathBuilder.schedulingPath;
 import static io.fluxcapacitor.common.ServicePathBuilder.searchPath;
 import static io.fluxcapacitor.common.ServicePathBuilder.trackingPath;
+import static io.fluxcapacitor.javaclient.configuration.ApplicationProperties.getIntegerProperty;
 import static io.fluxcapacitor.testserver.websocket.WebsocketDeploymentUtils.deploy;
 import static io.fluxcapacitor.testserver.websocket.WebsocketDeploymentUtils.deployFromSession;
 import static io.fluxcapacitor.testserver.websocket.WebsocketDeploymentUtils.getProjectId;
@@ -84,7 +85,7 @@ public class TestServer {
             memoize(projectId -> new DefaultMetricsLog(getMessageStore(projectId, METRICS)));
 
     public static void main(final String[] args) {
-        start(Integer.getInteger("port", 8080));
+        start(getIntegerProperty("FLUX_PORT", getIntegerProperty("port", 8888)));
     }
 
     public static void start(int port) {

@@ -32,7 +32,7 @@ import static io.undertow.util.Headers.CONTENT_TYPE;
 public class ProxyServer {
     public static void main(final String[] args) {
         Thread.setDefaultUncaughtExceptionHandler((t, e) -> log.error("Uncaught error", e));
-        int port = getIntegerProperty("PROXY_PORT", 80);
+        int port = getIntegerProperty("PROXY_PORT", 8080);
         Client client = Optional.ofNullable(getProperty("FLUX_URL")).<Client>map(url -> WebSocketClient.newInstance(
                         WebSocketClient.ClientConfig.builder().name("$proxy").serviceBaseUrl(url)
                                 .projectId(getProperty("PROJECT_ID")).build()))
