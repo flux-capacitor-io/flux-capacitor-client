@@ -225,13 +225,7 @@ public class FileUtils {
      */
     public static URI safeResolve(URI base, String relativePath) {
         if ("jar".equals(base.getScheme())) {
-            int sep = base.getRawSchemeSpecificPart().indexOf("!/");
-            if (sep != -1) {
-                String jarRoot = base.getRawSchemeSpecificPart().substring(0, sep);
-                String jarEntry = base.getRawSchemeSpecificPart().substring(sep + 2);
-                URI newEntry = URI.create(jarEntry + "/").resolve(relativePath);
-                return URI.create("jar:" + jarRoot + "!/" + newEntry);
-            }
+            return URI.create("jar:" + URI.create(base.getSchemeSpecificPart()).resolve(relativePath));
         }
         return base.resolve(relativePath);
     }
