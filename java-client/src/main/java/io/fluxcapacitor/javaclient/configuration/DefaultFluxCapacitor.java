@@ -536,7 +536,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             //enable authentication
             if (userProvider != null) {
                 AuthenticatingInterceptor interceptor = new AuthenticatingInterceptor(userProvider);
-                Stream.of(COMMAND, QUERY, SCHEDULE, WEBREQUEST).forEach(type -> {
+                Stream.of(CUSTOM, COMMAND, QUERY, SCHEDULE, WEBREQUEST).forEach(type -> {
                     dispatchInterceptors.computeIfPresent(type, (t, i) -> i.andThen(interceptor));
                     handlerDecorators.computeIfPresent(type, (t, i) -> i.andThen(interceptor));
                 });
@@ -545,7 +545,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             //enable data protection
             if (!disableDataProtection) {
                 DataProtectionInterceptor interceptor = new DataProtectionInterceptor(keyValueStore, serializer);
-                Stream.of(COMMAND, EVENT, QUERY, RESULT, SCHEDULE).forEach(type -> {
+                Stream.of(CUSTOM, COMMAND, EVENT, QUERY, RESULT, SCHEDULE).forEach(type -> {
                     dispatchInterceptors.computeIfPresent(type, (t, i) -> i.andThen(interceptor));
                     handlerDecorators.computeIfPresent(type, (t, i) -> i.andThen(interceptor));
                 });
@@ -561,7 +561,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             //enable command and query validation before handling
             if (!disablePayloadValidation) {
                 ValidatingInterceptor interceptor = new ValidatingInterceptor();
-                Stream.of(COMMAND, QUERY).forEach(type -> handlerDecorators.computeIfPresent(
+                Stream.of(CUSTOM, COMMAND, QUERY).forEach(type -> handlerDecorators.computeIfPresent(
                         type, (t, i) -> i.andThen(interceptor)));
             }
 

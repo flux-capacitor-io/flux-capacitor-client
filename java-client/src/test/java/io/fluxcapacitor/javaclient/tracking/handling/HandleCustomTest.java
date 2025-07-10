@@ -15,7 +15,13 @@
 package io.fluxcapacitor.javaclient.tracking.handling;
 
 import io.fluxcapacitor.javaclient.FluxCapacitor;
+import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
 import io.fluxcapacitor.javaclient.test.TestFixture;
+import io.fluxcapacitor.javaclient.tracking.handling.authentication.FixedUserProvider;
+import io.fluxcapacitor.javaclient.tracking.handling.authentication.MockUser;
+import io.fluxcapacitor.javaclient.tracking.handling.authentication.RequiresUser;
+import io.fluxcapacitor.javaclient.tracking.handling.authentication.User;
+import lombok.NonNull;
 import org.junit.jupiter.api.Test;
 
 public class HandleCustomTest {
@@ -38,6 +44,13 @@ public class HandleCustomTest {
                 .expectNoResult()
                 .expectEvents("custom: test")
                 .expectCustom("other", "test");
+    }
+
+    @Test
+    void withUser() {
+        TestFixture.create(DefaultFluxCapacitor.builder().registerUserProvider(new FixedUserProvider(() -> new MockUser("test"))), new Handler())
+                .whenCustom("user", "test")
+                .expectResult("user: test");
     }
 
     @Test
@@ -79,6 +92,12 @@ public class HandleCustomTest {
         void handleCustomEvent(String input) {
             FluxCapacitor.publishEvent("custom: " + input);
             FluxCapacitor.get().customGateway("other").sendAndForget(input);
+        }
+
+        @HandleCustom("user")
+        @RequiresUser
+        String handleFoo(String input, @NonNull User user) {
+            return "user: " + input;
         }
     }
 
