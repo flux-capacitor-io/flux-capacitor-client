@@ -163,11 +163,16 @@ public class DefaultTracker implements Runnable, Registration {
         return () -> trackers.forEach(DefaultTracker::cancel);
     }
 
+    /**
+     * Starts one or more trackers that consume messages using the provided trackingClient and process them using the
+     * provided consumer. Each tracker operates in its own thread, and their positions are managed automatically upon
+     * processing the messages.
+     */
     public static Registration start(Consumer<List<SerializedMessage>> consumer, ConsumerConfiguration config,
-                                     TrackingClient trackingClient, String topic) {
+                                     TrackingClient trackingClient) {
         List<DefaultTracker> trackers = IntStream.range(0, config.getThreads())
                 .mapToObj(i -> new DefaultTracker(consumer, config, new Tracker(
-                        UUID.randomUUID().toString(), trackingClient.getMessageType(), topic,
+                        UUID.randomUUID().toString(), trackingClient.getMessageType(), trackingClient.getTopic(),
                         config, null), trackingClient)).toList();
         for (int i = 0; i < trackers.size(); i++) {
             new Thread(threadGroup, trackers.get(i),
@@ -317,9 +322,9 @@ public class DefaultTracker implements Runnable, Registration {
                     + "Consumer will be updated to the last processed index and then stopped.",
                     tracker.getName(), messages.size(), e.getMessageIndex());
             storePosition(messages.stream().map(SerializedMessage::getIndex)
-                                   .filter(i -> e.getMessageIndex() != null && i != null
-                                                && i < e.getMessageIndex())
-                                   .max(naturalOrder()).orElse(null), messageBatch.getSegment());
+                                  .filter(i -> e.getMessageIndex() != null && i != null
+                                               && i < e.getMessageIndex())
+                                  .max(naturalOrder()).orElse(null), messageBatch.getSegment());
             cancelAndDisconnect();
             return;
         } catch (Exception e) {

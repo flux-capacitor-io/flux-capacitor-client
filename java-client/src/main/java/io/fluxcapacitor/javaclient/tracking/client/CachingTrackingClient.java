@@ -122,8 +122,7 @@ public class CachingTrackingClient implements TrackingClient {
             registration = FluxCapacitor.getOptionally()
                     .map(fc -> DefaultTracker.start(this::cacheNewMessages, delegate.getMessageType(),
                                                     delegate.getTopic(), cacheFillerConfig, fc))
-                    .orElseGet(() -> DefaultTracker.start(this::cacheNewMessages, cacheFillerConfig, delegate,
-                                                          delegate.getTopic()));
+                    .orElseGet(() -> DefaultTracker.start(this::cacheNewMessages, cacheFillerConfig, delegate));
         }
         if (lastIndex != null && cache.containsKey(lastIndex)) {
             Instant deadline = now().plus(config.getMaxWaitDuration());
