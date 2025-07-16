@@ -14,15 +14,15 @@
 
 package io.fluxcapacitor.testserver.metrics;
 
-import io.fluxcapacitor.common.api.ClientEvent;
+import io.fluxcapacitor.common.api.JsonType;
 import io.fluxcapacitor.common.api.Metadata;
 
 public interface MetricsLog {
 
-    default void registerMetrics(ClientEvent event) {
+    default void registerMetrics(JsonType event) {
         registerMetrics(event, Metadata.empty());
     }
 
-    void registerMetrics(ClientEvent event, Metadata metadata);
+    void registerMetrics(JsonType event, Metadata metadata);
 
 }

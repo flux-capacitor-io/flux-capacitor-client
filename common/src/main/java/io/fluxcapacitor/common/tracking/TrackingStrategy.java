@@ -15,13 +15,15 @@
 package io.fluxcapacitor.common.tracking;
 
 import java.io.Closeable;
+import java.util.Set;
 import java.util.function.Predicate;
 
 /**
- * A {@code TrackingStrategy} defines how a {@link Tracker} consumes messages from a message log or distributed segment space.
+ * A {@code TrackingStrategy} defines how a {@link Tracker} consumes messages from a message log or distributed segment
+ * space.
  * <p>
- * This interface enables pluggable strategies for message consumption and parallelism. Depending on the configuration and
- * type of tracker, a strategy may either:
+ * This interface enables pluggable strategies for message consumption and parallelism. Depending on the configuration
+ * and type of tracker, a strategy may either:
  * <ul>
  *     <li>Fetch and supply message batches directly from the message store (tailing a log), or</li>
  *     <li>Negotiate segment claims and delegate message retrieval to the tracker itself (client-side tracking).</li>
@@ -44,15 +46,15 @@ public interface TrackingStrategy extends Closeable {
     /**
      * Requests a new batch of messages for the given tracker.
      * <p>
-     * This method is typically invoked by the {@link Tracker} when it is ready to handle more messages.
-     * Depending on the strategy, this method may:
+     * This method is typically invoked by the {@link Tracker} when it is ready to handle more messages. Depending on
+     * the strategy, this method may:
      * <ul>
      *     <li>Fetch messages directly from a {@link MessageStore} and deliver them to the tracker (e.g. for log tailing), or</li>
      *     <li>Suspend the tracker until messages become available</li>
      * </ul>
      *
-     * @param tracker        the tracker requesting a batch
-     * @param positionStore  to fetch or update tracking positions
+     * @param tracker       the tracker requesting a batch
+     * @param positionStore to fetch or update tracking positions
      */
     void getBatch(Tracker tracker, PositionStore positionStore);
 
@@ -62,22 +64,23 @@ public interface TrackingStrategy extends Closeable {
      * This method is invoked when segment-based partitioning is enabled. It ensures that each segment is only claimed
      * by a single tracker at a time and may release conflicting claims if necessary.
      *
-     * @param tracker        the tracker attempting to claim a segment
-     * @param positionStore  to fetch tracking positions
+     * @param tracker       the tracker attempting to claim a segment
+     * @param positionStore to fetch tracking positions
      */
     void claimSegment(Tracker tracker, PositionStore positionStore);
 
     /**
      * Disconnects trackers that match the provided filter.
      * <p>
-     * This is typically used during client shutdown, reconfiguration, or error handling to forcibly remove
-     * trackers from the strategy's internal registry.
+     * This is typically used during client shutdown, reconfiguration, or error handling to forcibly remove trackers
+     * from the strategy's internal registry.
      *
-     * @param predicate         filter for matching trackers to disconnect
-     * @param sendFinalBatch    if {@code true}, a final empty batch should be sent to each disconnected tracker
-     *                          to allow graceful termination
+     * @param predicate      filter for matching trackers to disconnect
+     * @param sendFinalBatch if {@code true}, a final empty batch should be sent to each disconnected tracker to allow
+     *                       graceful termination
+     * @return the trackers that were disconnected (empty if no trackers matched the filter)
      */
-    void disconnectTrackers(Predicate<Tracker> predicate, boolean sendFinalBatch);
+    Set<Tracker> disconnectTrackers(Predicate<Tracker> predicate, boolean sendFinalBatch);
 
     /**
      * Closes the tracking strategy and releases any underlying resources.

@@ -19,7 +19,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import io.fluxcapacitor.common.Backlog;
 import io.fluxcapacitor.common.api.BooleanResult;
-import io.fluxcapacitor.common.api.ClientEvent;
 import io.fluxcapacitor.common.api.Command;
 import io.fluxcapacitor.common.api.ConnectEvent;
 import io.fluxcapacitor.common.api.DisconnectEvent;
@@ -228,7 +227,7 @@ public abstract class WebsocketEndpoint extends Endpoint {
 
     protected void sendResultBatch(Session session, List<RequestResult> results) {
         try {
-            var result = results.size() == 1 ? results.get(0) : new ResultBatch(results);
+            var result = results.size() == 1 ? results.getFirst() : new ResultBatch(results);
             if (session.isOpen()) {
                 try (OutputStream outputStream = session.getBasicRemote().getSendStream()) {
                     byte[] bytes = objectMapper.writeValueAsBytes(result);
@@ -307,23 +306,23 @@ public abstract class WebsocketEndpoint extends Endpoint {
         if (compression == null) {
             return null;
         }
-        return CompressionAlgorithm.valueOf(compression.get(0));
+        return CompressionAlgorithm.valueOf(compression.getFirst());
     }
 
     protected String getProjectId(Session session) {
-        return Optional.ofNullable(session.getRequestParameterMap().get("projectId")).map(list -> list.get(0))
+        return Optional.ofNullable(session.getRequestParameterMap().get("projectId")).map(List::getFirst)
                 .orElse("public");
     }
 
     protected String getClientId(Session session) {
-        return session.getRequestParameterMap().get("clientId").get(0);
+        return session.getRequestParameterMap().get("clientId").getFirst();
     }
 
     protected String getClientName(Session session) {
-        return session.getRequestParameterMap().get("clientName").get(0);
+        return session.getRequestParameterMap().get("clientName").getFirst();
     }
 
-    protected void registerMetrics(ClientEvent event) {
+    protected void registerMetrics(JsonType event) {
         metricsLog.registerMetrics(event);
     }
 

@@ -14,12 +14,12 @@
 
 package io.fluxcapacitor.testserver.metrics;
 
-import io.fluxcapacitor.common.api.ClientEvent;
+import io.fluxcapacitor.common.api.JsonType;
 import io.fluxcapacitor.common.api.Metadata;
 
 public class NoOpMetricsLog implements MetricsLog {
     @Override
-    public void registerMetrics(ClientEvent event, Metadata metadata) {
+    public void registerMetrics(JsonType event, Metadata metadata) {
         //no op
     }
 }

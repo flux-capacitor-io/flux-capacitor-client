@@ -253,7 +253,8 @@ public class DefaultTrackingStrategy implements TrackingStrategy {
     }
 
     @Override
-    public void disconnectTrackers(Predicate<Tracker> predicate, boolean sendFinalEmptyBatch) {
+    public Set<Tracker> disconnectTrackers(Predicate<Tracker> predicate, boolean sendFinalEmptyBatch) {
+        Set<Tracker> removed = new HashSet<>();
         Set<Tracker> removedAndWaiting = new HashSet<>();
         Set<TrackerCluster> updatedClusters = new HashSet<>();
         try {
@@ -270,11 +271,15 @@ public class DefaultTrackingStrategy implements TrackingStrategy {
                     if (!Objects.equals(updatedCluster, cluster) && !updatedCluster.isEmpty()) {
                         updatedClusters.add(updatedCluster);
                     }
+                    var removedTrackers = new HashSet<>(cluster.getTrackers());
+                    removedTrackers.removeAll(updatedCluster.getTrackers());
+                    removed.addAll(removedTrackers);
                     return updatedCluster;
                 });
                 clusters.values().removeIf(TrackerCluster::isEmpty);
             }
             updatedClusters.forEach(this::onClusterUpdate);
+            return removed;
         } finally {
             if (sendFinalEmptyBatch) {
                 removedAndWaiting.forEach(tracker -> {

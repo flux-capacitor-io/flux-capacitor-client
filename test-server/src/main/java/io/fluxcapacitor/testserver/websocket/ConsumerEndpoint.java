@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.testserver.websocket;
 
+import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.tracking.ClaimSegment;
 import io.fluxcapacitor.common.api.tracking.ClaimSegmentResult;
@@ -71,7 +72,7 @@ public class ConsumerEndpoint extends WebsocketEndpoint {
     @Handle
     CompletableFuture<Void> handle(StorePosition storePosition) {
         return positionStore.storePosition(storePosition.getConsumer(), storePosition.getSegment(),
-                                    storePosition.getLastIndex());
+                                           storePosition.getLastIndex());
     }
 
     @Handle
@@ -100,9 +101,13 @@ public class ConsumerEndpoint extends WebsocketEndpoint {
 
     @Override
     public void onClose(Session session, CloseReason closeReason) {
-        trackingStrategy.disconnectTrackers(t -> t instanceof WebSocketTracker
-                                                 && ((WebSocketTracker) t).getSessionId().equals(session.getId()),
-                                            false);
+        var trackers = trackingStrategy.disconnectTrackers(t -> t instanceof WebSocketTracker
+                                                                && ((WebSocketTracker) t).getSessionId()
+                                                                        .equals(session.getId()),
+                                                           false);
+        trackers.forEach(t -> metricsLog.registerMetrics(
+                new DisconnectTracker(messageType, t.getConsumerName(), t.getTrackerId(),
+                                      false, Guarantee.STORED)));
         super.onClose(session, closeReason);
     }
 

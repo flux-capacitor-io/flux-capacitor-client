@@ -16,8 +16,8 @@ package io.fluxcapacitor.testserver.metrics;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.fluxcapacitor.common.api.ClientEvent;
 import io.fluxcapacitor.common.api.Data;
+import io.fluxcapacitor.common.api.JsonType;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.serialization.Revision;
@@ -48,14 +48,15 @@ public class DefaultMetricsLog implements MetricsLog {
     }
 
     @Override
-    public void registerMetrics(ClientEvent event, Metadata metadata) {
+    public void registerMetrics(JsonType event, Metadata metadata) {
+        var finalMetadata = metadata.with("$applicationId", "FluxTestServer");
         workerPool.submit(() -> {
             try {
                 Revision revision = event.getClass().getAnnotation(Revision.class);
                 byte[] payload = objectMapper.writeValueAsBytes(event);
                 store.append(new SerializedMessage(
                         new Data<>(payload, event.getClass().getName(), revision == null ? 0 : revision.value(), Data.JSON_FORMAT),
-                        metadata, randomUUID().toString(), currentTimeMillis()));
+                        finalMetadata, randomUUID().toString(), currentTimeMillis()));
             } catch (JsonProcessingException e) {
                 log.error("Failed to serialize metrics {}", event, e);
             }
