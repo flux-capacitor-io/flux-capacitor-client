@@ -129,103 +129,102 @@ class GivenWhenThenSpringTest {
         }
     }
 
-    //For some bizarre reason, from junit 5.13 the *name* of this nested class matters!
-    // If renamed to e.g.: StatefulHandlersTests one of the tests fails.
-    @Nested
-    class StatefulHandlersTest {
-        @Test
-        void staticHandlerIsCreated() {
-            testFixture.whenEvent(new StaticEvent("bla"))
-                    .expectCommands(1);
+    /*
+     * Test stateful handlers. Note that moving these tests to a nested class will cause some tests to fail in
+     * unpredictable ways since junit 5.13.
+     */
+
+    @Test
+    void staticHandlerIsCreated() {
+        testFixture.whenEvent(new StaticEvent("bla"))
+                .expectCommands(1);
+    }
+
+    @Test
+    void staticHandlerIsUpdated() {
+        testFixture.givenEvents(new StaticEvent("bla"))
+                .whenEvent(new StaticEvent("bla"))
+                .expectCommands(2);
+    }
+
+    @Test
+    void createAndUpdateInSameBatch() {
+        testFixture.whenExecuting(
+                        fc -> FluxCapacitor.publishEvents(new StaticEvent("bla"), new StaticEvent("bla")))
+                .expectCommands(1, 2);
+    }
+
+    @Test
+    void constructorHandlerIsCreated() {
+        testFixture.whenEvent(new StaticEvent("bla"))
+                .expectCommands("constructor:1");
+    }
+
+    @Test
+    void constructorHandlerIsUpdated() {
+        testFixture
+                .givenEvents(new StaticEvent("bla"))
+                .whenEvent(new StaticEvent("bla"))
+                .expectCommands("constructor:2");
+    }
+
+    @Stateful(commitInBatch = true)
+    @SearchExclude
+    @Value
+    @Builder(toBuilder = true)
+    public static class StaticHandler {
+        @Association
+        String someId;
+        int eventCount;
+
+        @HandleEvent
+        static StaticHandler create(StaticEvent event) {
+            FluxCapacitor.sendAndForgetCommand(1);
+            return StaticHandler.builder().someId(event.someId).eventCount(1).build();
         }
 
-        @Test
-        void staticHandlerIsUpdated() {
-            testFixture.givenEvents(new StaticEvent("bla"))
-                    .whenEvent(new StaticEvent("bla"))
-                    .expectCommands(2);
+        @HandleEvent
+        StaticHandler update(StaticEvent event) {
+            FluxCapacitor.sendAndForgetCommand(eventCount + 1);
+            return toBuilder().eventCount(eventCount + 1).build();
+        }
+    }
+
+    @Stateful
+    @SearchExclude
+    @Value
+    @Builder(toBuilder = true)
+    @ConditionalOnMissingProperty("stateful-disabled")
+    public static class DisabledStaticHandler {
+        @Association
+        String someId;
+
+        @HandleEvent
+        static StaticHandler create(StaticEvent event) {
+            throw new MockException("this should not happen");
+        }
+    }
+
+    @Stateful
+    @Builder(toBuilder = true)
+    record ConstructorHandler(@Association String someId, int eventCount) {
+
+        @HandleEvent
+        ConstructorHandler(StaticEvent event) {
+            this(event.getSomeId(), 1);
+            FluxCapacitor.sendAndForgetCommand("constructor:" + eventCount);
         }
 
-        @Test
-        void createAndUpdateInSameBatch() {
-            testFixture.whenExecuting(
-                            fc -> FluxCapacitor.publishEvents(new StaticEvent("bla"), new StaticEvent("bla")))
-                    .expectCommands(1, 2);
+        @HandleEvent
+        ConstructorHandler update(StaticEvent event) {
+            FluxCapacitor.sendAndForgetCommand("constructor:" + (eventCount + 1));
+            return toBuilder().eventCount(eventCount + 1).build();
         }
+    }
 
-        @Test
-        void constructorHandlerIsCreated() {
-            testFixture.whenEvent(new StaticEvent("bla"))
-                    .expectCommands("constructor:1");
-        }
-
-        @Test
-        void constructorHandlerIsUpdated() {
-            testFixture
-                    .givenEvents(new StaticEvent("bla"))
-                    .whenEvent(new StaticEvent("bla"))
-                    .expectCommands("constructor:2");
-        }
-
-
-        @Stateful(commitInBatch = true)
-        @SearchExclude
-        @Value
-        @Builder(toBuilder = true)
-        public static class StaticHandler {
-            @Association
-            String someId;
-            int eventCount;
-
-            @HandleEvent
-            static StaticHandler create(StaticEvent event) {
-                FluxCapacitor.sendAndForgetCommand(1);
-                return StaticHandler.builder().someId(event.someId).eventCount(1).build();
-            }
-
-            @HandleEvent
-            StaticHandler update(StaticEvent event) {
-                FluxCapacitor.sendAndForgetCommand(eventCount + 1);
-                return toBuilder().eventCount(eventCount + 1).build();
-            }
-        }
-
-        @Stateful
-        @SearchExclude
-        @Value
-        @Builder(toBuilder = true)
-        @ConditionalOnMissingProperty("stateful-disabled")
-        public static class DisabledStaticHandler {
-            @Association
-            String someId;
-
-            @HandleEvent
-            static StaticHandler create(StaticEvent event) {
-                throw new MockException("this should not happen");
-            }
-        }
-
-        @Stateful
-        @Builder(toBuilder = true)
-        record ConstructorHandler (@Association String someId, int eventCount) {
-
-            @HandleEvent
-            ConstructorHandler(StaticEvent event) {
-                this(event.getSomeId(), 1);
-                FluxCapacitor.sendAndForgetCommand("constructor:" + eventCount);
-            }
-
-            @HandleEvent
-            ConstructorHandler update(StaticEvent event) {
-                FluxCapacitor.sendAndForgetCommand("constructor:" + (eventCount + 1));
-                return toBuilder().eventCount(eventCount + 1).build();
-            }
-        }
-
-        @Value
-        static class StaticEvent {
-            String someId;
-        }
+    @Value
+    static class StaticEvent {
+        String someId;
     }
 
     @SneakyThrows
