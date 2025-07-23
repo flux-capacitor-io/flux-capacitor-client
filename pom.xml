@@ -88,7 +88,7 @@
             <dependency>
                 <groupId>org.junit</groupId>
                 <artifactId>junit-bom</artifactId>
-                <version>5.13.2</version>
+                <version>5.13.4</version>
                 <scope>import</scope>
                 <type>pom</type>
             </dependency>
