@@ -144,18 +144,13 @@ public abstract class AbstractSerializer<I> implements Serializer {
      */
     @SneakyThrows
     protected Data<byte[]> serializeToOtherFormat(Object object, String format) {
-        if (object instanceof String) {
-            return new Data<>(((String) object).getBytes(UTF_8), asString(String.class), 0, format);
-        }
-        if (object instanceof byte[]) {
-            return new Data<>((byte[]) object, asString(byte[].class), 0, format);
-        }
-        if (object instanceof InputStream) {
-            try (InputStream inputStream = (InputStream) object) {
-                return new Data<>(inputStream.readAllBytes(), asString(byte[].class), 0, format);
-            }
-        }
-        throw new UnsupportedOperationException();
+        return switch (object) {
+            case null -> new Data<>(new byte[0], null, 0, format);
+            case String s -> new Data<>(s.getBytes(UTF_8), asString(String.class), 0, format);
+            case byte[] bytes -> new Data<>(bytes, asString(byte[].class), 0, format);
+            case InputStream inputStream -> new Data<>(inputStream.readAllBytes(), asString(byte[].class), 0, format);
+            default -> throw new UnsupportedOperationException();
+        };
     }
 
     /**
