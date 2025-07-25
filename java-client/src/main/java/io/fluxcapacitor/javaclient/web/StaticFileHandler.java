@@ -16,8 +16,10 @@ package io.fluxcapacitor.javaclient.web;
 
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import jakarta.annotation.Nullable;
+import lombok.EqualsAndHashCode;
 import lombok.NonNull;
 import lombok.SneakyThrows;
+import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.Closeable;
@@ -47,6 +49,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 @Slf4j
+@EqualsAndHashCode
+@ToString
 public class StaticFileHandler implements Closeable {
 
     private static final Map<URI, FileSystem> jarFileSystemCache = new ConcurrentHashMap<>();
@@ -55,7 +59,9 @@ public class StaticFileHandler implements Closeable {
     public static final String filePrefix = "file:";
 
     public static List<StaticFileHandler> forTargetClass(Class<?> targetClass) {
-        ServeStatic serveStatic = ReflectionUtils.getAnnotation(targetClass, ServeStatic.class).orElse(null);
+        ServeStatic serveStatic = ReflectionUtils.getAnnotation(targetClass, ServeStatic.class)
+                .or(() -> ReflectionUtils.getPackageAnnotation(targetClass.getPackage(), ServeStatic.class))
+                .orElse(null);
         if (serveStatic == null) {
             return List.of();
         }
@@ -75,7 +81,9 @@ public class StaticFileHandler implements Closeable {
     }
 
     public static boolean isHandler(Class<?> targetClass) {
-        return ReflectionUtils.getAnnotation(targetClass, ServeStatic.class).isPresent();
+        return ReflectionUtils.getAnnotation(targetClass, ServeStatic.class)
+                .or(() -> ReflectionUtils.getPackageAnnotation(targetClass.getPackage(), ServeStatic.class))
+                .isPresent();
     }
 
     @io.fluxcapacitor.javaclient.web.Path("")
@@ -272,7 +280,8 @@ public class StaticFileHandler implements Closeable {
                 Path resourcePath;
 
                 // Handle Spring Boot nested JARs
-                if ("jar".equals(resourceUri.getScheme()) && resourceUri.getSchemeSpecificPart().startsWith("nested:")) {
+                if ("jar".equals(resourceUri.getScheme()) && resourceUri.getSchemeSpecificPart()
+                        .startsWith("nested:")) {
                     String basePath = extractEmbeddedResourcePath(resourceBaseUri);
                     String fallbackPath = WebUtils.concatenateUrlParts(basePath, requestedPath);
                     URL resourceUrl = getClass().getClassLoader().getResource(fallbackPath);

@@ -41,6 +41,8 @@ import lombok.NonNull;
 import java.lang.annotation.Annotation;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
@@ -110,6 +112,8 @@ public class DefaultHandlerFactory implements HandlerFactory {
     private final Class<? extends Annotation> handlerAnnotation;
     private final Function<Class<?>, HandlerRepository> handlerRepositorySupplier;
     private final RepositoryProvider repositoryProvider;
+
+    private final Set<StaticFileHandler> staticFileHandlers = ConcurrentHashMap.newKeySet();
 
     public DefaultHandlerFactory(MessageType messageType, HandlerDecorator defaultDecorator,
                                  List<ParameterResolver<? super DeserializingMessage>> parameterResolvers,
@@ -195,7 +199,9 @@ public class DefaultHandlerFactory implements HandlerFactory {
                 = new DefaultHandler<>(targetClass, targetSupplier, createHandlerMatcher(target, config));
         if (messageType == MessageType.WEBREQUEST) {
             for (StaticFileHandler h : StaticFileHandler.forTargetClass(targetClass)) {
-                handler = handler.or(createDefaultHandler(h, m -> h, config));
+                if (staticFileHandlers.add(h)) {
+                    handler = handler.or(createDefaultHandler(h, m -> h, config));
+                }
             }
         }
         return handler;
