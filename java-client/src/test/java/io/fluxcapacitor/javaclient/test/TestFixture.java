@@ -760,6 +760,11 @@ public class TestFixture implements Given, When {
     }
 
     @Override
+    public TestFixture givenDelete(String path) {
+        return (TestFixture) Given.super.givenDelete(path);
+    }
+
+    @Override
     public TestFixture givenGet(String path) {
         return (TestFixture) Given.super.givenGet(path);
     }

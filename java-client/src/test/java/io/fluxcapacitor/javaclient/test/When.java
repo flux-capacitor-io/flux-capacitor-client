@@ -275,6 +275,13 @@ public interface When {
     }
 
     /**
+     * Simulates a DELETE request to the specified path.
+     */
+    default Then<Object> whenDelete(String path) {
+        return whenWebRequest(WebRequest.builder().method(HttpRequestMethod.DELETE).url(path).build());
+    }
+
+    /**
      * Simulates a GET request to the specified path.
      */
     default Then<Object> whenGet(String path) {

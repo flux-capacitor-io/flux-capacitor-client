@@ -267,6 +267,14 @@ public interface Given extends When {
     }
 
     /**
+     * Simulates a DELETE request to the specified {@code path}.
+     */
+    default Given givenDelete(String path) {
+        return givenWebRequest(
+                WebRequest.builder().method(HttpRequestMethod.DELETE).url(path).build());
+    }
+
+    /**
      * Simulates a GET request to the specified {@code path}.
      */
     default Given givenGet(String path) {
