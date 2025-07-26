@@ -5,12 +5,13 @@
 # Flux Capacitor java client
 
 [![Build](https://github.com/flux-capacitor-io/flux-capacitor-client/actions/workflows/deploy.yml/badge.svg)](https://github.com/flux-capacitor-io/flux-capacitor-client/actions)
-[![Javadoc](https://img.shields.io/badge/javadoc-main-blue)](https://flux-capacitor.io/flux-capacitor-client/javadoc/apidocs/)
 [![Maven Central](https://img.shields.io/maven-central/v/io.flux-capacitor/flux-capacitor-client)](https://central.sonatype.com/artifact/io.flux-capacitor/flux-capacitor-client?smo=true)
+[![Javadoc](https://img.shields.io/badge/javadoc-main-blue)](https://flux-capacitor.io/flux-capacitor-client/javadoc/apidocs/)
+[![Cheatsheet](https://img.shields.io/badge/cheatsheet-PDF-red.svg)](https://raw.githubusercontent.com/flux-capacitor-io/flux-capacitor-client/refs/heads/master/docs/cheatsheet.pdf)
 [![License](https://img.shields.io/badge/license-Apache%202.0-green.svg)](https://www.apache.org/licenses/LICENSE-2.0)
 
 This repository contains the official Java client for [flux.host](https://flux.host), the Flux Capacitor platform. For a
-short overview of functionalities, check out this [cheatsheet](documentation/cheatsheet.pdf).
+short overview of functionalities, check out this [cheatsheet](docs/cheatsheet.pdf).
 
 ---
 
