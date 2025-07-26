@@ -33,10 +33,10 @@ public class ProxyServer {
     public static void main(final String[] args) {
         Thread.setDefaultUncaughtExceptionHandler((t, e) -> log.error("Uncaught error", e));
         int port = getIntegerProperty("PROXY_PORT", 8080);
-        Client client = Optional.ofNullable(getProperty("FLUX_URL")).<Client>map(url -> WebSocketClient.newInstance(
+        Client client = Optional.ofNullable(getProperty("FLUX_BASE_URL", getProperty("FLUX_URL"))).<Client>map(url -> WebSocketClient.newInstance(
                         WebSocketClient.ClientConfig.builder().name("$proxy").serviceBaseUrl(url)
                                 .projectId(getProperty("PROJECT_ID")).build()))
-                .orElseThrow(() -> new IllegalStateException("FLUX_URL environment variable is not set"));
+                .orElseThrow(() -> new IllegalStateException("FLUX_BASE_URL environment variable is not set"));
         Registration registration = start(port, new ProxyRequestHandler(client))
                 .merge(ForwardProxyConsumer.start(client));
         log.info("Flux Capacitor proxy server running on port {}", port);
