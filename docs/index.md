@@ -14,6 +14,7 @@ summary: "Know the task, not the file name? Start here and jump straight to the 
 
 - **I want to install Flux Capacitor** → [Installation guide](guides/installation.md)
 - **I need a 60‑second cheat sheet** → [Quick Reference](quick-ref.md)
+- **I need some code samples** → [Code samples](code-samples.md)
 
 ### Core message handling
 

@@ -1,7 +1,7 @@
 # Flux Capacitor — Quick Reference
 
 > Everyday conventions, patterns, and pitfalls in ≤ 60 sec  
-> For deeper topics see `/docs/guides/`.
+> For deeper topics see `/docs/guides/`. For code samples see `code-samples.md`.
 
 ---
 
