@@ -5,18 +5,39 @@
 
 ---
 
-## Project layout & dependencies
+## Standard project layout
 
-| Purpose                        | Typical location             |
-|--------------------------------|------------------------------|
-| Application package            | `com.yourorg.<app>`          |
-| Root package                   | `com.yourorg.<app>.<domain>` |
-| API (commands / queries / IDs) | `….api`                      |
-| Domain model & entities        | `….api.model`                |
-| Handlers                       | in root package              |
-| Tests                          | `src/test/java`              |
+Use this structure for all **new** Flux applications:
 
-Import the **Flux Capacitor BOM** in Maven/Gradle so every module uses the same version.
+- Root package: `com.example.<app>.<domain>`
+
+### API
+- Place all **commands**, **queries**, **ID classes**, and **base command interfaces** (e.g. `HomeUpdate`) in `...<domain>.api`
+- Keep the `api` package flat — do not split commands/queries/ids into subpackages
+- Use imperative present-tense for commands (e.g. `AddLight`), and use `Request<T>` for queries
+- Don't create separate event classes
+
+### Domain model
+- Place the **aggregate root** (e.g. `Home`), **entities** (e.g. `Light`, `Thermostat`), and **value objects** (e.g. `HomeDetails`) in `...<domain>.api.model`
+- Place enums (e.g. `DeviceType`) and polymorphic interfaces (e.g. `Device`) also in `model`
+
+### Endpoints
+- Place REST endpoints (e.g. `HomeEndpoint`) directly in the root `...<domain>` package
+- Use `@HandlePost` and `@HandleGet` to expose commands and queries via HTTP
+
+### Test structure
+- Mirror the production layout under `src/test/java`
+- Group tests by domain: e.g. `HomeTest`
+
+### Summary
+| Purpose                      | Location                                   |
+|------------------------------|--------------------------------------------|
+| Root                         | `com.example.<app>.<domain>`               |
+| Commands / Queries / IDs     | `...<domain>.api`                          |
+| Aggregate / Entities / Enums | `...<domain>.api.model`                    |
+| Base handler interface       | `...<domain>.api` (e.g. `HomeUpdate`)      |
+| REST endpoint(s)             | `...<domain>.HomeEndpoint`                 |
+| Tests                        | `src/test/java/com.example.<app>.<domain>` |
 
 ---
 

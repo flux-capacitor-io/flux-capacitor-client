@@ -40,7 +40,8 @@ import java.util.Objects;
  * invoking a constructor on your subtype that accepts a single String argument. If such constructor does not exist,
  * please specify your own deserializer, using e.g. {@link JsonDeserialize @JsonDeserialize} on your type.
  *
- * @param <T> the entity type.
+ * @param <T> the entity type. I.e.: a typical class will look something like
+ *            {@code public class ProjectId extends Id<Project>}.
  */
 @Facet
 public abstract class Id<T> implements HasId {
