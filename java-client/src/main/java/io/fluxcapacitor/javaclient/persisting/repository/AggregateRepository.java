@@ -16,6 +16,7 @@ package io.fluxcapacitor.javaclient.persisting.repository;
 
 import io.fluxcapacitor.javaclient.modeling.Entity;
 import io.fluxcapacitor.javaclient.modeling.Id;
+import jakarta.validation.constraints.NotNull;
 import lombok.NonNull;
 
 import java.util.Map;
@@ -52,6 +53,20 @@ public interface AggregateRepository {
      */
     default <T> Entity<T> load(Id<T> aggregateId) {
         return load(aggregateId.toString(), aggregateId.getType());
+    }
+
+    /**
+     * Load an aggregate by its identifier. If the aggregate exists, it will be loaded and returned with its respective
+     * type, if not, an empty {@link Entity} of type {@link Object} will be returned.
+     *
+     * @param aggregateId   the aggregate identifier.
+     * @param <T>           the aggregate type.
+     * @return the loaded aggregate wrapped in an {@link Entity}.
+     */
+    @SuppressWarnings("unchecked")
+    default <T> Entity<T> load(@NotNull Object aggregateId) {
+        return (Entity<T>) load(aggregateId.toString(),
+                                aggregateId instanceof Id<?> id ? (Class<Object>) id.getType() : Object.class);
     }
 
     /**

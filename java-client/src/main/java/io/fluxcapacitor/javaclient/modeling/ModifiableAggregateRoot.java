@@ -91,12 +91,12 @@ import static java.util.stream.Collectors.toMap;
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 public class ModifiableAggregateRoot<T> extends DelegatingEntity<T> implements AggregateRoot<T> {
 
-    private static final ThreadLocal<Map<Object, ModifiableAggregateRoot<?>>> activeAggregates =
+    private static final ThreadLocal<Map<String, ModifiableAggregateRoot<?>>> activeAggregates =
             ThreadLocal.withInitial(LinkedHashMap::new);
 
     @SuppressWarnings("unchecked")
     public static <T> Optional<ModifiableAggregateRoot<T>> getIfActive(Object aggregateId) {
-        return ofNullable((ModifiableAggregateRoot<T>) activeAggregates.get().get(aggregateId));
+        return ofNullable((ModifiableAggregateRoot<T>) activeAggregates.get().get(aggregateId.toString()));
     }
 
     public static Map<String, Class<?>> getActiveAggregatesFor(@NonNull Object entityId) {
@@ -231,7 +231,7 @@ public class ModifiableAggregateRoot<T> extends DelegatingEntity<T> implements A
             updating = true;
             boolean firstUpdate = waitingForHandlerEnd.compareAndSet(false, true);
             if (firstUpdate) {
-                activeAggregates.get().putIfAbsent(id(), this);
+                activeAggregates.get().putIfAbsent(id().toString(), this);
             }
             try {
                 delegate = update.apply(getDelegate());
@@ -244,7 +244,7 @@ public class ModifiableAggregateRoot<T> extends DelegatingEntity<T> implements A
             updating = false;
         }
         while (!queued.isEmpty()) {
-            queued.removeFirst().apply(this);
+            delegate = queued.removeFirst().apply(getDelegate());
         }
         return this;
     }
@@ -260,7 +260,7 @@ public class ModifiableAggregateRoot<T> extends DelegatingEntity<T> implements A
         applied.clear();
         if (!commitInBatch) {
             commit();
-            activeAggregates.get().remove(id(), this);
+            activeAggregates.get().remove(id().toString(), this);
         } else if (waitingForBatchEnd.compareAndSet(false, true)) {
             DeserializingMessage.whenBatchCompletes(this::whenBatchCompletes);
         }
@@ -269,7 +269,7 @@ public class ModifiableAggregateRoot<T> extends DelegatingEntity<T> implements A
     protected void whenBatchCompletes(Throwable error) {
         waitingForBatchEnd.set(false);
         commit();
-        activeAggregates.get().remove(id(), this);
+        activeAggregates.get().remove(id().toString(), this);
     }
 
     @Override

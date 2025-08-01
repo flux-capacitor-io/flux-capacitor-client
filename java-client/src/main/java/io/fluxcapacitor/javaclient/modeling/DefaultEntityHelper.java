@@ -67,9 +67,15 @@ public class DefaultEntityHelper implements EntityHelper {
     private static final Aggregate defaultAggregateAnnotation = DefaultAggregate.class.getAnnotation(Aggregate.class);
 
     /**
+     * Default aggregate annotation used when the entity type is unknown. This is used to avoid caching (empty) aggregates of type Object.
+     */
+    private static final Aggregate unknownAggregateAnnotation = UnknownAggregate.class.getAnnotation(Aggregate.class);
+
+    /**
      * Caches resolved @Aggregate annotations for faster repeated access.
      */
-    private static final Function<Class<?>, Aggregate> annotationCache = memoize(type -> Optional.<Aggregate>ofNullable(
+    private static final Function<Class<?>, Aggregate> annotationCache = memoize(
+            type -> Object.class.equals(type) ? unknownAggregateAnnotation : Optional.<Aggregate>ofNullable(
             ReflectionUtils.getTypeAnnotation(type, Aggregate.class)).orElse(defaultAggregateAnnotation));
 
     /**
@@ -283,6 +289,13 @@ public class DefaultEntityHelper implements EntityHelper {
      */
     @Aggregate
     static class DefaultAggregate {
+    }
+
+    /**
+     * Annotation for an (empty) entity of type Object (type unknown).
+     */
+    @Aggregate(cached = false)
+    static class UnknownAggregate {
     }
 
     /**

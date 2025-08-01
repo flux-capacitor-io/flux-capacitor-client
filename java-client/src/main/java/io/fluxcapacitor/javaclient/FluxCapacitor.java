@@ -607,9 +607,22 @@ public interface FluxCapacitor extends AutoCloseable {
      * If the aggregate is loaded while handling an event of the aggregate, the returned Aggregate will automatically be
      * played back to the event currently being handled. Otherwise, the most recent state of the aggregate is loaded.
      *
-     * @see Aggregate for more info on how to define an event sourced aggregate root
+     * @see Aggregate for more info on how to define an event-sourced aggregate root
      */
     static <T> Entity<T> loadAggregate(Id<T> aggregateId) {
+        return playbackToHandledEvent(get().aggregateRepository().load(aggregateId));
+    }
+
+    /**
+     * Loads the aggregate root with the given aggregateId. If the aggregate exists, it will be loaded and returned with
+     * its respective type, if not, an empty {@link Entity} of type {@link Object} will be returned.
+     * <p>
+     * If the aggregate is loaded while handling an event of the aggregate, the returned Aggregate will automatically be
+     * played back to the event currently being handled. Otherwise, the most recent state of the aggregate is loaded.
+     *
+     * @see Aggregate for more info on how to define an event-sourced aggregate root
+     */
+    static <T> Entity<T> loadAggregate(Object aggregateId) {
         return playbackToHandledEvent(get().aggregateRepository().load(aggregateId));
     }
 
@@ -619,7 +632,7 @@ public interface FluxCapacitor extends AutoCloseable {
      * If the aggregate is loaded while handling an event of the aggregate, the returned Aggregate will automatically be
      * played back to the event currently being handled. Otherwise, the most recent state of the aggregate is loaded.
      *
-     * @see Aggregate for more info on how to define an event sourced aggregate root
+     * @see Aggregate for more info on how to define an event-sourced aggregate root
      */
     static <T> Entity<T> loadAggregate(Object aggregateId, Class<T> aggregateType) {
         return playbackToHandledEvent(get().aggregateRepository().load(aggregateId, aggregateType));
@@ -636,7 +649,7 @@ public interface FluxCapacitor extends AutoCloseable {
      * If the aggregate is loaded while handling an event of the aggregate, the returned Aggregate will automatically be
      * played back to the event currently being handled. Otherwise, the most recent state of the aggregate is loaded.
      *
-     * @see Aggregate for more info on how to define an event sourced aggregate root
+     * @see Aggregate for more info on how to define an event-sourced aggregate root
      */
     static <T> Entity<T> loadAggregateFor(Object entityId, Class<?> defaultType) {
         return playbackToHandledEvent(get().aggregateRepository().loadFor(entityId, defaultType));
@@ -654,7 +667,7 @@ public interface FluxCapacitor extends AutoCloseable {
      * If the aggregate is loaded while handling an event of the aggregate, the returned Aggregate will automatically be
      * played back to the event currently being handled. Otherwise, the most recent state of the aggregate is loaded.
      *
-     * @see Aggregate for more info on how to define an event sourced aggregate root
+     * @see Aggregate for more info on how to define an event-sourced aggregate root
      */
     static <T> Entity<T> loadAggregateFor(Object entityId) {
         return loadAggregateFor(entityId, entityId instanceof Id<?> id ? id.getType() : Object.class);

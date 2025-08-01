@@ -134,10 +134,16 @@ public class DefaultAggregateRepository implements AggregateRepository {
     @Override
     @SuppressWarnings("unchecked")
     public <T> Entity<T> load(@NonNull Object aggregateId, Class<T> type) {
-        if (Entity.isLoading()) {
-            return new NoOpEntity<>(() -> (Entity<T>) delegates.apply(type).load(aggregateId));
+        Class<?> knownType;
+        if (Object.class.equals(type)) {
+            knownType = getAggregatesFor(aggregateId).getOrDefault(aggregateId.toString(), Object.class);
+        } else {
+            knownType = type;
         }
-        return (Entity<T>) delegates.apply(type).load(aggregateId);
+        if (Entity.isLoading()) {
+            return new NoOpEntity<>(() -> (Entity<T>) delegates.apply(knownType).load(aggregateId));
+        }
+        return (Entity<T>) delegates.apply(knownType).load(aggregateId);
     }
 
     @SuppressWarnings("unchecked")

@@ -462,8 +462,12 @@ public interface Entity<T> {
      */
     @SuppressWarnings("unchecked")
     default <C> Optional<Entity<C>> getEntity(Object entityId) {
-        return entityId == null ? Optional.empty() : allEntities().filter(
-                e -> entityId.equals(e.id()) || e.aliases().contains(entityId)).findFirst().map(e -> (Entity<C>) e);
+        if (entityId == null) {
+            return Optional.empty();
+        }
+        String entityIdString = entityId.toString();
+        return allEntities().filter(e -> e.id() != null && (e.id().toString().equals(entityIdString) || e.aliases().stream().anyMatch(
+                a -> a != null && a.toString().equals(entityIdString)))).findFirst().map(e -> (Entity<C>) e);
     }
 
     /**
@@ -735,7 +739,13 @@ public interface Entity<T> {
 
     @SuppressWarnings("unchecked")
     private <U> Entity<U> findEntity(Object id, Class<U> type) {
-        return (Entity<U>) allEntities().filter(e -> Objects.equals(e.id(), id) && e.type().isAssignableFrom(type))
+        String idString = toStringOrNull(id);
+        return (Entity<U>) allEntities().filter(e -> Objects.equals(toStringOrNull(e.id()), idString)
+                                                     && e.type().isAssignableFrom(type))
                 .findFirst().orElse(null);
+    }
+
+    private String toStringOrNull(Object id) {
+        return id == null ? null : id.toString();
     }
 }

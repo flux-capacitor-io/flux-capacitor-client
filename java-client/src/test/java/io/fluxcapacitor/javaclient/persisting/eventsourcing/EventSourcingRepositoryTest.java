@@ -166,7 +166,7 @@ class EventSourcingRepositoryTest {
         void testApplyEventsDuringApply() {
             testFixture.givenCommands(new CreateModel())
                     .whenCommand(new ApplyWhileApplying())
-                    .expectEvents(new ApplyWhileApplying(), new UpdateModel())
+                    .expectOnlyEvents(new ApplyWhileApplying(), new UpdateModel())
                     .expectTrue(fc -> {
                         TestModel testModel = loadAggregate(aggregateId).get();
                         return testModel.events.equals(List.of(
