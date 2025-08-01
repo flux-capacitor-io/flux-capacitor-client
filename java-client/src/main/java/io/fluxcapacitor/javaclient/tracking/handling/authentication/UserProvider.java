@@ -57,10 +57,17 @@ public interface UserProvider {
     }
 
     /**
-     * Retrieves a {@link User} by their unique ID.
+     * Retrieves a {@link User} by their unique identifier.
+     * <p>
+     * This method is primarily used in {@code TestFixture}-based access control tests, such as when using
+     * {@code whenCommandByUser(...)}, to simulate requests by a specific user.
+     * <p>
+     * Implementations may return {@code null} if the user cannot be found, or alternatively return a new, unprivileged
+     * {@link User} instance. The latter approach allows tests to verify authorization behavior for unknown or default
+     * users without requiring explicit user creation.
      *
-     * @param userId an identifier for the user, usually a string or numeric value
-     * @return the corresponding {@link User}, or {@code null} if no match is found
+     * @param userId the unique identifier of the user (typically a String or number)
+     * @return the matching {@link User}, a default unprivileged {@link User}, or {@code null} if not found
      */
     User getUserById(Object userId);
 
