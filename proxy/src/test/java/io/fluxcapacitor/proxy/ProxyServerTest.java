@@ -14,8 +14,6 @@
 
 package io.fluxcapacitor.proxy;
 
-import io.fluxcapacitor.common.Registration;
-import io.fluxcapacitor.common.TestUtils;
 import io.fluxcapacitor.common.ThrowingConsumer;
 import io.fluxcapacitor.common.ThrowingFunction;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
@@ -51,13 +49,11 @@ import static java.net.http.HttpRequest.newBuilder;
 
 @Slf4j
 class ProxyServerTest {
-
-
     private final TestFixture testFixture = TestFixture.createAsync();
-    private final int proxyPort = TestUtils.getAvailablePort();
     private final ProxyRequestHandler proxyRequestHandler =
             new ProxyRequestHandler(testFixture.getFluxCapacitor().client());
-    private final Registration proxyServer = ProxyServer.start(proxyPort, proxyRequestHandler);
+    private final ProxyServer proxyServer = ProxyServer.start(0, proxyRequestHandler);
+    private final int proxyPort = proxyServer.getPort();
 
     private final HttpClient httpClient = HttpClient.newBuilder().build();
 

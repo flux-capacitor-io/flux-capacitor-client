@@ -18,7 +18,6 @@ import com.sun.net.httpserver.HttpContext;
 import com.sun.net.httpserver.HttpServer;
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.Registration;
-import io.fluxcapacitor.common.TestUtils;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.serialization.compression.CompressionAlgorithm;
 import io.fluxcapacitor.common.serialization.compression.CompressionUtils;
@@ -45,7 +44,7 @@ import static org.mockito.Mockito.verify;
 @Slf4j
 class ForwardProxyConsumerTest {
     private final TestFixture testFixture = TestFixture.createAsync().spy();
-    private final int port = TestUtils.getAvailablePort();
+    private int port;
 
     private HttpContext serverContext;
     private Registration registration;
@@ -55,8 +54,9 @@ class ForwardProxyConsumerTest {
     void setUp() {
         registration = ForwardProxyConsumer.start(testFixture.getFluxCapacitor().client());
         HttpServer server = HttpServer.create(
-                new InetSocketAddress("localhost", port), 0);
+                new InetSocketAddress("localhost", 0), 0);
         serverContext = server.createContext("/");
+        port = server.getAddress().getPort();
         ExecutorService executor = Executors.newFixedThreadPool(4);
         server.setExecutor(executor);
         server.start();

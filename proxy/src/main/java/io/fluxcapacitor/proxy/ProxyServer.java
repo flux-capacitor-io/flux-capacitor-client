@@ -18,8 +18,12 @@ import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.javaclient.configuration.client.Client;
 import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient;
 import io.undertow.Undertow;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
+import java.net.InetSocketAddress;
 import java.util.Optional;
 
 import static io.fluxcapacitor.common.ObjectUtils.newThreadName;
@@ -29,7 +33,8 @@ import static io.undertow.Handlers.path;
 import static io.undertow.util.Headers.CONTENT_TYPE;
 
 @Slf4j
-public class ProxyServer {
+@AllArgsConstructor(access = AccessLevel.PROTECTED)
+public class ProxyServer implements Registration {
     public static void main(final String[] args) {
         Thread.setDefaultUncaughtExceptionHandler((t, e) -> log.error("Uncaught error", e));
         int port = getIntegerProperty("PROXY_PORT", 8080);
@@ -47,7 +52,27 @@ public class ProxyServer {
         }, newThreadName("ProxyServer-shutdown")));
     }
 
-    public static Registration start(int port, ProxyRequestHandler proxyHandler) {
+    /**
+     * Starts a proxy server on a random available port with the specified proxy request handler.
+     * The server will listen for HTTP requests and route them through the provided handler.
+     *
+     * @param proxyHandler the handler responsible for processing proxy requests.
+     * @return a ProxyServer instance representing the started proxy server, allowing further management such as shutdown.
+     */
+    public static ProxyServer start(ProxyRequestHandler proxyHandler) {
+        return start(0, proxyHandler);
+    }
+
+    /**
+     * Starts a proxy server on the specified port with the given proxy request handler.
+     * The server will listen for HTTP requests and route them through the provided handler.
+     * Additionally, it sets up a health endpoint that responds with a simple "Healthy" message.
+     *
+     * @param port the port number on which the proxy server will listen. Use 0 to select a random available port.
+     * @param proxyHandler the handler responsible for processing proxy requests.
+     * @return a ProxyServer instance representing the started proxy server, allowing further management such as shutdown.
+     */
+    public static ProxyServer start(int port, ProxyRequestHandler proxyHandler) {
         Undertow server = Undertow.builder().addHttpListener(port, "0.0.0.0")
                 .setHandler(path()
                         .addPrefixPath("/", proxyHandler)
@@ -56,12 +81,19 @@ public class ProxyServer {
                             exchange.getResponseSender().send("Healthy");
                         }))
                 .build();
-
         server.start();
-        return () -> {
-            proxyHandler.close();
-            server.stop();
-        };
+        port = server.getListenerInfo().getFirst().getAddress() instanceof InetSocketAddress a ? a.getPort() : port;
+        return new ProxyServer(proxyHandler, server, port);
     }
 
+    private final ProxyRequestHandler proxyHandler;
+    private final Undertow server;
+    @Getter
+    private final int port;
+
+    @Override
+    public void cancel() {
+        proxyHandler.close();
+        server.stop();
+    }
 }
