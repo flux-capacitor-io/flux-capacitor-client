@@ -15,6 +15,7 @@
 package io.fluxcapacitor.javaclient.givenwhenthen;
 
 import io.fluxcapacitor.javaclient.test.TestFixture;
+import io.fluxcapacitor.javaclient.test.Then;
 import io.fluxcapacitor.javaclient.tracking.handling.IllegalCommandException;
 import io.fluxcapacitor.javaclient.web.HandleGet;
 import io.fluxcapacitor.javaclient.web.HandlePost;
@@ -27,6 +28,7 @@ import org.junit.jupiter.api.Test;
 import static io.fluxcapacitor.javaclient.web.HttpRequestMethod.GET;
 import static io.fluxcapacitor.javaclient.web.HttpRequestMethod.POST;
 import static io.fluxcapacitor.javaclient.web.HttpRequestMethod.PUT;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 public class GivenWhenThenWebTest {
@@ -52,7 +54,7 @@ public class GivenWhenThenWebTest {
         }
 
         @Test
-        void testPostString() {
+        void testPostString_substitutePlaceholders() {
             testFixture.whenPost("/string", "body")
                     .expectResult("val1")
                     .andThen()
@@ -60,7 +62,26 @@ public class GivenWhenThenWebTest {
                     .expectResult("val1val2")
                     .andThen()
                     .whenPost("/followUp/{var1}/{val2}", null)
-                    .expectResult("val1val2val3");
+                    .expectResult("val1val1val2");
+        }
+
+        @Test
+        void testPostString_substituteMultiplePlaceholders() {
+            testFixture.whenPost("/string", "body")
+                    .asWebParameter("var1")
+                    .andThen()
+                    .whenPost("/string2", "body")
+                    .asWebParameter("var2")
+                    .andThen()
+                    .whenPost("/followUp/{var1}/{var2}")
+                    .expectResult("val1val2");
+        }
+
+        @Test
+        void testPostString_getResult() {
+            Then<Object> then = testFixture.whenPost("/string", "body");
+            assertEquals("val1", then.getResult());
+            assertEquals("val1", then.getResult(String.class));
         }
 
         @Test
@@ -95,6 +116,11 @@ public class GivenWhenThenWebTest {
                 return "val1";
             }
 
+            @HandleWeb(value = "/string2", method = POST)
+            String post2() {
+                return "val2";
+            }
+
             @HandlePost("/error")
             void postForError(String body) {
                 throw new IllegalCommandException("error: " + body);
@@ -107,7 +133,7 @@ public class GivenWhenThenWebTest {
 
             @HandlePost("/followUp/{var1}/{var2}")
             String followUp2(@PathParam String var1, @PathParam String var2) {
-                return var2 + "val3";
+                return var1 + var2;
             }
         }
     }

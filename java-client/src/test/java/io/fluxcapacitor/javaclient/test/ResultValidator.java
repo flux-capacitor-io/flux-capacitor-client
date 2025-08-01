@@ -137,6 +137,37 @@ public class ResultValidator<R> implements Then<R> {
         return (Then<MR>) withResult(resultMapper.apply((R) result));
     }
 
+    @SuppressWarnings("unchecked")
+    @Override
+    public <T> T getResult() {
+        if (result instanceof HasMessage m) {
+            return m.getPayload();
+        }
+        return (T) result;
+    }
+
+    @Override
+    public <T> T getResult(Class<T> resultClass) {
+        try {
+            return resultClass.cast(result);
+        } catch (ClassCastException e) {
+            if (result instanceof HasMessage m) {
+                return resultClass.cast(m.getPayload());
+            }
+            throw e;
+        }
+    }
+
+    @Override
+    public Then<R> asWebParameter(String name) {
+        if (result == null) {
+            throw new GivenWhenThenAssertionError("Cannot name last result, no result was returned during the when phase");
+        }
+        Object value = result instanceof HasMessage m ? m.getPayload() : result;
+        testFixture.getFixtureResult().getKnownWebParams().put(name, value.toString());
+        return this;
+    }
+
     @Override
     public Then<R> expectEvents(Object... events) {
         return expect(asMessages(events), this.events);

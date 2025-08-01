@@ -18,6 +18,7 @@ import io.fluxcapacitor.common.ThrowingConsumer;
 import io.fluxcapacitor.common.ThrowingFunction;
 import io.fluxcapacitor.common.ThrowingPredicate;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
+import io.fluxcapacitor.javaclient.common.HasMessage;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
 import io.fluxcapacitor.javaclient.web.WebRequest;
@@ -612,6 +613,68 @@ public interface Then<R> {
         return mapResult(r -> resultMapper.apply(castOrFail(r, WebResponse.class)));
     }
 
+    /**
+     * Returns the result produced during the {@code when}-phase of the test fixture, cast to type {@code T}.
+     * <p>
+     * If the result implements {@link HasMessage}, the payload of the underlying message is returned instead.
+     * <p>
+     * This provides access to the actual return value of the command, query, or other operation executed during
+     * the test scenario.
+     *
+     * @param <T> the expected result type
+     * @return the result of the {@code when}-phase, cast to {@code T}
+     */
+    <T> T getResult();
+
+    /**
+     * Returns the result produced during the {@code when}-phase of the test fixture, cast to the specified type.
+     * <p>
+     * If the result implements {@link HasMessage}, the payload of the underlying message is returned instead.
+     * <p>
+     * This provides access to the actual return value of the command, query, or other operation executed during
+     * the test scenario.
+     *
+     * @param resultClass the expected result type
+     * @param <T> the type parameter
+     * @return the result of the {@code when}-phase, cast to {@code resultClass}
+     */
+    <T> T getResult(Class<T> resultClass);
+
+    /**
+     * Assigns the result of the {@code when}-phase to a named web parameter for use in subsequent requests.
+     * <p>
+     * This enables referencing the result (e.g. an ID returned from a POST operation) in later calls using path or
+     * query parameter placeholders such as {@code {orderId}}.
+     * <p>
+     * If no explicit name is assigned using this method, Flux will implicitly bind the result to a single unnamed
+     * parameter if only one is needed. For example:
+     * <pre>
+     * fixture.whenPost("/orders", "order-details.json")
+     *        .andThen()
+     *        .whenGet("/orders/{orderId}")
+     *        .expectResult(Order.class);
+     * </pre>
+     * will work even without calling {@code asWebParameter("orderId")} because only one placeholder is present.
+     * <p>
+     * However, when multiple placeholders are used in a subsequent request (e.g. {@code {userId}} and
+     * {@code {orderId}}), explicit calls to {@code asWebParameter(...)} are required to resolve which result maps to
+     * which parameter:
+     * <pre>
+     * fixture.whenPost("/users", "user-details.json")
+     *        .asWebParameter("userId")
+     *        .andThen()
+     *        .whenPost("/orders", "order-details.json")
+     *        .asWebParameter("orderId")
+     *        .andThen()
+     *        .whenGet("/orders/{userId}/{orderId}")
+     *        .expectResult(Order.class);
+     * </pre>
+     *
+     * @param name the name of the web parameter to bind to the result
+     * @return this {@code Then} instance for fluent chaining
+     */
+    Then<R> asWebParameter(String name);
+
     private <T> T castOrFail(Object t, Class<T> type) {
         try {
             return type.cast(t);
@@ -718,8 +781,8 @@ public interface Then<R> {
     /**
      * Asserts that an error occurred anywhere in a handler during the {@code when} phase.
      * <p>
-     * This is distinct from {@link #expectExceptionalResult(Object)}: it catches thrown handler errors
-     * that did not become the actual result (e.g. logged or swallowed exceptions).
+     * This is distinct from {@link #expectExceptionalResult(Object)}: it catches thrown handler errors that did not
+     * become the actual result (e.g. logged or swallowed exceptions).
      * <p>
      * You may pass:
      * <ul>
@@ -777,7 +840,7 @@ public interface Then<R> {
     /**
      * Asserts that a handler error occurred matching the given predicate and includes a message on failure.
      *
-     * @param predicate matcher for the error
+     * @param predicate    matcher for the error
      * @param errorMessage description for assertion failure
      */
     <T extends Throwable> Then<R> expectError(ThrowingPredicate<T> predicate, String errorMessage);
@@ -850,14 +913,16 @@ public interface Then<R> {
     Then<R> expectThat(Consumer<FluxCapacitor> check);
 
     /**
-     * Asserts that the provided {@link Predicate} evaluates to {@code true} when applied to the current FluxCapacitor instance.
+     * Asserts that the provided {@link Predicate} evaluates to {@code true} when applied to the current FluxCapacitor
+     * instance.
      *
      * @param check predicate to evaluate
      */
     Then<R> expectTrue(ThrowingPredicate<FluxCapacitor> check);
 
     /**
-     * Asserts that the provided {@link Predicate} evaluates to {@code false} when applied to the current FluxCapacitor instance.
+     * Asserts that the provided {@link Predicate} evaluates to {@code false} when applied to the current FluxCapacitor
+     * instance.
      * <p>
      * Equivalent to {@code expectTrue(check.negate())}.
      *
