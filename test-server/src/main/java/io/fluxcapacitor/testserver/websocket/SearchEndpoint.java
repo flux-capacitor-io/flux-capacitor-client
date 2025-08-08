@@ -117,6 +117,16 @@ public class SearchEndpoint extends WebsocketEndpoint {
     }
 
     @Handle
+    GetDocumentsResult handle(GetDocuments request) {
+        try {
+            return new GetDocumentsResult(request.getRequestId(), store.fetch(request));
+        } catch (Exception e) {
+            log.error("Failed to handle {}", request, e);
+            return new GetDocumentsResult(request.getRequestId(), emptyList());
+        }
+    }
+
+    @Handle
     CompletableFuture<Void> handle(DeleteDocuments request) {
         return store.delete(request.getQuery(), request.getGuarantee());
     }

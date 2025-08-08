@@ -369,6 +369,16 @@ public interface DocumentStore {
     <T> Optional<T> fetchDocument(Object id, Object collection, Class<T> type);
 
     /**
+     * Fetches a collection of documents by their IDs and deserializes them into the stored type.
+     */
+    <T> Collection<T> fetchDocuments(Collection<?> ids, Object collection);
+
+    /**
+     * Fetches a collection of documents by their IDs and deserializes them into the provided type.
+     */
+    <T> Collection<T> fetchDocuments(Collection<?> ids, Object collection, Class<T> type);
+
+    /**
      * Deletes a document from the collection.
      */
     CompletableFuture<Void> deleteDocument(Object id, Object collection);

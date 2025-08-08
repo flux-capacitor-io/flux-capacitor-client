@@ -59,6 +59,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.Guarantee.STORED;
@@ -787,6 +788,36 @@ public class SearchTest {
         void matchIfQueryPathIsEmpty() {
             testFixture.whenSearching("test", contains("some", ""))
                     .expectResult(list -> list.size() == 1);
+        }
+    }
+
+    @Nested
+    class GetById {
+        private final Given testFixture = TestFixture.create()
+                .givenDocument(new SomeDocument(), "id1", "test")
+                .givenDocument(SomeDocument.builder().someId("someOther").build(), "id2", "test");
+
+        @Test
+        void getById() {
+            testFixture.whenApplying(fc -> fc.documentStore().fetchDocument("id1", "test"))
+                    .expectResult(r -> r.orElse(null) instanceof SomeDocument)
+                    .andThen()
+                    .whenApplying(fc -> fc.documentStore().fetchDocument("id3", "test"))
+                    .expectResult(Optional::isEmpty)
+                    .andThen()
+                    .whenApplying(fc -> fc.documentStore().fetchDocument("id2", "test", JsonNode.class))
+                    .expectResult(Optional::isPresent);
+        }
+
+        @Test
+        void getByIds() {
+            testFixture
+                    .whenApplying(fc -> fc.documentStore().fetchDocuments(List.of("id1", "id2", "id3"), "test"))
+                    .expectResult(r -> r.stream().distinct().count() == 2
+                                       && r.stream().distinct().allMatch(d -> d instanceof SomeDocument))
+                    .andThen()
+                    .whenApplying(fc -> fc.documentStore().fetchDocuments(List.of("id1", "id2", "id3"), "test", JsonNode.class))
+                    .expectResult(r -> r.stream().distinct().count() == 2);
         }
     }
 

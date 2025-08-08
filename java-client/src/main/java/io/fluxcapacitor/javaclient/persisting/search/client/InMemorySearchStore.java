@@ -24,6 +24,7 @@ import io.fluxcapacitor.common.api.search.DocumentUpdate;
 import io.fluxcapacitor.common.api.search.FacetEntry;
 import io.fluxcapacitor.common.api.search.FacetStats;
 import io.fluxcapacitor.common.api.search.GetDocument;
+import io.fluxcapacitor.common.api.search.GetDocuments;
 import io.fluxcapacitor.common.api.search.GetSearchHistogram;
 import io.fluxcapacitor.common.api.search.HasDocument;
 import io.fluxcapacitor.common.api.search.SearchDocuments;
@@ -135,6 +136,13 @@ public class InMemorySearchStore implements SearchClient {
     @Override
     public Optional<SerializedDocument> fetch(GetDocument r) {
         return Optional.ofNullable(documents.get(asIdentifier(r.getCollection(), r.getId())));
+    }
+
+    @Override
+    public Collection<SerializedDocument> fetch(GetDocuments request) {
+        return request.getIds().stream().distinct()
+                .map(id -> documents.get(asIdentifier(request.getCollection(), id)))
+                .filter(Objects::nonNull).toList();
     }
 
     @Override

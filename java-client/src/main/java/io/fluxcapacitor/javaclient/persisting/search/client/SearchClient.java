@@ -20,6 +20,7 @@ import io.fluxcapacitor.common.api.search.DocumentStats;
 import io.fluxcapacitor.common.api.search.DocumentUpdate;
 import io.fluxcapacitor.common.api.search.FacetStats;
 import io.fluxcapacitor.common.api.search.GetDocument;
+import io.fluxcapacitor.common.api.search.GetDocuments;
 import io.fluxcapacitor.common.api.search.GetSearchHistogram;
 import io.fluxcapacitor.common.api.search.HasDocument;
 import io.fluxcapacitor.common.api.search.SearchDocuments;
@@ -84,6 +85,14 @@ public interface SearchClient extends AutoCloseable {
      * @return an optional containing the document, if found
      */
     Optional<SerializedDocument> fetch(GetDocument request);
+
+    /**
+     * Fetches a collection of serialized documents that match the given request.
+     *
+     * @param request an object describing the documents to retrieve
+     * @return a collection of retrieved documents matching
+     */
+    Collection<SerializedDocument> fetch(GetDocuments request);
 
     /**
      * Deletes documents matching a given query.

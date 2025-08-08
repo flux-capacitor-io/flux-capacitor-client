@@ -23,6 +23,7 @@ import io.fluxcapacitor.common.api.search.DocumentStats;
 import io.fluxcapacitor.common.api.search.DocumentUpdate;
 import io.fluxcapacitor.common.api.search.FacetStats;
 import io.fluxcapacitor.common.api.search.GetDocument;
+import io.fluxcapacitor.common.api.search.GetDocuments;
 import io.fluxcapacitor.common.api.search.GetSearchHistogram;
 import io.fluxcapacitor.common.api.search.Group;
 import io.fluxcapacitor.common.api.search.HasDocument;
@@ -53,6 +54,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static io.fluxcapacitor.javaclient.FluxCapacitor.currentIdentityProvider;
@@ -193,6 +195,28 @@ public class DefaultDocumentStore implements DocumentStore, HasLocalHandlers {
                     .map(d -> serializer.fromDocument(d, type));
         } catch (Exception e) {
             throw new DocumentStoreException(format("Could not get document %s from collection %s", id, collection), e);
+        }
+    }
+
+    @Override
+    public <T> Collection<T> fetchDocuments(Collection<?> ids, Object collection) {
+        try {
+            return client.fetch(new GetDocuments(ids.stream().map(Object::toString).collect(Collectors.toSet()),
+                                                 determineCollection(collection)))
+                    .stream().map(serializer::<T>fromDocument).toList();
+        } catch (Exception e) {
+            throw new DocumentStoreException(format("Could not get documents %s from collection %s", ids, collection), e);
+        }
+    }
+
+    @Override
+    public <T> Collection<T> fetchDocuments(Collection<?> ids, Object collection, Class<T> type) {
+        try {
+            return client.fetch(new GetDocuments(ids.stream().map(Object::toString).collect(Collectors.toSet()),
+                                                 determineCollection(collection)))
+                    .stream().map(d -> serializer.fromDocument(d, type)).toList();
+        } catch (Exception e) {
+            throw new DocumentStoreException(format("Could not get documents %s from collection %s", ids, collection), e);
         }
     }
 
