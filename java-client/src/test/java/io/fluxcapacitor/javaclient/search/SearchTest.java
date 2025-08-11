@@ -812,11 +812,11 @@ public class SearchTest {
         @Test
         void getByIds() {
             testFixture
-                    .whenApplying(fc -> fc.documentStore().fetchDocuments(List.of("id1", "id2", "id3"), "test"))
+                    .whenApplying(fc -> FluxCapacitor.getDocuments(List.of("id1", "id2", "id3"), "test"))
                     .expectResult(r -> r.stream().distinct().count() == 2
                                        && r.stream().distinct().allMatch(d -> d instanceof SomeDocument))
                     .andThen()
-                    .whenApplying(fc -> fc.documentStore().fetchDocuments(List.of("id1", "id2", "id3"), "test", JsonNode.class))
+                    .whenApplying(fc -> FluxCapacitor.getDocuments(List.of("id1", "id2", "id3"), "test", JsonNode.class))
                     .expectResult(r -> r.stream().distinct().count() == 2);
         }
     }

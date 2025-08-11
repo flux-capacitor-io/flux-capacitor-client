@@ -900,6 +900,27 @@ public interface FluxCapacitor extends AutoCloseable {
     }
 
     /**
+     * Gets a collection of documents by their IDs from the given collection and deserializes them into the stored type.
+     */
+    static <T> Collection<T> getDocuments(Collection<?> ids, Object collection) {
+        return get().documentStore().fetchDocuments(ids, collection);
+    }
+
+    /**
+     * Gets a collection of documents by their IDs from the given collection type.
+     */
+    static <T> Collection<T> getDocuments(Collection<?> ids, Class<T> collection) {
+        return get().documentStore().fetchDocuments(ids, collection, collection);
+    }
+
+    /**
+     * Gets a collection of documents by their IDs, converting the matching documents to value with the given type.
+     */
+    static <T> Collection<T> getDocuments(Collection<?> ids, Object collection, Class<T> type) {
+        return get().documentStore().fetchDocuments(ids, collection, type);
+    }
+
+    /**
      * Deletes the document with given id in given collection if it exists.
      */
     static CompletableFuture<Void> deleteDocument(Object id, Object collection) {
