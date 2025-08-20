@@ -44,7 +44,7 @@ import java.util.Objects;
  *            {@code public class ProjectId extends Id<Project>}.
  */
 @Facet
-public abstract class Id<T> implements HasId {
+public abstract class Id<T> implements HasId, Comparable<Id<?>> {
     @JsonValue
     @Getter
     String functionalId;
@@ -204,5 +204,10 @@ public abstract class Id<T> implements HasId {
     @Override
     public int hashCode() {
         return Objects.hash(type, repositoryId);
+    }
+
+    @Override
+    public int compareTo(Id<?> o) {
+        return repositoryId.compareTo(o.repositoryId);
     }
 }

@@ -20,6 +20,8 @@ import lombok.AllArgsConstructor;
 import lombok.Value;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -55,6 +57,13 @@ class IdTest {
     @Test
     void blankFunctionalIdNotAllowed_deserialization() {
         assertThrows(Exception.class, () -> JsonUtils.convertValue("\" \"", MockId.class));
+    }
+
+    @Test
+    void compareIds() {
+        var sorted = List.of(new MockId("fooBar1"), new MockId("fooBar2"), new MockId("fooBar3"));
+        var unsorted = List.of(sorted.get(1), sorted.get(2), sorted.get(0));
+        assertEquals(sorted, unsorted.stream().sorted().toList());
     }
 
     @Value
