@@ -61,6 +61,7 @@ import io.fluxcapacitor.javaclient.publishing.WebRequestGateway;
 import io.fluxcapacitor.javaclient.publishing.correlation.CorrelationDataProvider;
 import io.fluxcapacitor.javaclient.publishing.correlation.DefaultCorrelationDataProvider;
 import io.fluxcapacitor.javaclient.scheduling.MessageScheduler;
+import io.fluxcapacitor.javaclient.scheduling.Periodic;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
 import io.fluxcapacitor.javaclient.tracking.Tracker;
 import io.fluxcapacitor.javaclient.tracking.Tracking;
@@ -69,6 +70,9 @@ import io.fluxcapacitor.javaclient.tracking.handling.LocalHandler;
 import io.fluxcapacitor.javaclient.tracking.handling.Request;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.User;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.UserProvider;
+import io.fluxcapacitor.javaclient.web.WebRequest;
+import io.fluxcapacitor.javaclient.web.WebRequestSettings;
+import io.fluxcapacitor.javaclient.web.WebResponse;
 import lombok.NonNull;
 import lombok.SneakyThrows;
 
@@ -452,9 +456,9 @@ public interface FluxCapacitor extends AutoCloseable {
     /**
      * Starts a new periodic schedule, returning the schedule's id. The {@code schedule} parameter may be an instance of
      * a {@link Message} or the schedule payload. If the payload is not annotated with
-     * {@link io.fluxcapacitor.javaclient.scheduling.Periodic} an {@link IllegalArgumentException} is thrown.
+     * {@link Periodic} an {@link IllegalArgumentException} is thrown.
      *
-     * @see io.fluxcapacitor.javaclient.scheduling.Periodic
+     * @see Periodic
      */
     static String schedulePeriodic(Object schedule) {
         return get().messageScheduler().schedulePeriodic(schedule);
@@ -463,9 +467,9 @@ public interface FluxCapacitor extends AutoCloseable {
     /**
      * Starts a new periodic schedule using given schedule id. The {@code schedule} parameter may be an instance of a
      * {@link Message} or the schedule payload. If the payload is not annotated with
-     * {@link io.fluxcapacitor.javaclient.scheduling.Periodic} an {@link IllegalArgumentException} is thrown.
+     * {@link Periodic} an {@link IllegalArgumentException} is thrown.
      *
-     * @see io.fluxcapacitor.javaclient.scheduling.Periodic
+     * @see Periodic
      */
     static void schedulePeriodic(Object schedule, String scheduleId) {
         get().messageScheduler().schedulePeriodic(schedule, scheduleId);
@@ -581,6 +585,47 @@ public interface FluxCapacitor extends AutoCloseable {
      */
     static void cancelSchedule(String scheduleId) {
         get().messageScheduler().cancelSchedule(scheduleId);
+    }
+
+    /**
+     * Sends the given web request using default request settings and returns a future that completes with the
+     * response.
+     * <p>
+     * The request must have an absolute URL to be forwarded by the Flux proxy.
+     */
+    static CompletableFuture<WebResponse> sendWebRequest(WebRequest request) {
+        return get().webRequestGateway().send(request);
+    }
+
+    /**
+     * Sends the given web request using the given request settings and returns a future that completes with the response.
+     * <p>
+     * The request must have an absolute URL to be forwarded by the Flux proxy.
+     */
+    static CompletableFuture<WebResponse> sendWebRequest(WebRequest request, WebRequestSettings settings) {
+        return get().webRequestGateway().send(request, settings);
+    }
+
+    /**
+     * Sends the given web request using default request settings and waits for the response synchronously.
+     * <p>
+     * This method blocks the calling thread until the request is completed or times out.
+     * <p>
+     * The request must have an absolute URL to be forwarded by the Flux proxy.
+     */
+    static WebResponse sendWebRequestAndWait(WebRequest request) {
+        return get().webRequestGateway().sendAndWait(request);
+    }
+
+    /**
+     * Sends the given web request using given request settings and waits for the response synchronously.
+     * <p>
+     * This method blocks the calling thread until the request is completed or times out.
+     * <p>
+     * The request must have an absolute URL to be forwarded by the Flux proxy.
+     */
+    static WebResponse sendWebRequestAndWait(WebRequest request, WebRequestSettings settings) {
+        return get().webRequestGateway().sendAndWait(request, settings);
     }
 
     /**
