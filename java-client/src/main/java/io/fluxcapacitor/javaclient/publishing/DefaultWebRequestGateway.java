@@ -52,8 +52,8 @@ public class DefaultWebRequestGateway implements WebRequestGateway {
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     @Override
-    public CompletableFuture<WebResponse> send(WebRequest request) {
-        return (CompletableFuture) delegate.sendForMessage(request);
+    public CompletableFuture<WebResponse> send(WebRequest request, WebRequestSettings settings) {
+        return (CompletableFuture) delegate.sendForMessage(request.addMetadata("settings", settings));
     }
 
     @Override

@@ -61,19 +61,33 @@ public interface WebRequestGateway extends HasLocalHandlers {
     CompletableFuture<Void> sendAndForget(Guarantee guarantee, WebRequest... requests);
 
     /**
-     * Sends the given web request and returns a future that completes with the response.
+     * Sends the given web request using default request settings and returns a future that completes with the response.
      * <p>
      * The request must have an absolute URL to be forwarded by the Flux proxy.
      *
      * @param request the web request to send
      * @return a future completed with the {@link WebResponse}
      */
-    CompletableFuture<WebResponse> send(WebRequest request);
+    default CompletableFuture<WebResponse> send(WebRequest request) {
+        return send(request, defaultSettings);
+    }
 
     /**
-     * Sends the given web request and waits for the response synchronously using default request settings.
+     * Sends the given web request using given request settings and returns a future that completes with the response.
+     * <p>
+     * The request must have an absolute URL to be forwarded by the Flux proxy.
+     *
+     * @param request the web request to send
+     * @return a future completed with the {@link WebResponse}
+     */
+    CompletableFuture<WebResponse> send(WebRequest request, WebRequestSettings settings);
+
+    /**
+     * Sends the given web request using default request settings and waits for the response synchronously.
      * <p>
      * This method blocks the calling thread until the request is completed or times out.
+     * <p>
+     * The request must have an absolute URL to be forwarded by the Flux proxy.
      *
      * @param request the web request to send
      * @return the received {@link WebResponse}
@@ -83,9 +97,11 @@ public interface WebRequestGateway extends HasLocalHandlers {
     }
 
     /**
-     * Sends the given web request and waits for the response synchronously using the specified request settings.
+     * Sends the given web request using the specified request settings and waits for the response synchronously.
      * <p>
      * This method blocks the calling thread until the request is completed or times out.
+     * <p>
+     * The request must have an absolute URL to be forwarded by the Flux proxy.
      *
      * @param request  the web request to send
      * @param settings configuration settings for this request (e.g., timeouts, accepted encodings)
