@@ -82,7 +82,7 @@ import static java.util.Optional.ofNullable;
 @Slf4j
 public class SchedulingInterceptor implements DispatchInterceptor, HandlerInterceptor {
 
-    private static final Function<String, Optional<CronExpression>> cronExpression = memoize(pattern -> {
+    private final Function<String, Optional<CronExpression>> cronExpression = memoize(pattern -> {
         pattern = ApplicationProperties.substituteProperties(pattern);
         return Periodic.DISABLED.equals(pattern) ? Optional.empty() : Optional.of(parseCronExpression(pattern));
     });
