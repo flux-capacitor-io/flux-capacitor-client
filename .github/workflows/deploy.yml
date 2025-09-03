@@ -80,7 +80,7 @@ jobs:
 
       - name: Generate Flux Host JWT
         id: flux-host-jwt
-        uses: ./.github/actions/generate-jwt
+        uses: flux-capacitor-io/flux-host-jwt-action@v1
         with:
           api-key: ${{ secrets.FLUX_HOST_API_KEY }}
 
